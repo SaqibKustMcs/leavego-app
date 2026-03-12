@@ -2,7 +2,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
-import 'package:leavego_app/models/leave_type_response.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 
 class ApplyLeaveScreen extends StatefulWidget {
@@ -14,12 +13,15 @@ class ApplyLeaveScreen extends StatefulWidget {
 
 class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
   late final AppController _appController;
-  LeaveTypeItem? _selectedLeaveType;
+  String? _selectedLeaveTypeId;
   final _startDateController = TextEditingController();
   final _endDateController = TextEditingController();
   final _reasonController = TextEditingController();
   String? _attachmentPath;
-  String? _dateValidationError;
+  final leaveTypeError = ''.obs;
+  final startDateError = ''.obs;
+  final endDateError = ''.obs;
+  final reasonError = ''.obs;
 
   @override
   void initState() {
@@ -31,8 +33,11 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
 
   void _onUpdate() {
     if (!mounted) return;
-    if (_selectedLeaveType == null && _appController.leaveTypes.isNotEmpty) {
-      _selectedLeaveType = _appController.leaveTypes.first;
+    if (_selectedLeaveTypeId != null &&
+        _appController.leaveTypes
+            .where((type) => type.id == _selectedLeaveTypeId)
+            .isEmpty) {
+      _selectedLeaveTypeId = null;
     }
     setState(() {});
   }
@@ -60,18 +65,18 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
     final end = _tryParseYmd(_endDateController.text.trim());
 
     if (start == null || end == null) {
-      setState(() => _dateValidationError = null);
+      endDateError.value = '';
       return true;
     }
 
     if (end.isBefore(start)) {
       const msg = 'End date must be same as or after start date';
-      setState(() => _dateValidationError = msg);
+      endDateError.value = msg;
       if (showMessage) _showSnack(msg);
       return false;
     }
 
-    setState(() => _dateValidationError = null);
+    endDateError.value = '';
     return true;
   }
 
@@ -132,23 +137,33 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
   }
 
   Future<void> _submit() async {
-    if (_selectedLeaveType == null) {
-      _showSnack('Please select leave type');
-      return;
+    leaveTypeError.value = '';
+    startDateError.value = '';
+    endDateError.value = '';
+    reasonError.value = '';
+
+    var isValid = true;
+    if (_selectedLeaveTypeId == null || _selectedLeaveTypeId!.isEmpty) {
+      leaveTypeError.value = 'Please select leave type';
+      isValid = false;
     }
-    if (_startDateController.text.trim().isEmpty ||
-        _endDateController.text.trim().isEmpty) {
-      _showSnack('Please select start and end date');
-      return;
+    if (_startDateController.text.trim().isEmpty) {
+      startDateError.value = 'Please select start date';
+      isValid = false;
     }
-    if (!_validateDateRange(showMessage: true)) return;
+    if (_endDateController.text.trim().isEmpty) {
+      endDateError.value = 'Please select end date';
+      isValid = false;
+    }
     if (_reasonController.text.trim().isEmpty) {
-      _showSnack('Please enter reason');
-      return;
+      reasonError.value = 'Please enter reason';
+      isValid = false;
     }
+    if (!isValid) return;
+    if (!_validateDateRange()) return;
 
     final response = await _appController.applyLeave(
-      leaveTypeId: _selectedLeaveType!.id,
+      leaveTypeId: _selectedLeaveTypeId!,
       startDate: _startDateController.text.trim(),
       endDate: _endDateController.text.trim(),
       reason: _reasonController.text.trim(),
@@ -197,6 +212,23 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
               ),
               child: Row(
                 children: [
+                  Material(
+                    color: Colors.white.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => Navigator.of(context).maybePop(),
+                      child: const SizedBox(
+                        width: 42,
+                        height: 42,
+                        child: Icon(
+                          Icons.arrow_back_rounded,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
                   Container(
                     width: 42,
                     height: 42,
@@ -252,22 +284,28 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                       padding: EdgeInsets.symmetric(vertical: 12),
                       child: LinearProgressIndicator(minHeight: 3),
                     ),
-                  DropdownButtonFormField<LeaveTypeItem>(
-                    initialValue: _selectedLeaveType,
-                    items: _appController.leaveTypes
-                        .map(
-                          (type) => DropdownMenuItem<LeaveTypeItem>(
-                            value: type,
-                            child: Text(type.name),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      setState(() => _selectedLeaveType = value);
-                    },
-                    decoration: const InputDecoration(
-                      labelText: 'Leave Type',
-                      hintText: 'Select leave type',
+                  Obx(
+                    () => DropdownButtonFormField<String>(
+                      initialValue: _selectedLeaveTypeId,
+                      items: _appController.leaveTypes
+                          .map(
+                            (type) => DropdownMenuItem<String>(
+                              value: type.id,
+                              child: Text(type.name),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() => _selectedLeaveTypeId = value);
+                        leaveTypeError.value = '';
+                      },
+                      decoration: InputDecoration(
+                        labelText: 'Leave Type',
+                        hintText: 'Select leave type',
+                        errorText: leaveTypeError.value.isEmpty
+                            ? null
+                            : leaveTypeError.value,
+                      ),
                     ),
                   ),
                   if (_appController.leaveTypesError != null) ...[
@@ -280,46 +318,60 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                     ),
                   ],
                   const SizedBox(height: 12),
-                  TextField(
-                    controller: _startDateController,
-                    readOnly: true,
-                    onTap: () => _pickDate(isStartDate: true),
-                    decoration: const InputDecoration(
-                      labelText: 'Start Date',
-                      hintText: 'YYYY-MM-DD',
-                      suffixIcon: Icon(Icons.calendar_today_outlined),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _endDateController,
-                    readOnly: true,
-                    onTap: () => _pickDate(isStartDate: false),
-                    decoration: const InputDecoration(
-                      labelText: 'End Date',
-                      hintText: 'YYYY-MM-DD',
-                      suffixIcon: Icon(Icons.calendar_today_outlined),
-                    ),
-                  ),
-                  if (_dateValidationError != null) ...[
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        _dateValidationError!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.error,
-                        ),
+                  Obx(
+                    () => TextField(
+                      controller: _startDateController,
+                      readOnly: true,
+                      onTap: () {
+                        startDateError.value = '';
+                        _pickDate(isStartDate: true);
+                      },
+                      decoration: InputDecoration(
+                        labelText: 'Start Date',
+                        hintText: 'YYYY-MM-DD',
+                        suffixIcon: const Icon(Icons.calendar_today_outlined),
+                        errorText: startDateError.value.isEmpty
+                            ? null
+                            : startDateError.value,
                       ),
                     ),
-                  ],
+                  ),
                   const SizedBox(height: 12),
-                  TextField(
-                    controller: _reasonController,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      labelText: 'Reason',
-                      hintText: 'Briefly describe the reason for leave.',
+                  Obx(
+                    () => TextField(
+                      controller: _endDateController,
+                      readOnly: true,
+                      onTap: () {
+                        endDateError.value = '';
+                        _pickDate(isStartDate: false);
+                      },
+                      decoration: InputDecoration(
+                        labelText: 'End Date',
+                        hintText: 'YYYY-MM-DD',
+                        suffixIcon: const Icon(Icons.calendar_today_outlined),
+                        errorText: endDateError.value.isEmpty
+                            ? null
+                            : endDateError.value,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Obx(
+                    () => TextField(
+                      controller: _reasonController,
+                      maxLines: 4,
+                      onChanged: (_) {
+                        if (reasonError.value.isNotEmpty) {
+                          reasonError.value = '';
+                        }
+                      },
+                      decoration: InputDecoration(
+                        labelText: 'Reason',
+                        hintText: 'Briefly describe the reason for leave.',
+                        errorText: reasonError.value.isEmpty
+                            ? null
+                            : reasonError.value,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),

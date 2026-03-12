@@ -14,6 +14,10 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   late final AppController _appController;
 
+  Future<void> _onRefresh() async {
+    await _appController.loadMe();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -44,125 +48,133 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FC),
-      body: ListView(
-        physics: const ClampingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF0B2A63), Color(0xFF1A4A9D)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.navy.withValues(alpha: 0.24),
-                  blurRadius: 20,
-                  offset: const Offset(0, 12),
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: ClampingScrollPhysics(),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF0B2A63), Color(0xFF1A4A9D)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-              ],
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 28,
-                  backgroundColor: Colors.white.withValues(alpha: 0.2),
-                  child: Text(
-                    initial,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.navy.withValues(alpha: 0.24),
+                    blurRadius: 20,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundColor: Colors.white.withValues(alpha: 0.2),
+                    child: Text(
+                      initial,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Text(
+                        role,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.85),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (_appController.meLoading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            if (_appController.meError != null)
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.errorContainer.withValues(
+                    alpha: 0.5,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
+                child: Text(
+                  _appController.meError!,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
+              ),
+            _MenuTile(icon: Icons.mail_outline_rounded, label: 'Email: $email'),
+            _MenuTile(icon: Icons.badge_outlined, label: 'Role: $role'),
+            _MenuTile(
+              icon: Icons.apartment_rounded,
+              label: 'Department ID: $departmentId',
+            ),
+            _MenuTile(
+              icon: Icons.verified_user_outlined,
+              label:
+                  'Status: ${(me?.isActive == true) ? 'Active' : 'Inactive'}',
+            ),
+            const SizedBox(height: 18),
+            FilledButton(
+              onPressed: () async {
+                final result = await _appController.logout();
+                if (!context.mounted) return;
+                if (result == null && _appController.logoutError != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(_appController.logoutError!)),
+                  );
+                  return;
+                }
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (_) => false,
+                );
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.navy,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: _appController.logoutLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
                         color: Colors.white,
                       ),
-                    ),
-                    Text(
-                      role,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.85),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                    )
+                  : const Text('Log out'),
             ),
-          ),
-          const SizedBox(height: 12),
-          if (_appController.meLoading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
-              child: Center(child: CircularProgressIndicator()),
-            ),
-          if (_appController.meError != null)
-            Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.errorContainer.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                _appController.meError!,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.error,
-                ),
-              ),
-            ),
-          _MenuTile(icon: Icons.mail_outline_rounded, label: 'Email: $email'),
-          _MenuTile(icon: Icons.badge_outlined, label: 'Role: $role'),
-          _MenuTile(
-            icon: Icons.apartment_rounded,
-            label: 'Department ID: $departmentId',
-          ),
-          _MenuTile(
-            icon: Icons.verified_user_outlined,
-            label: 'Status: ${(me?.isActive == true) ? 'Active' : 'Inactive'}',
-          ),
-          const SizedBox(height: 18),
-          FilledButton(
-            onPressed: () async {
-              final result = await _appController.logout();
-              if (!context.mounted) return;
-              if (result == null && _appController.logoutError != null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(_appController.logoutError!)),
-                );
-                return;
-              }
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (_) => false,
-              );
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: AppTheme.navy,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-            child: _appController.logoutLoading
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text('Log out'),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

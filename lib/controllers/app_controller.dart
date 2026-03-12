@@ -4,6 +4,7 @@ import 'package:leavego_app/models/apply_leave_response.dart';
 import 'package:leavego_app/models/dashboard_response.dart';
 import 'package:leavego_app/models/leave_type_response.dart';
 import 'package:leavego_app/models/login_response.dart';
+import 'package:leavego_app/models/leave_detail_response.dart';
 import 'package:leavego_app/models/logout_response.dart';
 import 'package:leavego_app/models/my_leaves_response.dart';
 import 'package:leavego_app/models/me_response.dart';
@@ -32,6 +33,8 @@ class AppController extends ChangeNotifier {
   bool myLeavesLoading = false;
   String? myLeavesError;
   List<MyLeaveItem> myLeaves = <MyLeaveItem>[];
+  bool approvalActionLoading = false;
+  String? approvalActionError;
   bool logoutLoading = false;
   String? logoutError;
   bool notificationsReadAllLoading = false;
@@ -184,9 +187,18 @@ class AppController extends ChangeNotifier {
       if (token == null || token.isEmpty) {
         throw Exception('Token not found. Please login again.');
       }
+      var userId = meData?.id.toString() ?? '';
+      if (userId.isEmpty) {
+        meData = await _apiService.me(token: token);
+        userId = meData?.id.toString() ?? '';
+      }
+      if (userId.isEmpty) {
+        throw Exception('User id not found. Please login again.');
+      }
 
       return await _apiService.applyLeave(
         token: token,
+        userId: userId,
         leaveTypeId: leaveTypeId,
         startDate: startDate,
         endDate: endDate,
@@ -218,6 +230,72 @@ class AppController extends ChangeNotifier {
       myLeavesError = e.toString().replaceFirst('Exception: ', '');
     } finally {
       myLeavesLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<LeaveDetailData?> loadLeaveDetail({required String leaveId}) async {
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+      return await _apiService.leaveDetail(token: token, leaveId: leaveId);
+    } catch (e) {
+      throw Exception(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  Future<String?> approveLeaveRequest({
+    required String approvalId,
+    required String remarks,
+  }) async {
+    approvalActionLoading = true;
+    approvalActionError = null;
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+      return await _apiService.approveLeaveRequest(
+        token: token,
+        approvalId: approvalId,
+        remarks: remarks,
+      );
+    } catch (e) {
+      approvalActionError = e.toString().replaceFirst('Exception: ', '');
+      return null;
+    } finally {
+      approvalActionLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<String?> rejectLeaveRequest({
+    required String approvalId,
+    required String remarks,
+  }) async {
+    approvalActionLoading = true;
+    approvalActionError = null;
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+      return await _apiService.rejectLeaveRequest(
+        token: token,
+        approvalId: approvalId,
+        remarks: remarks,
+      );
+    } catch (e) {
+      approvalActionError = e.toString().replaceFirst('Exception: ', '');
+      return null;
+    } finally {
+      approvalActionLoading = false;
       notifyListeners();
     }
   }

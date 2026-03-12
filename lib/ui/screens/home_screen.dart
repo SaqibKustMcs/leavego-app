@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
-import 'package:leavego_app/ui/models/leave_request.dart';
-import 'package:leavego_app/ui/screens/apply_leave_screen.dart';
-import 'package:leavego_app/ui/screens/leave_detail_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -16,13 +13,16 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late final AppController _appController;
 
+  Future<void> _onRefresh() async {
+    await _appController.loadDashboard();
+  }
+
   @override
   void initState() {
     super.initState();
     _appController = Get.find<AppController>();
     _appController.addListener(_onUpdate);
     _appController.loadDashboard();
-    _appController.loadMyLeaves();
   }
 
   void _onUpdate() {
@@ -39,270 +39,263 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final data = _appController.dashboardData;
-    final pendingHod = data?.pendingHod ?? 0;
-    final pendingHr = data?.pendingHr ?? 0;
-    final approved = data?.approved ?? 0;
-    final rejected = data?.rejected ?? 0;
+    final summary = data?.summary;
+    final pending = summary?.pending ?? 0;
+    final approved = summary?.approved ?? 0;
+    final rejected = summary?.rejected ?? 0;
+    final totalAssigned = summary?.totalAssigned ?? 0;
+    final totalUsed = summary?.totalUsed ?? 0;
+    final totalRemaining = summary?.totalRemaining ?? 0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FC),
-      body: ListView(
-        physics: const ClampingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
-        children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF0B2A63), Color(0xFF1A4A9D)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.navy.withValues(alpha: 0.28),
-                  blurRadius: 24,
-                  offset: const Offset(0, 12),
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: ClampingScrollPhysics(),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF0B2A63), Color(0xFF1A4A9D)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.navy.withValues(alpha: 0.28),
+                    blurRadius: 24,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.space_dashboard_rounded,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Dashboard',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            'Leave status overview',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  if (_appController.dashboardLoading)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 18),
+                        child: CircularProgressIndicator(color: Colors.white),
+                      ),
+                    )
+                  else if (_appController.dashboardError != null)
                     Container(
-                      width: 42,
-                      height: 42,
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.16),
+                        color: Colors.white.withValues(alpha: 0.13),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
-                        Icons.space_dashboard_rounded,
-                        color: Colors.white,
+                      child: Text(
+                        _appController.dashboardError!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    )
+                  else
+                    Row(
                       children: [
-                        Text(
-                          'Dashboard',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
+                        Expanded(
+                          child: _MetricTile(
+                            title: 'Pending',
+                            value: '$pending',
                           ),
                         ),
-                        Text(
-                          'Leave status overview',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.8),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _MetricTile(
+                            title: 'Approved',
+                            value: '$approved',
                           ),
                         ),
                       ],
                     ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                if (_appController.dashboardLoading)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 18),
-                      child: CircularProgressIndicator(color: Colors.white),
-                    ),
-                  )
-                else if (_appController.dashboardError != null)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.13),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      _appController.dashboardError!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white,
-                      ),
-                    ),
-                  )
-                else
+                  const SizedBox(height: 10),
                   Row(
                     children: [
                       Expanded(
                         child: _MetricTile(
-                          title: 'Pending HOD',
-                          value: '$pendingHod',
+                          title: 'Rejected',
+                          value: '$rejected',
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: _MetricTile(
-                          title: 'Pending HR',
-                          value: '$pendingHr',
+                          title: 'Assigned',
+                          value: '$totalAssigned',
                         ),
                       ),
                     ],
                   ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _MetricTile(title: 'Approved', value: '$approved'),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _MetricTile(title: 'Rejected', value: '$rejected'),
-                    ),
-                  ],
-                ),
-              ],
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _MetricTile(title: 'Used', value: '$totalUsed'),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _MetricTile(
+                          title: 'Remaining',
+                          value: '$totalRemaining',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Text(
-                'Recent Leaves',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF102446),
-                ),
-              ),
-              const Spacer(),
-              TextButton(
-                onPressed:
-                    (_appController.dashboardLoading ||
-                        _appController.myLeavesLoading)
-                    ? null
-                    : () {
-                        _appController.loadDashboard();
-                        _appController.loadMyLeaves();
-                      },
-                child: const Text('Refresh'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          if (_appController.myLeavesLoading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_appController.myLeavesError != null)
-            Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.errorContainer.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                _appController.myLeavesError!,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.error,
-                ),
-              ),
-            )
-          else if (_appController.myLeaves.isEmpty)
-            Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Text('No leave requests found.'),
-            )
-          else
-            ..._appController.myLeaves.map((item) {
-              final leave = LeaveRequest.fromMyLeaveItem(item);
-              return Container(
+            const SizedBox(height: 18),
+            if (_appController.dashboardLoading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 14),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_appController.dashboardError != null)
+              Container(
                 margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.errorContainer.withValues(
+                    alpha: 0.5,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  _appController.dashboardError!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
+              )
+            else if (data == null || data.leaveBalances.isEmpty)
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 14,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  title: Text(
-                    leave.leaveType,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    '${_formatDate(leave.startDate)} - ${_formatDate(leave.endDate)}',
-                  ),
-                  trailing: _StatusBadge(status: leave.status),
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => LeaveDetailScreen(leave: leave),
+                child: const Text('No leave balance data found.'),
+              )
+            else
+              ...data.leaveBalances.map((item) {
+                final allocated = item.assigned;
+                final used = item.used;
+                final remaining = item.remaining;
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
-                    );
-                  },
-                ),
-              );
-            }),
-        ],
-      ),
-      floatingActionButton: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [AppTheme.navy, Color(0xFF19489A)],
-          ),
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: FloatingActionButton.extended(
-          backgroundColor: Colors.transparent,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          onPressed: () {
-            Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const ApplyLeaveScreen()));
-          },
-          icon: const Icon(Icons.add),
-          label: const Text('Apply Leave'),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              item.leaveTypeName,
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF102446),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _BalanceStat(
+                              title: 'Allocated',
+                              value: '$allocated',
+                              bg: const Color(0xFFDCE7FF),
+                              fg: AppTheme.navy,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _BalanceStat(
+                              title: 'Used',
+                              value: '$used',
+                              bg: const Color(0xFFFCE3E1),
+                              fg: const Color(0xFF8B1D18),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _BalanceStat(
+                              title: 'Remaining',
+                              value: '$remaining',
+                              bg: const Color(0xFFDFF5E2),
+                              fg: const Color(0xFF1B5E20),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }),
+          ],
         ),
       ),
     );
-  }
-
-  String _formatDate(String raw) {
-    if (raw.trim().isEmpty) return raw;
-    try {
-      final date = DateTime.parse(raw);
-      const months = <String>[
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec',
-      ];
-      final month = months[date.month - 1];
-      return '${date.day.toString().padLeft(2, '0')} $month ${date.year}';
-    } catch (_) {
-      return raw;
-    }
   }
 }
 
@@ -344,33 +337,47 @@ class _MetricTile extends StatelessWidget {
   }
 }
 
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status});
+class _BalanceStat extends StatelessWidget {
+  const _BalanceStat({
+    required this.title,
+    required this.value,
+    required this.bg,
+    required this.fg,
+  });
 
-  final String status;
+  final String title;
+  final String value;
+  final Color bg;
+  final Color fg;
 
   @override
   Widget build(BuildContext context) {
-    Color fg = AppTheme.navy;
-    Color bg = const Color(0xFFDCE7FF);
-
-    if (status == 'Approved') {
-      fg = const Color(0xFF1B5E20);
-      bg = const Color(0xFFDFF5E2);
-    } else if (status == 'Rejected') {
-      fg = const Color(0xFF8B1D18);
-      bg = const Color(0xFFFCE3E1);
-    }
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(10),
       ),
-      child: Text(
-        status,
-        style: TextStyle(color: fg, fontWeight: FontWeight.w600, fontSize: 12),
+      child: Column(
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: fg.withValues(alpha: 0.8),
+              fontWeight: FontWeight.w600,
+              fontSize: 10,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: TextStyle(
+              color: fg,
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:leavego_app/models/apply_leave_response.dart';
 import 'package:leavego_app/models/dashboard_response.dart';
 import 'package:leavego_app/models/leave_type_response.dart';
 import 'package:leavego_app/models/login_response.dart';
+import 'package:leavego_app/models/leave_detail_response.dart';
 import 'package:leavego_app/models/logout_response.dart';
 import 'package:leavego_app/models/my_leaves_response.dart';
 import 'package:leavego_app/models/me_response.dart';
@@ -111,6 +112,7 @@ class ApiService {
 
   Future<ApplyLeaveResponse> applyLeave({
     required String token,
+    required String userId,
     required String leaveTypeId,
     required String startDate,
     required String endDate,
@@ -120,6 +122,7 @@ class ApiService {
     final result = await _dataService.postMultipart(
       url: '$baseUrl/leaves',
       fields: <String, String>{
+        'user_id': userId,
         'leave_type_id': leaveTypeId,
         'start_date': startDate,
         'end_date': endDate,
@@ -170,6 +173,86 @@ class ApiService {
     return response.data;
   }
 
+  Future<LeaveDetailData> leaveDetail({
+    required String token,
+    required String leaveId,
+  }) async {
+    final result = await _dataService.get(
+      url: '$baseUrl/leaves/$leaveId',
+      headers: <String, String>{'Authorization': 'Bearer $token'},
+    );
+
+    final statusCode = result['statusCode'] as int? ?? 500;
+    final payload =
+        result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+
+    if (statusCode < 200 || statusCode >= 300) {
+      throw Exception(
+        _extractMessage(payload) ?? 'Failed to load leave detail',
+      );
+    }
+
+    final response = LeaveDetailResponse.fromJson(payload);
+    if (!response.success) {
+      throw Exception('Failed to load leave detail');
+    }
+    return response.data;
+  }
+
+  Future<String> approveLeaveRequest({
+    required String token,
+    required String approvalId,
+    required String remarks,
+  }) async {
+    final result = await _dataService.post(
+      url: '$baseUrl/approvals/$approvalId/approve',
+      body: <String, dynamic>{'remarks': remarks},
+      headers: <String, String>{'Authorization': 'Bearer $token'},
+    );
+
+    final statusCode = result['statusCode'] as int? ?? 500;
+    final payload =
+        result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+
+    if (statusCode < 200 || statusCode >= 300) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to approve request');
+    }
+
+    final success = payload['success'] == true;
+    if (!success) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to approve request');
+    }
+
+    return (payload['message'] ?? 'Request approved').toString();
+  }
+
+  Future<String> rejectLeaveRequest({
+    required String token,
+    required String approvalId,
+    required String remarks,
+  }) async {
+    final result = await _dataService.post(
+      url: '$baseUrl/approvals/$approvalId/reject',
+      body: <String, dynamic>{'remarks': remarks},
+      headers: <String, String>{'Authorization': 'Bearer $token'},
+    );
+
+    final statusCode = result['statusCode'] as int? ?? 500;
+    final payload =
+        result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+
+    if (statusCode < 200 || statusCode >= 300) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to reject request');
+    }
+
+    final success = payload['success'] == true;
+    if (!success) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to reject request');
+    }
+
+    return (payload['message'] ?? 'Request rejected').toString();
+  }
+
   Future<String> readAllNotifications({required String token}) async {
     final result = await _dataService.post(
       url: '$baseUrl/notifications/read-all',
@@ -212,7 +295,6 @@ class ApiService {
         _extractMessage(payload) ?? 'Failed to load notifications',
       );
     }
-
     final response = NotificationsResponse.fromJson(payload);
     if (!response.success) {
       throw Exception('Failed to load notifications');

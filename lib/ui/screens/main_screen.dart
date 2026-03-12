@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:leavego_app/ui/screens/home_screen.dart';
+import 'package:leavego_app/ui/screens/my_leave_requests_screen.dart';
 import 'package:leavego_app/ui/screens/notification_screen.dart';
 import 'package:leavego_app/ui/screens/profile_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
@@ -16,6 +17,7 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _screens = const [
     HomeScreen(),
+    MyLeaveRequestsScreen(),
     NotificationScreen(),
     ProfileScreen(),
   ];
@@ -48,6 +50,11 @@ class _MainScreenState extends State<MainScreen> {
               icon: Icon(Icons.home_outlined),
               activeIcon: Icon(Icons.home),
               label: 'Home',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.list_alt_outlined),
+              activeIcon: Icon(Icons.list_alt_rounded),
+              label: 'Requests',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.notifications_none),
