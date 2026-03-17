@@ -15,18 +15,14 @@ class ApiService {
   static const String baseUrl = 'https://office.friendselectronics.com/api/v1';
   final DataService _dataService;
 
-  Future<LoginResponse> login({
-    required String email,
-    required String password,
-  }) async {
+  Future<LoginResponse> login({required String email, required String password}) async {
     final result = await _dataService.post(
       url: '$baseUrl/auth/login',
       body: <String, dynamic>{'email': email, 'password': password},
     );
 
     final statusCode = result['statusCode'] as int? ?? 500;
-    final payload =
-        result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
 
     if (statusCode < 200 || statusCode >= 300) {
       throw Exception(_extractMessage(payload) ?? 'Login failed ($statusCode)');
@@ -34,9 +30,7 @@ class ApiService {
 
     final response = LoginResponse.fromJson(payload);
     if (!response.success) {
-      throw Exception(
-        response.message.isNotEmpty ? response.message : 'Login failed',
-      );
+      throw Exception(response.message.isNotEmpty ? response.message : 'Login failed');
     }
     if (response.data.token.isEmpty) {
       throw Exception('Token not found in login response');
@@ -51,8 +45,7 @@ class ApiService {
     );
 
     final statusCode = result['statusCode'] as int? ?? 500;
-    final payload =
-        result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
 
     if (statusCode < 200 || statusCode >= 300) {
       throw Exception(_extractMessage(payload) ?? 'Failed to load dashboard');
@@ -73,8 +66,7 @@ class ApiService {
     );
 
     final statusCode = result['statusCode'] as int? ?? 500;
-    final payload =
-        result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
 
     if (statusCode < 200 || statusCode >= 300) {
       throw Exception(_extractMessage(payload) ?? 'Failed to load profile');
@@ -95,8 +87,7 @@ class ApiService {
     );
 
     final statusCode = result['statusCode'] as int? ?? 500;
-    final payload =
-        result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
 
     if (statusCode < 200 || statusCode >= 300) {
       throw Exception(_extractMessage(payload) ?? 'Failed to load leave types');
@@ -134,8 +125,7 @@ class ApiService {
     );
 
     final statusCode = result['statusCode'] as int? ?? 500;
-    final payload =
-        result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
 
     if (statusCode < 200 || statusCode >= 300) {
       throw Exception(_extractMessage(payload) ?? 'Failed to apply leave');
@@ -143,11 +133,7 @@ class ApiService {
 
     final response = ApplyLeaveResponse.fromJson(payload);
     if (!response.success) {
-      throw Exception(
-        response.message.isNotEmpty
-            ? response.message
-            : 'Failed to apply leave',
-      );
+      throw Exception(response.message.isNotEmpty ? response.message : 'Failed to apply leave');
     }
     return response;
   }
@@ -159,8 +145,7 @@ class ApiService {
     );
 
     final statusCode = result['statusCode'] as int? ?? 500;
-    final payload =
-        result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
 
     if (statusCode < 200 || statusCode >= 300) {
       throw Exception(_extractMessage(payload) ?? 'Failed to load leaves');
@@ -173,23 +158,37 @@ class ApiService {
     return response.data;
   }
 
-  Future<LeaveDetailData> leaveDetail({
-    required String token,
-    required String leaveId,
-  }) async {
+  Future<MyLeavesPageData> pendingApprovals({required String token}) async {
+    final result = await _dataService.get(
+      url: '$baseUrl/approvals/pending',
+      headers: <String, String>{'Authorization': 'Bearer $token'},
+    );
+
+    final statusCode = result['statusCode'] as int? ?? 500;
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+
+    if (statusCode < 200 || statusCode >= 300) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to load pending approvals');
+    }
+
+    final response = MyLeavesResponse.fromJson(payload);
+    if (!response.success) {
+      throw Exception('Failed to load pending approvals');
+    }
+    return response.data;
+  }
+
+  Future<LeaveDetailData> leaveDetail({required String token, required String leaveId}) async {
     final result = await _dataService.get(
       url: '$baseUrl/leaves/$leaveId',
       headers: <String, String>{'Authorization': 'Bearer $token'},
     );
 
     final statusCode = result['statusCode'] as int? ?? 500;
-    final payload =
-        result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
 
     if (statusCode < 200 || statusCode >= 300) {
-      throw Exception(
-        _extractMessage(payload) ?? 'Failed to load leave detail',
-      );
+      throw Exception(_extractMessage(payload) ?? 'Failed to load leave detail');
     }
 
     final response = LeaveDetailResponse.fromJson(payload);
@@ -211,8 +210,7 @@ class ApiService {
     );
 
     final statusCode = result['statusCode'] as int? ?? 500;
-    final payload =
-        result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
 
     if (statusCode < 200 || statusCode >= 300) {
       throw Exception(_extractMessage(payload) ?? 'Failed to approve request');
@@ -238,8 +236,7 @@ class ApiService {
     );
 
     final statusCode = result['statusCode'] as int? ?? 500;
-    final payload =
-        result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
 
     if (statusCode < 200 || statusCode >= 300) {
       throw Exception(_extractMessage(payload) ?? 'Failed to reject request');
@@ -261,20 +258,15 @@ class ApiService {
     );
 
     final statusCode = result['statusCode'] as int? ?? 500;
-    final payload =
-        result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
 
     if (statusCode < 200 || statusCode >= 300) {
-      throw Exception(
-        _extractMessage(payload) ?? 'Failed to mark notifications as read',
-      );
+      throw Exception(_extractMessage(payload) ?? 'Failed to mark notifications as read');
     }
 
     final success = payload['success'] == true;
     if (!success) {
-      throw Exception(
-        _extractMessage(payload) ?? 'Failed to mark notifications as read',
-      );
+      throw Exception(_extractMessage(payload) ?? 'Failed to mark notifications as read');
     }
 
     return (payload['message'] ?? 'Notifications marked as read').toString();
@@ -287,13 +279,10 @@ class ApiService {
     );
 
     final statusCode = result['statusCode'] as int? ?? 500;
-    final payload =
-        result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
 
     if (statusCode < 200 || statusCode >= 300) {
-      throw Exception(
-        _extractMessage(payload) ?? 'Failed to load notifications',
-      );
+      throw Exception(_extractMessage(payload) ?? 'Failed to load notifications');
     }
     final response = NotificationsResponse.fromJson(payload);
     if (!response.success) {
@@ -310,8 +299,7 @@ class ApiService {
     );
 
     final statusCode = result['statusCode'] as int? ?? 500;
-    final payload =
-        result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
 
     if (statusCode < 200 || statusCode >= 300) {
       throw Exception(_extractMessage(payload) ?? 'Failed to logout');
@@ -319,9 +307,7 @@ class ApiService {
 
     final response = LogoutResponse.fromJson(payload);
     if (!response.success) {
-      throw Exception(
-        response.message.isNotEmpty ? response.message : 'Failed to logout',
-      );
+      throw Exception(response.message.isNotEmpty ? response.message : 'Failed to logout');
     }
     return response;
   }

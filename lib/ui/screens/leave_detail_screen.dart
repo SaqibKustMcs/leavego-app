@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/leave_detail_response.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LeaveDetailScreen extends StatefulWidget {
   const LeaveDetailScreen({super.key, required this.leaveId});
@@ -71,6 +72,63 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
     return value[0].toUpperCase() + value.substring(1).toLowerCase();
   }
 
+  String? _toAbsoluteUrl(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
+    final value = raw.trim();
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      return value;
+    }
+    if (value.startsWith('/')) {
+      return 'https://office.friendselectronics.com$value';
+    }
+    return 'https://office.friendselectronics.com/$value';
+  }
+
+  bool _isImageUrl(String url) {
+    final lower = url.toLowerCase();
+    return lower.endsWith('.png') ||
+        lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.gif') ||
+        lower.endsWith('.webp') ||
+        lower.endsWith('.bmp');
+  }
+
+  Future<void> _openAttachment(String? rawUrl) async {
+    final url = _toAbsoluteUrl(rawUrl);
+    if (url == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Attachment URL not found')));
+      return;
+    }
+
+    if (_isImageUrl(url)) {
+      if (!mounted) return;
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => _AttachmentImageScreen(imageUrl: url)));
+      return;
+    }
+
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Invalid attachment URL')));
+      return;
+    }
+
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not open attachment')));
+    }
+  }
+
   Future<void> _reloadDetail() async {
     setState(() {
       _future = _appController.loadLeaveDetail(leaveId: widget.leaveId);
@@ -86,28 +144,22 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
 
     if (message == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _appController.approvalActionError ?? 'Failed to approve request',
-          ),
-        ),
+        SnackBar(content: Text(_appController.approvalActionError ?? 'Failed to approve request')),
       );
       return;
     }
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-    await _appController.loadMyLeaves();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    await _appController.loadRequestsByRole();
     await _reloadDetail();
   }
 
   Future<void> _reject({required String requestId}) async {
     final remarks = _rejectReasonController.text.trim();
     if (remarks.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter rejection reason')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please enter rejection reason')));
       return;
     }
 
@@ -119,20 +171,14 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
 
     if (message == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _appController.approvalActionError ?? 'Failed to reject request',
-          ),
-        ),
+        SnackBar(content: Text(_appController.approvalActionError ?? 'Failed to reject request')),
       );
       return;
     }
 
     _rejectReasonController.clear();
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-    await _appController.loadMyLeaves();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    await _appController.loadRequestsByRole();
     await _reloadDetail();
   }
 
@@ -150,7 +196,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
               padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF0B2A63), Color(0xFF1A4A9D)],
+                  colors: [AppTheme.navy, AppTheme.lightNavy],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -168,10 +214,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                       child: const SizedBox(
                         width: 42,
                         height: 42,
-                        child: Icon(
-                          Icons.arrow_back_rounded,
-                          color: Colors.white,
-                        ),
+                        child: Icon(Icons.arrow_back_rounded, color: Colors.white),
                       ),
                     ),
                   ),
@@ -183,10 +226,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                       color: Colors.white.withValues(alpha: 0.16),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(
-                      Icons.description_rounded,
-                      color: Colors.white,
-                    ),
+                    child: const Icon(Icons.description_rounded, color: Colors.white),
                   ),
                   const SizedBox(width: 12),
                   const Column(
@@ -200,10 +240,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                           fontSize: 16,
                         ),
                       ),
-                      Text(
-                        'Request information',
-                        style: TextStyle(color: Colors.white70),
-                      ),
+                      Text('Request information', style: TextStyle(color: Colors.white70)),
                     ],
                   ),
                 ],
@@ -223,40 +260,34 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                   return Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.errorContainer.withValues(
-                        alpha: 0.5,
-                      ),
+                      color: theme.colorScheme.errorContainer.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       snapshot.error.toString().replaceFirst('Exception: ', ''),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.error,
-                      ),
+                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.error),
                     ),
                   );
                 }
 
                 final data = snapshot.data;
                 if (data == null) {
-                  return const _DetailCard(
-                    label: 'Info',
-                    value: 'Leave detail not found.',
-                  );
+                  return const _DetailCard(label: 'Info', value: 'Leave detail not found.');
                 }
 
                 final leave = data.leave;
-                final role = (_appController.meData?.role ?? '')
-                    .trim()
-                    .toLowerCase();
-                final isHodActionAllowed =
-                    role == 'hod' &&
-                    leave.hodStatus.toLowerCase() == 'pending' &&
-                    leave.finalStatus.toLowerCase() == 'pending';
-                final isHrActionAllowed =
-                    role == 'hr' &&
-                    leave.hodStatus.toLowerCase() == 'approved' &&
-                    leave.hrStatus.toLowerCase() == 'pending';
+                final role = (_appController.meData?.role ?? '').trim().toLowerCase();
+                final isHodActionAllowed = role == 'hod';
+                //     &&
+                //
+                //
+                // leave.hodStatus.toLowerCase() == 'pending' &&
+                // leave.finalStatus.toLowerCase() == 'pending';
+                final isHrActionAllowed = role == 'hr';
+                //     &&
+                // leave.hodStatus.toLowerCase() == 'approved'
+                //     &&
+                // leave.hrStatus.toLowerCase() == 'pending';
                 final canTakeAction = isHodActionAllowed || isHrActionAllowed;
 
                 return Column(
@@ -265,31 +296,23 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                   children: [
                     _DetailCard(label: 'Request ID', value: leave.id),
                     _DetailCard(label: 'Employee ID', value: leave.employeeId),
-                    _DetailCard(
-                      label: 'Leave Type ID',
-                      value: leave.leaveTypeId,
-                    ),
+                    _DetailCard(label: 'Leave Type ID', value: leave.leaveTypeId),
                     _DetailCard(
                       label: 'Dates',
-                      value:
-                          '${_formatDate(leave.startDate)} - ${_formatDate(leave.endDate)}',
+                      value: '${_formatDate(leave.startDate)} - ${_formatDate(leave.endDate)}',
                     ),
                     _DetailCard(label: 'Days', value: leave.days),
                     Card(
                       margin: const EdgeInsets.only(bottom: 10),
                       elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       child: Padding(
                         padding: const EdgeInsets.all(14),
                         child: Column(
                           children: [
                             Text(
                               'Status',
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                color: AppTheme.navy,
-                              ),
+                              style: theme.textTheme.labelLarge?.copyWith(color: AppTheme.navy),
                             ),
                             const SizedBox(height: 10),
                             Row(
@@ -324,29 +347,27 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                     _DetailCard(label: 'Reason', value: leave.reason),
                     _DetailCard(
                       label: 'Submitted At',
-                      value: leave.submittedAt == null
-                          ? '-'
-                          : _formatDate(leave.submittedAt!),
+                      value: leave.submittedAt == null ? '-' : _formatDate(leave.submittedAt!),
                     ),
-                    _DetailCard(
-                      label: 'Attachment URL',
-                      value: data.attachmentUrl?.isNotEmpty == true
-                          ? data.attachmentUrl!
-                          : '-',
+                    _AttachmentCard(
+                      label: 'Attachment',
+                      value: _toAbsoluteUrl(data.attachmentUrl) ?? '-',
+                      onView: data.attachmentUrl?.isNotEmpty == true
+                          ? () => _openAttachment(data.attachmentUrl)
+                          : null,
                     ),
-                    _DetailCard(
+                    _AttachmentCard(
                       label: 'Supporting Document',
-                      value: leave.supportingDocumentPath?.isNotEmpty == true
-                          ? leave.supportingDocumentPath!
-                          : '-',
+                      value: _toAbsoluteUrl(leave.supportingDocumentPath) ?? '-',
+                      onView: leave.supportingDocumentPath?.isNotEmpty == true
+                          ? () => _openAttachment(leave.supportingDocumentPath)
+                          : null,
                     ),
                     if (canTakeAction)
                       Card(
                         margin: const EdgeInsets.only(bottom: 10),
                         elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         child: Padding(
                           padding: const EdgeInsets.all(14),
                           child: Column(
@@ -354,9 +375,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                             children: [
                               Text(
                                 'Take Action',
-                                style: theme.textTheme.labelLarge?.copyWith(
-                                  color: AppTheme.navy,
-                                ),
+                                style: theme.textTheme.labelLarge?.copyWith(color: AppTheme.navy),
                               ),
                               const SizedBox(height: 8),
                               TextField(
@@ -364,8 +383,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                                 maxLines: 3,
                                 decoration: const InputDecoration(
                                   labelText: 'Rejection Reason',
-                                  hintText:
-                                      'Enter reason if you reject this request',
+                                  hintText: 'Enter reason if you reject this request',
                                 ),
                               ),
                               const SizedBox(height: 10),
@@ -374,8 +392,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                                 children: [
                                   Expanded(
                                     child: OutlinedButton(
-                                      onPressed:
-                                          _appController.approvalActionLoading
+                                      onPressed: _appController.approvalActionLoading
                                           ? null
                                           : () => _reject(requestId: leave.id),
                                       child: const Text('Reject'),
@@ -384,12 +401,10 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: FilledButton(
-                                      onPressed:
-                                          _appController.approvalActionLoading
+                                      onPressed: _appController.approvalActionLoading
                                           ? null
                                           : () => _approve(requestId: leave.id),
-                                      child:
-                                          _appController.approvalActionLoading
+                                      child: _appController.approvalActionLoading
                                           ? const SizedBox(
                                               height: 18,
                                               width: 18,
@@ -410,9 +425,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                     Card(
                       margin: const EdgeInsets.only(bottom: 10),
                       elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       child: Padding(
                         padding: const EdgeInsets.all(14),
                         child: Column(
@@ -420,16 +433,11 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                           children: [
                             Text(
                               'Approval History',
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                color: AppTheme.navy,
-                              ),
+                              style: theme.textTheme.labelLarge?.copyWith(color: AppTheme.navy),
                             ),
                             const SizedBox(height: 8),
                             if (data.approvals.isEmpty)
-                              Text(
-                                'No approvals yet.',
-                                style: theme.textTheme.bodyMedium,
-                              )
+                              Text('No approvals yet.', style: theme.textTheme.bodyMedium)
                             else
                               ...data.approvals.map((approval) {
                                 return Padding(
@@ -440,17 +448,13 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                                     decoration: BoxDecoration(
                                       color: const Color(0xFFF7F9FE),
                                       borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                        color: const Color(0xFFE3EAF8),
-                                      ),
+                                      border: Border.all(color: const Color(0xFFE3EAF8)),
                                     ),
                                     child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             _MiniPill(
                                               text: _capitalize(approval.stage),
@@ -459,9 +463,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                                             ),
                                             const SizedBox(width: 6),
                                             _MiniPill(
-                                              text: _capitalize(
-                                                approval.action,
-                                              ),
+                                              text: _capitalize(approval.action),
                                               bg: const Color(0xFFDFF5E2),
                                               fg: const Color(0xFF1B5E20),
                                             ),
@@ -540,6 +542,88 @@ class _DetailCard extends StatelessWidget {
   }
 }
 
+class _AttachmentCard extends StatelessWidget {
+  const _AttachmentCard({required this.label, required this.value, required this.onView});
+
+  final String label;
+  final String value;
+  final VoidCallback? onView;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: AppTheme.navy,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: theme.textTheme.bodyMedium?.copyWith(color: const Color(0xFF112645)),
+            ),
+            if (onView != null) ...[
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: onView,
+                  icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                  label: const Text('View Attachment'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AttachmentImageScreen extends StatelessWidget {
+  const _AttachmentImageScreen({required this.imageUrl});
+
+  final String imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: const Text('Attachment'),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          minScale: 0.8,
+          maxScale: 4,
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Could not load image', style: TextStyle(color: Colors.white)),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _StatusTile extends StatelessWidget {
   const _StatusTile({required this.label, required this.value});
 
@@ -564,10 +648,7 @@ class _StatusTile extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(10),
-      ),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
       child: Column(
         children: [
           Text(
@@ -581,11 +662,7 @@ class _StatusTile extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             value,
-            style: TextStyle(
-              color: fg,
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-            ),
+            style: TextStyle(color: fg, fontWeight: FontWeight.w700, fontSize: 12),
           ),
         ],
       ),
@@ -604,10 +681,7 @@ class _MiniPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-      ),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
       child: Text(
         text,
         style: TextStyle(color: fg, fontWeight: FontWeight.w700, fontSize: 10),

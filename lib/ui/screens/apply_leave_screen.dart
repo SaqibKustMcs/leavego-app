@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
+import 'package:leavego_app/models/leave_type_response.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 
 class ApplyLeaveScreen extends StatefulWidget {
@@ -22,6 +23,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
   final startDateError = ''.obs;
   final endDateError = ''.obs;
   final reasonError = ''.obs;
+  final attachmentError = ''.obs;
 
   @override
   void initState() {
@@ -134,6 +136,18 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
     final result = await FilePicker.platform.pickFiles(allowMultiple: false);
     if (result == null || result.files.isEmpty) return;
     setState(() => _attachmentPath = result.files.single.path);
+    if (attachmentError.value.isNotEmpty) {
+      attachmentError.value = '';
+    }
+  }
+
+  LeaveTypeItem? get _selectedLeaveType {
+    final id = _selectedLeaveTypeId;
+    if (id == null || id.isEmpty) return null;
+    for (final type in _appController.leaveTypes) {
+      if (type.id == id) return type;
+    }
+    return null;
   }
 
   Future<void> _submit() async {
@@ -141,6 +155,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
     startDateError.value = '';
     endDateError.value = '';
     reasonError.value = '';
+    attachmentError.value = '';
 
     var isValid = true;
     if (_selectedLeaveTypeId == null || _selectedLeaveTypeId!.isEmpty) {
@@ -157,6 +172,13 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
     }
     if (_reasonController.text.trim().isEmpty) {
       reasonError.value = 'Please enter reason';
+      isValid = false;
+    }
+    final selectedType = _selectedLeaveType;
+    if (selectedType != null &&
+        selectedType.requiresAttachment &&
+        (_attachmentPath == null || _attachmentPath!.trim().isEmpty)) {
+      attachmentError.value = 'Attachment is required for ${selectedType.name}';
       isValid = false;
     }
     if (!isValid) return;
@@ -204,7 +226,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
               padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF0B2A63), Color(0xFF1A4A9D)],
+                  colors: [AppTheme.navy, AppTheme.lightNavy],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -298,6 +320,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                       onChanged: (value) {
                         setState(() => _selectedLeaveTypeId = value);
                         leaveTypeError.value = '';
+                        attachmentError.value = '';
                       },
                       decoration: InputDecoration(
                         labelText: 'Leave Type',
@@ -375,30 +398,57 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _attachmentPath == null
-                              ? 'No attachment selected'
-                              : _attachmentPath!.split(RegExp(r'[\\/]')).last,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall,
+                  Obx(() {
+                    final selectedType = _selectedLeaveType;
+                    final isRequired = selectedType?.requiresAttachment == true;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isRequired
+                              ? 'Attachment (required)'
+                              : 'Attachment (optional)',
+                          style: theme.textTheme.labelMedium,
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      OutlinedButton(
-                        onPressed: _pickAttachment,
-                        child: const Text('Choose File'),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _attachmentPath == null
+                                    ? 'No attachment selected'
+                                    : _attachmentPath!
+                                          .split(RegExp(r'[\\/]'))
+                                          .last,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton(
+                              onPressed: _pickAttachment,
+                              child: const Text('Choose File'),
+                            ),
+                          ],
+                        ),
+                        if (attachmentError.value.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            attachmentError.value,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.error,
+                            ),
+                          ),
+                        ],
+                      ],
+                    );
+                  }),
                   const SizedBox(height: 20),
                   Container(
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [AppTheme.navy, Color(0xFF184695)],
+                        colors: [AppTheme.navy, AppTheme.lightNavy],
                       ),
                       borderRadius: BorderRadius.circular(14),
                     ),

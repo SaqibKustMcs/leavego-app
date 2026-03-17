@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const Color navy = Color(0xFF0A2A66);
-  static const Color lightNavy = Color(0xFF1F4B99);
+  static const Color navy = Color(0xFF093747);
+  static const Color lightNavy = Color(0xFF1B5569);
   static const Color appBackground = Color(0xFFF4F6FA);
   static const Color cardBackground = Colors.white;
 

@@ -7,31 +7,37 @@ class DashboardResponse {
   factory DashboardResponse.fromJson(Map<String, dynamic> json) {
     return DashboardResponse(
       success: json['success'] == true,
-      data: DashboardData.fromJson(
-        (json['data'] as Map<String, dynamic>?) ?? <String, dynamic>{},
-      ),
+      data: DashboardData.fromJson((json['data'] as Map<String, dynamic>?) ?? <String, dynamic>{}),
     );
   }
 }
 
 class DashboardData {
-  const DashboardData({required this.summary, required this.leaveBalances});
+  const DashboardData({
+    required this.summary,
+    required this.leaveBalances,
+    required this.pendingHod,
+    required this.pendingHr,
+  });
 
-  final DashboardSummary summary;
+  final DashboardSummary? summary;
   final List<DashboardLeaveBalanceItem> leaveBalances;
+  final int pendingHod;
+  final int pendingHr;
 
   factory DashboardData.fromJson(Map<String, dynamic> json) {
     final balancesRaw = json['leave_balances'];
+    final summaryRaw = json['summary'];
     return DashboardData(
-      summary: DashboardSummary.fromJson(
-        (json['summary'] as Map<String, dynamic>?) ?? <String, dynamic>{},
-      ),
+      summary: summaryRaw is Map<String, dynamic> ? DashboardSummary.fromJson(summaryRaw) : null,
       leaveBalances: balancesRaw is List
           ? balancesRaw
                 .whereType<Map<String, dynamic>>()
                 .map(DashboardLeaveBalanceItem.fromJson)
                 .toList()
           : <DashboardLeaveBalanceItem>[],
+      pendingHod: _toInt(json['pending_hod']),
+      pendingHr: _toInt(json['pending_hr']),
     );
   }
 }

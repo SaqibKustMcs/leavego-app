@@ -22,6 +22,9 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _appController = Get.find<AppController>();
     _appController.addListener(_onUpdate);
+    if (_appController.meData == null) {
+      _appController.loadMe();
+    }
     _appController.loadDashboard();
   }
 
@@ -39,13 +42,17 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final data = _appController.dashboardData;
+    final role = (_appController.meData?.role ?? '').trim().toLowerCase();
+    final isHodOrHr = role == 'hod' || role == 'hr';
     final summary = data?.summary;
-    final pending = summary?.pending ?? 0;
+    final pending = summary?.pending ?? data?.pendingHod ?? 0;
     final approved = summary?.approved ?? 0;
     final rejected = summary?.rejected ?? 0;
     final totalAssigned = summary?.totalAssigned ?? 0;
     final totalUsed = summary?.totalUsed ?? 0;
     final totalRemaining = summary?.totalRemaining ?? 0;
+    final pendingHod = data?.pendingHod ?? 0;
+    final pendingHr = data?.pendingHr ?? 0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FC),
@@ -61,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF0B2A63), Color(0xFF1A4A9D)],
+                  colors: [AppTheme.navy, AppTheme.lightNavy],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -140,158 +147,165 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Expanded(
                           child: _MetricTile(
-                            title: 'Pending',
-                            value: '$pending',
+                            title: isHodOrHr ? 'Pending HOD' : 'Pending',
+                            value: isHodOrHr ? '$pendingHod' : '$pending',
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: _MetricTile(
-                            title: 'Approved',
-                            value: '$approved',
+                            title: isHodOrHr ? 'Pending HR' : 'Approved',
+                            value: isHodOrHr ? '$pendingHr' : '$approved',
                           ),
                         ),
                       ],
                     ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _MetricTile(
-                          title: 'Rejected',
-                          value: '$rejected',
+                  if (!isHodOrHr) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _MetricTile(
+                            title: 'Rejected',
+                            value: '$rejected',
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _MetricTile(
-                          title: 'Assigned',
-                          value: '$totalAssigned',
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _MetricTile(
+                            title: 'Assigned',
+                            value: '$totalAssigned',
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _MetricTile(title: 'Used', value: '$totalUsed'),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _MetricTile(
-                          title: 'Remaining',
-                          value: '$totalRemaining',
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _MetricTile(
+                            title: 'Used',
+                            value: '$totalUsed',
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _MetricTile(
+                            title: 'Remaining',
+                            value: '$totalRemaining',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
-            const SizedBox(height: 18),
-            if (_appController.dashboardLoading)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 14),
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (_appController.dashboardError != null)
-              Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.errorContainer.withValues(
-                    alpha: 0.5,
+            if (!isHodOrHr) ...[
+              const SizedBox(height: 18),
+              if (_appController.dashboardLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 14),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (_appController.dashboardError != null)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.errorContainer.withValues(
+                      alpha: 0.5,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  _appController.dashboardError!,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.error,
+                  child: Text(
+                    _appController.dashboardError!,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
                   ),
-                ),
-              )
-            else if (data == null || data.leaveBalances.isEmpty)
-              Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Text('No leave balance data found.'),
-              )
-            else
-              ...data.leaveBalances.map((item) {
-                final allocated = item.assigned;
-                final used = item.used;
-                final remaining = item.remaining;
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 10),
+                )
+              else if (data == null || data.leaveBalances.isEmpty)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              item.leaveTypeName,
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF102446),
+                  child: const Text('No leave balance data found.'),
+                )
+              else
+                ...data.leaveBalances.map((item) {
+                  final allocated = item.assigned;
+                  final used = item.used;
+                  final remaining = item.remaining;
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.leaveTypeName,
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.navy,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _BalanceStat(
-                              title: 'Allocated',
-                              value: '$allocated',
-                              bg: const Color(0xFFDCE7FF),
-                              fg: AppTheme.navy,
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _BalanceStat(
+                                title: 'Allocated',
+                                value: '$allocated',
+                                bg: const Color(0xFFDCE7FF),
+                                fg: AppTheme.navy,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _BalanceStat(
-                              title: 'Used',
-                              value: '$used',
-                              bg: const Color(0xFFFCE3E1),
-                              fg: const Color(0xFF8B1D18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _BalanceStat(
+                                title: 'Used',
+                                value: '$used',
+                                bg: const Color(0xFFFCE3E1),
+                                fg: const Color(0xFF8B1D18),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _BalanceStat(
-                              title: 'Remaining',
-                              value: '$remaining',
-                              bg: const Color(0xFFDFF5E2),
-                              fg: const Color(0xFF1B5E20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _BalanceStat(
+                                title: 'Remaining',
+                                value: '$remaining',
+                                bg: const Color(0xFFDFF5E2),
+                                fg: const Color(0xFF1B5E20),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              }),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+            ],
           ],
         ),
       ),

@@ -234,6 +234,36 @@ class AppController extends ChangeNotifier {
     }
   }
 
+  Future<void> loadRequestsByRole() async {
+    myLeavesLoading = true;
+    myLeavesError = null;
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+
+      MeData? profile = meData;
+      if (profile == null) {
+        profile = await _apiService.me(token: token);
+        meData = profile;
+      }
+
+      final role = (profile.role).trim().toLowerCase();
+      final page = (role == 'hod' || role == 'hr')
+          ? await _apiService.pendingApprovals(token: token)
+          : await _apiService.myLeaves(token: token);
+      myLeaves = page.items;
+    } catch (e) {
+      myLeavesError = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      myLeavesLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<LeaveDetailData?> loadLeaveDetail({required String leaveId}) async {
     try {
       final token = await _token();

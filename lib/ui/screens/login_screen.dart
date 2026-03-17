@@ -45,9 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
     if (!mounted) return;
     if (result != null) {
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute(builder: (_) => const MainScreen()));
+      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const MainScreen()));
     }
   }
 
@@ -79,10 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
         borderSide: BorderSide(color: Theme.of(context).colorScheme.error),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 19),
-      labelStyle: TextStyle(
-        color: Colors.grey.shade600,
-        fontWeight: FontWeight.w500,
-      ),
+      labelStyle: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500),
     );
   }
 
@@ -98,11 +93,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFF0B2A63),
-                    Color(0xFF19489A),
-                    Color(0xFFF2F5FC),
-                  ],
+                  colors: [AppTheme.navy, AppTheme.lightNavy, Color(0xFFF2F5FC)],
                   stops: [0.0, 0.32, 0.32],
                 ),
               ),
@@ -161,21 +152,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             const SizedBox(height: 76),
                             Container(
-                              padding: const EdgeInsets.fromLTRB(
-                                20,
-                                24,
-                                20,
-                                20,
-                              ),
+                              padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(28),
                                 border: Border.all(color: Colors.white),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(
-                                      0xFF112A5A,
-                                    ).withValues(alpha: 0.25),
+                                    color: const Color(0xFF112A5A).withValues(alpha: 0.25),
                                     blurRadius: 28,
                                     offset: const Offset(0, 14),
                                   ),
@@ -209,12 +193,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                     textInputAction: TextInputAction.next,
                                     validator: (value) {
-                                      if (value == null ||
-                                          value.trim().isEmpty) {
+                                      if (value == null || value.trim().isEmpty) {
                                         return 'Please enter your email';
                                       }
-                                      if (!value.contains('@') ||
-                                          !value.contains('.')) {
+                                      if (!value.contains('@') || !value.contains('.')) {
                                         return 'Please enter a valid email';
                                       }
                                       return null;
@@ -233,17 +215,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                           suffixIcon: IconButton(
                                             icon: Icon(
                                               _obscurePassword
-                                                  ? Icons
-                                                        .visibility_off_outlined
+                                                  ? Icons.visibility_off_outlined
                                                   : Icons.visibility_outlined,
                                               size: 22,
                                               color: Colors.grey.shade600,
                                             ),
                                             onPressed: () {
-                                              setState(
-                                                () => _obscurePassword =
-                                                    !_obscurePassword,
-                                              );
+                                              setState(() => _obscurePassword = !_obscurePassword);
                                             },
                                           ),
                                         ),
@@ -265,16 +243,16 @@ class _LoginScreenState extends State<LoginScreen> {
                                         vertical: 10,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: theme.colorScheme.errorContainer
-                                            .withValues(alpha: 0.45),
+                                        color: theme.colorScheme.errorContainer.withValues(
+                                          alpha: 0.45,
+                                        ),
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Text(
                                         _appController.errorMessage!,
-                                        style: theme.textTheme.bodySmall
-                                            ?.copyWith(
-                                              color: theme.colorScheme.error,
-                                            ),
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: theme.colorScheme.error,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -282,36 +260,25 @@ class _LoginScreenState extends State<LoginScreen> {
                                   Container(
                                     decoration: BoxDecoration(
                                       gradient: const LinearGradient(
-                                        colors: [
-                                          AppTheme.navy,
-                                          Color(0xFF184695),
-                                        ],
+                                        colors: [AppTheme.navy, AppTheme.lightNavy],
                                       ),
                                       borderRadius: BorderRadius.circular(16),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: AppTheme.navy.withValues(
-                                            alpha: 0.28,
-                                          ),
+                                          color: AppTheme.navy.withValues(alpha: 0.28),
                                           blurRadius: 18,
                                           offset: const Offset(0, 8),
                                         ),
                                       ],
                                     ),
                                     child: FilledButton(
-                                      onPressed: _appController.isLoading
-                                          ? null
-                                          : _onSubmit,
+                                      onPressed: _appController.isLoading ? null : _onSubmit,
                                       style: FilledButton.styleFrom(
                                         backgroundColor: Colors.transparent,
                                         shadowColor: Colors.transparent,
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 17,
-                                        ),
+                                        padding: const EdgeInsets.symmetric(vertical: 17),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            16,
-                                          ),
+                                          borderRadius: BorderRadius.circular(16),
                                         ),
                                       ),
                                       child: _appController.isLoading

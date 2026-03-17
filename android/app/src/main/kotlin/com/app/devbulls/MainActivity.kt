@@ -1,4 +1,4 @@
-package com.app.leavego_app
+package com.app.devbulls
 
 import io.flutter.embedding.android.FlutterActivity
 

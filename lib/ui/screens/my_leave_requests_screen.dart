@@ -17,7 +17,7 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen> {
   late final AppController _appController;
 
   Future<void> _onRefresh() async {
-    await _appController.loadMyLeaves();
+    await _appController.loadRequestsByRole();
   }
 
   @override
@@ -25,7 +25,7 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen> {
     super.initState();
     _appController = Get.find<AppController>();
     _appController.addListener(_onUpdate);
-    _appController.loadMyLeaves();
+    _appController.loadRequestsByRole();
   }
 
   void _onUpdate() {
@@ -41,6 +41,12 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final role = (_appController.meData?.role ?? '').trim().toLowerCase();
+    final isApprover = role == 'hod' || role == 'hr';
+    final emptyMessage = isApprover
+        ? 'No pending approvals found.'
+        : 'No leave requests found.';
+
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FC),
       body: RefreshIndicator(
@@ -54,17 +60,17 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen> {
             Row(
               children: [
                 Text(
-                  'My Leave Requests',
+                  isApprover ? 'Pending Approvals' : 'My Leave Requests',
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF102446),
+                    color: AppTheme.navy,
                   ),
                 ),
                 const Spacer(),
                 TextButton(
                   onPressed: _appController.myLeavesLoading
                       ? null
-                      : _appController.loadMyLeaves,
+                      : _appController.loadRequestsByRole,
                   child: const Text('Refresh'),
                 ),
               ],
@@ -100,7 +106,7 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Text('No leave requests found.'),
+                child: Text(emptyMessage),
               )
             else
               ..._appController.myLeaves.map((item) {
@@ -144,26 +150,28 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen> {
           ],
         ),
       ),
-      floatingActionButton: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [AppTheme.navy, Color(0xFF19489A)],
-          ),
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: FloatingActionButton.extended(
-          backgroundColor: Colors.transparent,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          onPressed: () {
-            Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const ApplyLeaveScreen()));
-          },
-          icon: const Icon(Icons.add),
-          label: const Text('Apply Leave'),
-        ),
-      ),
+      floatingActionButton: isApprover
+          ? null
+          : Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppTheme.navy, AppTheme.lightNavy],
+                ),
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: FloatingActionButton.extended(
+                backgroundColor: Colors.transparent,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ApplyLeaveScreen()),
+                  );
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('Apply Leave'),
+              ),
+            ),
     );
   }
 

@@ -30,22 +30,18 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     if (token != null && token.isNotEmpty) {
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute(builder: (_) => const MainScreen()));
+      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const MainScreen()));
       return;
     }
 
     if (!hasSeenOnboarding) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-      );
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const OnboardingScreen()));
       return;
     }
 
-    Navigator.of(
-      context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
   }
 
   @override
@@ -56,26 +52,21 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.event_available_rounded,
-              size: 80,
-              color: Colors.white,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'LeavePro',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+            Container(
+              width: 200,
+              height: 200,
+              padding: const EdgeInsets.all(10),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset('assets/images/Devbay logo png.png', fit: BoxFit.cover),
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Employee Leave Management',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
-            ),
+
+            // const SizedBox(height: 8),
+            // Text(
+            //   'Employee Leave Management',
+            //   style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70),
+            // ),
           ],
         ),
       ),

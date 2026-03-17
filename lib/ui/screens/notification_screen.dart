@@ -110,7 +110,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                         'Notifications',
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: const Color(0xFF102446),
+                          color: AppTheme.navy,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -230,7 +230,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       child: Icon(
                         Icons.notifications_rounded,
                         color: isUnread
-                            ? const Color(0xFF0B2A63)
+                            ? AppTheme.navy
                             : AppTheme.navy.withValues(alpha: 0.8),
                       ),
                     ),
@@ -238,7 +238,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       item.title,
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: isUnread ? const Color(0xFF102446) : null,
+                        color: isUnread ? AppTheme.navy : null,
                       ),
                     ),
                     subtitle: Padding(

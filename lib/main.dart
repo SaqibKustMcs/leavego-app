@@ -20,7 +20,7 @@ class LeaveProApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'LeavePro',
+      title: 'DevBulls',
       theme: AppTheme.light(),
       home: const SplashScreen(),
       debugShowCheckedModeBanner: false,
