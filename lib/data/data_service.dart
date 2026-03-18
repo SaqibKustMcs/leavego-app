@@ -109,6 +109,45 @@ class DataService {
     };
   }
 
+  Future<Map<String, dynamic>> put({
+    required String url,
+    required Map<String, dynamic> body,
+    Map<String, String>? headers,
+  }) async {
+    final requestHeaders = <String, String>{
+      'Content-Type': 'application/json',
+      ...?headers,
+    };
+    _logRequest(method: 'PUT', url: url, headers: requestHeaders, body: body);
+
+    final response = await _http.put(
+      Uri.parse(url),
+      headers: requestHeaders,
+      body: jsonEncode(body),
+    );
+    _logResponse(
+      method: 'PUT',
+      url: url,
+      statusCode: response.statusCode,
+      rawBody: response.body,
+    );
+
+    Map<String, dynamic> payload = <String, dynamic>{};
+    if (response.body.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          payload = decoded;
+        }
+      } catch (_) {}
+    }
+
+    return <String, dynamic>{
+      'statusCode': response.statusCode,
+      'data': payload,
+    };
+  }
+
   Future<Map<String, dynamic>> postMultipart({
     required String url,
     required Map<String, String> fields,

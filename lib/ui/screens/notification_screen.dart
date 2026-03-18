@@ -218,6 +218,21 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       horizontal: 14,
                       vertical: 8,
                     ),
+                    onTap: () async {
+                      if (item.isRead) return;
+                      final message = await _appController.readNotification(
+                        notificationId: item.id,
+                      );
+                      if (!mounted) return;
+                      if (message == null &&
+                          _appController.notificationReadError != null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(_appController.notificationReadError!),
+                          ),
+                        );
+                      }
+                    },
                     leading: Container(
                       width: 42,
                       height: 42,
