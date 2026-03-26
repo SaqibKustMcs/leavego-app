@@ -28,6 +28,9 @@ class _CreateSupportingTaskScreenState extends State<CreateSupportingTaskScreen>
   void initState() {
     super.initState();
     _appController = Get.find<AppController>();
+    if (_appController.meData == null) {
+      _appController.loadMe();
+    }
     if (_appController.users.isEmpty) {
       _appController.loadUsers();
     }
@@ -93,7 +96,12 @@ class _CreateSupportingTaskScreenState extends State<CreateSupportingTaskScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final users = _appController.users.where((user) => user.isActive).toList();
+    final currentUserId = _appController.meData?.id.toString();
+    final users = _appController.users
+        .where(
+          (user) => user.isActive && user.id.toString() != currentUserId,
+        )
+        .toList();
 
     if (_selectedRequestedTo != null &&
         !users.any((user) => user.id.toString() == _selectedRequestedTo)) {

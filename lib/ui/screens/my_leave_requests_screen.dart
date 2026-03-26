@@ -17,7 +17,10 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen> {
   late final AppController _appController;
 
   Future<void> _onRefresh() async {
-    await _appController.loadRequestsByRole();
+    await Future.wait([
+      _appController.loadRequestsByRole(),
+      _appController.loadLeaveTypes(),
+    ]);
   }
 
   @override
@@ -26,6 +29,9 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen> {
     _appController = Get.find<AppController>();
     _appController.addListener(_onUpdate);
     _appController.loadRequestsByRole();
+    if (_appController.leaveTypes.isEmpty) {
+      _appController.loadLeaveTypes();
+    }
   }
 
   void _onUpdate() {
@@ -43,18 +49,14 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen> {
     final theme = Theme.of(context);
     final role = (_appController.meData?.role ?? '').trim().toLowerCase();
     final isApprover = role == 'hod' || role == 'hr';
-    final emptyMessage = isApprover
-        ? 'No pending approvals found.'
-        : 'No leave requests found.';
+    final emptyMessage = isApprover ? 'No pending approvals found.' : 'No leave requests found.';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FC),
       body: RefreshIndicator(
         onRefresh: _onRefresh,
         child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: ClampingScrollPhysics(),
-          ),
+          physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
           children: [
             Row(
@@ -86,16 +88,12 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen> {
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.errorContainer.withValues(
-                    alpha: 0.5,
-                  ),
+                  color: theme.colorScheme.errorContainer.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   _appController.myLeavesError!,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.error,
-                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
                 ),
               )
             else if (_appController.myLeaves.isEmpty)
@@ -111,6 +109,8 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen> {
             else
               ..._appController.myLeaves.map((item) {
                 final leave = LeaveRequest.fromMyLeaveItem(item);
+                final leaveTypeName = _leaveTypeName(item.leaveTypeId, fallback: leave.leaveType);
+                final leaveTypeCode = _leaveTypeCode(item.leaveTypeId);
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
@@ -125,12 +125,11 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen> {
                     ],
                   ),
                   child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     title: Text(
-                      leave.leaveType,
+                      leaveTypeCode == null || leaveTypeCode.isEmpty
+                          ? leaveTypeName
+                          : '$leaveTypeName ($leaveTypeCode)',
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     subtitle: Text(
@@ -139,9 +138,7 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen> {
                     trailing: _StatusBadge(status: leave.status),
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => LeaveDetailScreen(leaveId: item.id),
-                        ),
+                        MaterialPageRoute(builder: (_) => LeaveDetailScreen(leaveId: item.id)),
                       );
                     },
                   ),
@@ -154,9 +151,7 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen> {
           ? null
           : Container(
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppTheme.navy, AppTheme.lightNavy],
-                ),
+                gradient: const LinearGradient(colors: [AppTheme.navy, AppTheme.lightNavy]),
                 borderRadius: BorderRadius.circular(30),
               ),
               child: FloatingActionButton.extended(
@@ -164,9 +159,9 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen> {
                 foregroundColor: Colors.white,
                 elevation: 0,
                 onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ApplyLeaveScreen()),
-                  );
+                  Navigator.of(
+                    context,
+                  ).push(MaterialPageRoute(builder: (_) => const ApplyLeaveScreen()));
                 },
                 icon: const Icon(Icons.add),
                 label: const Text('Apply Leave'),
@@ -199,6 +194,25 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen> {
       return raw;
     }
   }
+
+  String _leaveTypeName(String leaveTypeId, {required String fallback}) {
+    for (final type in _appController.leaveTypes) {
+      if (type.id == leaveTypeId) {
+        return type.name.isEmpty ? fallback : type.name;
+      }
+    }
+    return fallback;
+  }
+
+  String? _leaveTypeCode(String leaveTypeId) {
+    for (final type in _appController.leaveTypes) {
+      if (type.id == leaveTypeId) {
+        final code = type.code.trim();
+        return code.isEmpty ? null : code;
+      }
+    }
+    return null;
+  }
 }
 
 class _StatusBadge extends StatelessWidget {
@@ -221,10 +235,7 @@ class _StatusBadge extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-      ),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
       child: Text(
         status,
         style: TextStyle(color: fg, fontWeight: FontWeight.w600, fontSize: 12),

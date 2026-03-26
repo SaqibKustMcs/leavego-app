@@ -39,9 +39,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
       final day = date.day.toString().padLeft(2, '0');
       final month = months[date.month - 1];
       final year = date.year;
-      final hour12 = date.hour == 0
-          ? 12
-          : (date.hour > 12 ? date.hour - 12 : date.hour);
+      final hour12 = date.hour == 0 ? 12 : (date.hour > 12 ? date.hour - 12 : date.hour);
       final minute = date.minute.toString().padLeft(2, '0');
       final period = date.hour >= 12 ? 'PM' : 'AM';
       return '$day $month $year, ${hour12.toString().padLeft(2, '0')}:$minute $period';
@@ -74,13 +72,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
     if (message != null) {
       await _appController.loadNotifications();
       if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    } else if (_appController.notificationsReadAllError != null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(message)));
-    } else if (_appController.notificationsReadAllError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_appController.notificationsReadAllError!)),
-      );
+      ).showSnackBar(SnackBar(content: Text(_appController.notificationsReadAllError!)));
     }
   }
 
@@ -94,9 +90,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
       body: RefreshIndicator(
         onRefresh: _onRefresh,
         child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: ClampingScrollPhysics(),
-          ),
+          physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           children: [
             Row(
@@ -116,46 +110,34 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       const SizedBox(height: 2),
                       Text(
                         'Stay updated on leave actions',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: const Color(0xFF5F6D84),
-                        ),
+                        style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF5F6D84)),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 10),
-                FilledButton.icon(
-                  onPressed: _appController.notificationsReadAllLoading
-                      ? null
-                      : _readAll,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppTheme.navy,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
+
+                if (_appController.unreadCount != 0)
+                  FilledButton.icon(
+                    onPressed: _appController.notificationsReadAllLoading ? null : _readAll,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppTheme.navy,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    icon: _appController.notificationsReadAllLoading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.done_all_rounded, size: 18),
+                    label: Text(
+                      _appController.notificationsReadAllLoading ? 'Processing' : 'Read all',
                     ),
-                    elevation: 0,
                   ),
-                  icon: _appController.notificationsReadAllLoading
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.done_all_rounded, size: 18),
-                  label: Text(
-                    _appController.notificationsReadAllLoading
-                        ? 'Processing'
-                        : 'Read all',
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 10),
@@ -169,16 +151,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.errorContainer.withValues(
-                    alpha: 0.5,
-                  ),
+                  color: theme.colorScheme.errorContainer.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   _appController.notificationsError!,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.error,
-                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
                 ),
               )
             else if (notifications.isEmpty)
@@ -200,9 +178,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     color: isUnread ? const Color(0xFFF7FAFF) : Colors.white,
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(
-                      color: isUnread
-                          ? AppTheme.navy.withValues(alpha: 0.28)
-                          : Colors.transparent,
+                      color: isUnread ? AppTheme.navy.withValues(alpha: 0.28) : Colors.transparent,
                       width: 1,
                     ),
                     boxShadow: [
@@ -214,22 +190,16 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     ],
                   ),
                   child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     onTap: () async {
                       if (item.isRead) return;
                       final message = await _appController.readNotification(
                         notificationId: item.id,
                       );
                       if (!mounted) return;
-                      if (message == null &&
-                          _appController.notificationReadError != null) {
+                      if (message == null && _appController.notificationReadError != null) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(_appController.notificationReadError!),
-                          ),
+                          SnackBar(content: Text(_appController.notificationReadError!)),
                         );
                       }
                     },
@@ -237,16 +207,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       width: 42,
                       height: 42,
                       decoration: BoxDecoration(
-                        color: isUnread
-                            ? const Color(0xFFDCE7FF)
-                            : const Color(0xFFE8EEFC),
+                        color: isUnread ? const Color(0xFFDCE7FF) : const Color(0xFFE8EEFC),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
                         Icons.notifications_rounded,
-                        color: isUnread
-                            ? AppTheme.navy
-                            : AppTheme.navy.withValues(alpha: 0.8),
+                        color: isUnread ? AppTheme.navy : AppTheme.navy.withValues(alpha: 0.8),
                       ),
                     ),
                     title: Text(
@@ -267,10 +233,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                             children: [
                               if (isUnread)
                                 Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 3,
-                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFDCE7FF),
                                     borderRadius: BorderRadius.circular(999),

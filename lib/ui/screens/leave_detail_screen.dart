@@ -18,6 +18,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
   late final AppController _appController;
   late Future<LeaveDetailData?> _future;
   final TextEditingController _rejectReasonController = TextEditingController();
+  String _selectedApprovalAction = 'approve';
 
   @override
   void initState() {
@@ -26,6 +27,9 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
     _appController.addListener(_onUpdate);
     if (_appController.meData == null) {
       _appController.loadMe();
+    }
+    if (_appController.leaveTypes.isEmpty) {
+      _appController.loadLeaveTypes();
     }
     _future = _appController.loadLeaveDetail(leaveId: widget.leaveId);
   }
@@ -182,6 +186,26 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
     await _reloadDetail();
   }
 
+  Future<void> _submitApprovalAction({required String requestId}) async {
+    if (_selectedApprovalAction == 'reject') {
+      await _reject(requestId: requestId);
+      return;
+    }
+    await _approve(requestId: requestId);
+  }
+
+  String _leaveTypeName(String leaveTypeId) {
+    for (final type in _appController.leaveTypes) {
+      if (type.id == leaveTypeId) {
+        final name = type.name.trim();
+        if (name.isNotEmpty) {
+          return name;
+        }
+      }
+    }
+    return 'Leave Type';
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -277,17 +301,11 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
 
                 final leave = data.leave;
                 final role = (_appController.meData?.role ?? '').trim().toLowerCase();
-                final isHodActionAllowed = role == 'hod';
-                //     &&
-                //
-                //
-                // leave.hodStatus.toLowerCase() == 'pending' &&
-                // leave.finalStatus.toLowerCase() == 'pending';
-                final isHrActionAllowed = role == 'hr';
-                //     &&
-                // leave.hodStatus.toLowerCase() == 'approved'
-                //     &&
-                // leave.hrStatus.toLowerCase() == 'pending';
+                final hodStatus = leave.hodStatus.trim().toLowerCase();
+                final hrStatus = leave.hrStatus.trim().toLowerCase();
+                final isHodActionAllowed = role == 'hod' && hodStatus == 'pending';
+                final isHrActionAllowed =
+                    role == 'hr' && hodStatus == 'approved' && hrStatus == 'pending';
                 final canTakeAction = isHodActionAllowed || isHrActionAllowed;
 
                 return Column(
@@ -296,7 +314,10 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                   children: [
                     _DetailCard(label: 'Request ID', value: leave.id),
                     _DetailCard(label: 'Employee ID', value: leave.employeeId),
-                    _DetailCard(label: 'Leave Type ID', value: leave.leaveTypeId),
+                    _DetailCard(
+                      label: 'Leave Type',
+                      value: _leaveTypeName(leave.leaveTypeId),
+                    ),
                     _DetailCard(
                       label: 'Dates',
                       value: '${_formatDate(leave.startDate)} - ${_formatDate(leave.endDate)}',
@@ -378,45 +399,70 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                                 style: theme.textTheme.labelLarge?.copyWith(color: AppTheme.navy),
                               ),
                               const SizedBox(height: 8),
-                              TextField(
-                                controller: _rejectReasonController,
-                                maxLines: 3,
-                                decoration: const InputDecoration(
-                                  labelText: 'Rejection Reason',
-                                  hintText: 'Enter reason if you reject this request',
-                                ),
+                              RadioListTile<String>(
+                                value: 'approve',
+                                groupValue: _selectedApprovalAction,
+                                contentPadding: EdgeInsets.zero,
+                                activeColor: AppTheme.navy,
+                                title: const Text('Approve'),
+                                onChanged: _appController.approvalActionLoading
+                                    ? null
+                                    : (value) {
+                                        if (value == null) return;
+                                        setState(() {
+                                          _selectedApprovalAction = value;
+                                          _rejectReasonController.clear();
+                                        });
+                                      },
                               ),
+                              RadioListTile<String>(
+                                value: 'reject',
+                                groupValue: _selectedApprovalAction,
+                                contentPadding: EdgeInsets.zero,
+                                activeColor: AppTheme.navy,
+                                title: const Text('Reject'),
+                                onChanged: _appController.approvalActionLoading
+                                    ? null
+                                    : (value) {
+                                        if (value == null) return;
+                                        setState(() {
+                                          _selectedApprovalAction = value;
+                                        });
+                                      },
+                              ),
+                              if (_selectedApprovalAction == 'reject') ...[
+                                const SizedBox(height: 8),
+                                TextField(
+                                  controller: _rejectReasonController,
+                                  maxLines: 3,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Rejection Reason',
+                                    hintText: 'Enter reason for rejection',
+                                  ),
+                                ),
+                              ],
                               const SizedBox(height: 10),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: OutlinedButton(
-                                      onPressed: _appController.approvalActionLoading
-                                          ? null
-                                          : () => _reject(requestId: leave.id),
-                                      child: const Text('Reject'),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: FilledButton(
-                                      onPressed: _appController.approvalActionLoading
-                                          ? null
-                                          : () => _approve(requestId: leave.id),
-                                      child: _appController.approvalActionLoading
-                                          ? const SizedBox(
-                                              height: 18,
-                                              width: 18,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: Colors.white,
-                                              ),
-                                            )
-                                          : const Text('Approve'),
-                                    ),
-                                  ),
-                                ],
+                              SizedBox(
+                                width: double.infinity,
+                                child: FilledButton(
+                                  onPressed: _appController.approvalActionLoading
+                                      ? null
+                                      : () => _submitApprovalAction(requestId: leave.id),
+                                  child: _appController.approvalActionLoading
+                                      ? const SizedBox(
+                                          height: 18,
+                                          width: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : Text(
+                                          _selectedApprovalAction == 'reject'
+                                              ? 'Submit Rejection'
+                                              : 'Submit Approval',
+                                        ),
+                                ),
                               ),
                             ],
                           ),

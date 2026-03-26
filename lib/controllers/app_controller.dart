@@ -337,11 +337,13 @@ class AppController extends ChangeNotifier {
       if (token == null || token.isEmpty) {
         throw Exception('Token not found. Please login again.');
       }
-      return await _apiService.approveLeaveRequest(
+      final message = await _apiService.approveLeaveRequest(
         token: token,
         approvalId: approvalId,
         remarks: remarks,
       );
+      await loadDashboard();
+      return message;
     } catch (e) {
       approvalActionError = e.toString().replaceFirst('Exception: ', '');
       return null;
@@ -364,11 +366,13 @@ class AppController extends ChangeNotifier {
       if (token == null || token.isEmpty) {
         throw Exception('Token not found. Please login again.');
       }
-      return await _apiService.rejectLeaveRequest(
+      final message = await _apiService.rejectLeaveRequest(
         token: token,
         approvalId: approvalId,
         remarks: remarks,
       );
+      await loadDashboard();
+      return message;
     } catch (e) {
       approvalActionError = e.toString().replaceFirst('Exception: ', '');
       return null;

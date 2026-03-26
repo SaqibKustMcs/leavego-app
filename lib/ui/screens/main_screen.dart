@@ -78,7 +78,7 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final role = (_appController.meData?.role ?? '').trim().toLowerCase();
-    final canCreateTask = role == 'hod'; //|| role == 'hr';
+    final canCreateTask = role == '$role'; //|| role == 'hr';
     final screens = <Widget>[
       const HomeScreen(),
       const MyLeaveRequestsScreen(),
