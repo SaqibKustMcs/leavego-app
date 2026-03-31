@@ -138,6 +138,7 @@ class AppController extends ChangeNotifier {
         role: response.data.user.role,
         departmentId: response.data.user.departmentId,
         isActive: true,
+        department: null,
       );
       return response;
     } catch (e) {
@@ -154,10 +155,7 @@ class AppController extends ChangeNotifier {
     return prefs.getString(tokenStorageKey);
   }
 
-  Future<NewsActionResponse?> createNews({
-    required String title,
-    required String content,
-  }) async {
+  Future<NewsActionResponse?> createNews({required String title, required String content}) async {
     createNewsLoading = true;
     createNewsError = null;
     notifyListeners();
@@ -167,11 +165,7 @@ class AppController extends ChangeNotifier {
       if (token == null || token.isEmpty) {
         throw Exception('Token not found. Please login again.');
       }
-      final response = await _apiService.createNews(
-        token: token,
-        title: title,
-        content: content,
-      );
+      final response = await _apiService.createNews(token: token, title: title, content: content);
       return response;
     } catch (e) {
       createNewsError = e.toString().replaceFirst('Exception: ', '');

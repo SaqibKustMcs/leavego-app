@@ -6,9 +6,10 @@ import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class LeaveDetailScreen extends StatefulWidget {
-  const LeaveDetailScreen({super.key, required this.leaveId});
+  const LeaveDetailScreen({super.key, required this.leaveId, this.enableActions = true});
 
   final String leaveId;
+  final bool enableActions;
 
   @override
   State<LeaveDetailScreen> createState() => _LeaveDetailScreenState();
@@ -305,11 +306,14 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                 final status = leave.status.trim().toLowerCase();
                 final ceoStatus = leave.ceoStatus.trim().toLowerCase();
 
-                final isHrActionAllowed = role == 'hr' && hrStatus == 'pending' && status != 'pending_ceo';
+                final isHrActionAllowed = role == 'hr' && hrStatus == 'pending';
                 final isCeoActionAllowed =
-                    role == 'ceo' && status == 'pending_ceo' && (ceoStatus.isEmpty || ceoStatus == 'pending');
+                    role == 'ceo' &&
+                    status == 'pending_ceo' &&
+                    (ceoStatus.isEmpty || ceoStatus == 'pending');
 
-                final canTakeAction = isHrActionAllowed || isCeoActionAllowed;
+                final canTakeAction =
+                    widget.enableActions && (isHrActionAllowed || isCeoActionAllowed);
 
                 return Column(
                   mainAxisAlignment: MainAxisAlignment.start,
@@ -317,6 +321,8 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                   children: [
                     _DetailCard(label: 'Request ID', value: leave.id),
                     _DetailCard(label: 'Employee ID', value: leave.employeeId),
+                    _DetailCard(label: 'Name', value: data.employeeName),
+                    _DetailCard(label: 'Department', value: data.department),
                     _DetailCard(label: 'Leave Type', value: _leaveTypeName(leave.leaveTypeId)),
                     _DetailCard(
                       label: 'Dates',

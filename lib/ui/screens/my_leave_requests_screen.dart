@@ -214,8 +214,14 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen>
                     ),
                     trailing: _StatusBadge(status: leave.status),
                     onTap: () {
+                    final enableActions = isApprover;
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => LeaveDetailScreen(leaveId: item.id)),
+                      MaterialPageRoute(
+                        builder: (_) => LeaveDetailScreen(
+                          leaveId: item.id,
+                          enableActions: enableActions,
+                        ),
+                      ),
                       );
                     },
                   ),

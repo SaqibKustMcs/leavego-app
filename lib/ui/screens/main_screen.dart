@@ -123,8 +123,21 @@ class _MainScreenState extends State<MainScreen> {
           currentIndex: _currentIndex,
           onTap: (index) async {
             setState(() => _currentIndex = index);
+            // Always fetch fresh data when user opens these tabs.
+            if (index == 1) {
+              await _appController.loadRequestsByRole();
+              return;
+            }
+            if (index == 2) {
+              await _appController.loadTasks(refresh: true);
+              return;
+            }
             if (index == notificationsIndex) {
-              await _appController.loadUnreadCount();
+              await Future.wait([
+                _appController.loadUnreadCount(),
+                _appController.loadNotifications(),
+              ]);
+              return;
             }
           },
           elevation: 0,

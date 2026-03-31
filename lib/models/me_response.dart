@@ -7,9 +7,7 @@ class MeResponse {
   factory MeResponse.fromJson(Map<String, dynamic> json) {
     return MeResponse(
       success: json['success'] == true,
-      data: MeData.fromJson(
-        (json['data'] as Map<String, dynamic>?) ?? <String, dynamic>{},
-      ),
+      data: MeData.fromJson((json['data'] as Map<String, dynamic>?) ?? <String, dynamic>{}),
     );
   }
 }
@@ -21,6 +19,7 @@ class MeData {
     required this.email,
     required this.role,
     required this.departmentId,
+    required this.department,
     required this.isActive,
   });
 
@@ -29,17 +28,17 @@ class MeData {
   final String email;
   final String role;
   final String? departmentId;
+  final String? department;
   final bool isActive;
 
   factory MeData.fromJson(Map<String, dynamic> json) {
     return MeData(
-      id: json['id'] is int
-          ? json['id'] as int
-          : int.tryParse('${json['id']}') ?? 0,
+      id: json['id'] is int ? json['id'] as int : int.tryParse('${json['id']}') ?? 0,
       name: (json['name'] ?? '').toString(),
       email: (json['email'] ?? '').toString(),
       role: (json['role'] ?? '').toString(),
       departmentId: json['department_id']?.toString(),
+      department: json['department']?.toString(),
       isActive: json['is_active'] == true,
     );
   }

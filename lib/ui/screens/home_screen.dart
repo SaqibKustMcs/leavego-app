@@ -62,9 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: RefreshIndicator(
         onRefresh: _onRefresh,
         child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: ClampingScrollPhysics(),
-          ),
+          physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
           children: [
             Container(
@@ -96,10 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: Colors.white.withValues(alpha: 0.16),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(
-                          Icons.space_dashboard_rounded,
-                          color: Colors.white,
-                        ),
+                        child: const Icon(Icons.space_dashboard_rounded, color: Colors.white),
                       ),
                       const SizedBox(width: 12),
                       Column(
@@ -140,21 +135,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       child: Text(
                         _appController.dashboardError!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.white,
-                        ),
+                        style: theme.textTheme.bodySmall?.copyWith(color: Colors.white),
                       ),
                     )
                   else
                     Row(
                       children: [
-                        Expanded(
-                          child: _MetricTile(
-                            title: isHodOrHr ? 'Pending HOD' : 'Pending',
-                            value: isHodOrHr ? '$pendingHod' : '$pending',
-                          ),
-                        ),
-                        const SizedBox(width: 10),
+                        // Expanded(
+                        //   child: _MetricTile(
+                        //     title: isHodOrHr ? 'Pending HOD' : 'Pending',
+                        //     value: isHodOrHr ? '$pendingHod' : '$pending',
+                        //   ),
+                        // ),
+                        // const SizedBox(width: 10),
                         Expanded(
                           child: _MetricTile(
                             title: isHodOrHr ? 'Pending HR' : 'Approved',
@@ -176,7 +169,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       Expanded(
                         child: _MetricTile(
                           title: isHodOrHr ? 'Rejected' : 'Requests',
-                          value: isHodOrHr ? '${hrPending?.rejected ?? rejected}' : '$totalRequests',
+                          value: isHodOrHr
+                              ? '${hrPending?.rejected ?? rejected}'
+                              : '$totalRequests',
                         ),
                       ),
                     ],
@@ -186,17 +181,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: _MetricTile(
-                            title: 'Assigned',
-                            value: '$totalAssigned',
-                          ),
+                          child: _MetricTile(title: 'Assigned', value: '$totalAssigned'),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: _MetricTile(
-                            title: 'Used',
-                            value: '$totalUsed',
-                          ),
+                          child: _MetricTile(title: 'Used', value: '$totalUsed'),
                         ),
                       ],
                     ),
@@ -204,17 +193,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: _MetricTile(
-                            title: 'Remaining',
-                            value: '$totalRemaining',
-                          ),
+                          child: _MetricTile(title: 'Remaining', value: '$totalRemaining'),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: _MetricTile(
-                            title: 'Requests',
-                            value: '$totalRequests',
-                          ),
+                          child: _MetricTile(title: 'Requests', value: '$totalRequests'),
                         ),
                       ],
                     ),
@@ -333,16 +316,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.errorContainer.withValues(
-                      alpha: 0.5,
-                    ),
+                    color: theme.colorScheme.errorContainer.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     _appController.dashboardError!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.error,
-                    ),
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
                   ),
                 )
               else
@@ -443,9 +422,7 @@ class _MetricTile extends StatelessWidget {
         children: [
           Text(
             title,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.white.withValues(alpha: 0.88),
-            ),
+            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white.withValues(alpha: 0.88)),
           ),
           const SizedBox(height: 4),
           Text(
@@ -478,10 +455,7 @@ class _BalanceStat extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(10),
-      ),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
       child: Column(
         children: [
           Text(
@@ -495,11 +469,7 @@ class _BalanceStat extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             value,
-            style: TextStyle(
-              color: fg,
-              fontWeight: FontWeight.w800,
-              fontSize: 13,
-            ),
+            style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 13),
           ),
         ],
       ),

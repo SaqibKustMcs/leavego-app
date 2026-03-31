@@ -19,8 +19,11 @@ class LeaveDetailData {
     required this.leave,
     required this.attachmentUrl,
     required this.approvals,
+    required this.employeeName,
+    required this.department,
   });
-
+  final String department;
+  final String employeeName;
   final LeaveDetailItem leave;
   final String? attachmentUrl;
   final List<LeaveApprovalItem> approvals;
@@ -28,6 +31,8 @@ class LeaveDetailData {
   factory LeaveDetailData.fromJson(Map<String, dynamic> json) {
     final approvalsRaw = json['approvals'];
     return LeaveDetailData(
+      department: json['department']?.toString() ?? '',
+      employeeName: json['employee_name']?.toString() ?? '',
       leave: LeaveDetailItem.fromJson(
         (json['leave'] as Map<String, dynamic>?) ?? <String, dynamic>{},
       ),

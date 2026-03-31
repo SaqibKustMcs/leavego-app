@@ -55,7 +55,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final role = me?.role ?? '-';
     final lowerRole = role.trim().toLowerCase();
     final canCreateNews = lowerRole == 'hr' || lowerRole == 'ceo';
-    final departmentId = me?.departmentId ?? '-';
+    final departmentId = me?.department ?? '-';
     final initials = _initials(name);
     final isActive = me?.isActive == true;
     final statusLabel = isActive ? 'Active' : 'Inactive';
@@ -241,9 +241,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               MaterialPageRoute(builder: (_) => const CreateNewsScreen()),
                             );
                             if (created == true && context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('News published')),
-                              );
+                              ScaffoldMessenger.of(
+                                context,
+                              ).showSnackBar(const SnackBar(content: Text('News published')));
                             }
                           },
                         ),
@@ -251,69 +251,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: SafeArea(
-              top: false,
-              minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  // color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _appController.logoutLoading
-                        ? null
-                        : () async {
-                            final result = await _appController.logout();
-                            if (!context.mounted) return;
-                            if (result == null && _appController.logoutError != null) {
-                              ScaffoldMessenger.of(
-                                context,
-                              ).showSnackBar(SnackBar(content: Text(_appController.logoutError!)));
-                              return;
-                            }
-                            Navigator.of(context).pushAndRemoveUntil(
-                              MaterialPageRoute(builder: (_) => const LoginScreen()),
-                              (_) => false,
-                            );
-                          },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: theme.colorScheme.error,
-                      side: BorderSide(color: theme.colorScheme.error),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                    icon: _appController.logoutLoading
-                        ? SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: theme.colorScheme.error,
-                            ),
-                          )
-                        : const Icon(Icons.logout_rounded, size: 18),
-                    label: Text(
-                      _appController.logoutLoading ? 'Signing out…' : 'Log out',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    // color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.06),
+                        blurRadius: 16,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _appController.logoutLoading
+                          ? null
+                          : () async {
+                              final result = await _appController.logout();
+                              if (!context.mounted) return;
+                              if (result == null && _appController.logoutError != null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(_appController.logoutError!)),
+                                );
+                                return;
+                              }
+                              Navigator.of(context).pushAndRemoveUntil(
+                                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                                (_) => false,
+                              );
+                            },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: theme.colorScheme.error,
+                        side: BorderSide(color: theme.colorScheme.error),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      icon: _appController.logoutLoading
+                          ? SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: theme.colorScheme.error,
+                              ),
+                            )
+                          : const Icon(Icons.logout_rounded, size: 18),
+                      label: Text(
+                        _appController.logoutLoading ? 'Signing out…' : 'Log out',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
           ),
         ],
