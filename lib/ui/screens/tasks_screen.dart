@@ -228,6 +228,8 @@ class _TasksScreenState extends State<TasksScreen> {
         _selectedAssignedTo = null;
         _selectedDepartmentId = null;
       });
+      if (!mounted) return;
+      _appController.requestSwitchToTasksTab();
       return;
     }
 
@@ -242,7 +244,7 @@ class _TasksScreenState extends State<TasksScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final role = (_appController.meData?.role ?? '').trim().toLowerCase();
-    final canCreateTask = role == 'hod' || role == 'hr';
+    final canCreateTask = role == '$role';
 
     final users = _appController.users.where((user) => user.isActive).toList();
     final departments = _appController.departments

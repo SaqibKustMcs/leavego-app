@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/tasks_response.dart';
-import 'package:leavego_app/models/users_response.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 
 class CreateSupportingTaskScreen extends StatefulWidget {
@@ -28,6 +27,7 @@ class _CreateSupportingTaskScreenState extends State<CreateSupportingTaskScreen>
   void initState() {
     super.initState();
     _appController = Get.find<AppController>();
+    _appController.addListener(_onControllerUpdate);
     if (_appController.meData == null) {
       _appController.loadMe();
     }
@@ -37,8 +37,13 @@ class _CreateSupportingTaskScreenState extends State<CreateSupportingTaskScreen>
     _selectedRequestedTo = widget.task.assignedTo;
   }
 
+  void _onControllerUpdate() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    _appController.removeListener(_onControllerUpdate);
     _timelineNoteController.dispose();
     super.dispose();
   }

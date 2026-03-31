@@ -33,10 +33,7 @@ class LeaveDetailData {
       ),
       attachmentUrl: json['attachment_url']?.toString(),
       approvals: approvalsRaw is List
-          ? approvalsRaw
-                .whereType<Map<String, dynamic>>()
-                .map(LeaveApprovalItem.fromJson)
-                .toList()
+          ? approvalsRaw.whereType<Map<String, dynamic>>().map(LeaveApprovalItem.fromJson).toList()
           : <LeaveApprovalItem>[],
     );
   }
@@ -58,6 +55,7 @@ class LeaveDetailItem {
     required this.status,
     required this.hodStatus,
     required this.hrStatus,
+    required this.ceoStatus,
     required this.finalStatus,
     required this.submittedAt,
     required this.createdAt,
@@ -78,6 +76,7 @@ class LeaveDetailItem {
   final String status;
   final String hodStatus;
   final String hrStatus;
+  final String ceoStatus;
   final String finalStatus;
   final String? submittedAt;
   final String? createdAt;
@@ -99,6 +98,7 @@ class LeaveDetailItem {
       status: json['status']?.toString() ?? '',
       hodStatus: json['hod_status']?.toString() ?? '',
       hrStatus: json['hr_status']?.toString() ?? '',
+      ceoStatus: json['ceo_status']?.toString() ?? '',
       finalStatus: json['final_status']?.toString() ?? '',
       submittedAt: json['submitted_at']?.toString(),
       createdAt: json['created_at']?.toString(),

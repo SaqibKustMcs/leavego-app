@@ -301,12 +301,15 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
 
                 final leave = data.leave;
                 final role = (_appController.meData?.role ?? '').trim().toLowerCase();
-                final hodStatus = leave.hodStatus.trim().toLowerCase();
                 final hrStatus = leave.hrStatus.trim().toLowerCase();
-                final isHodActionAllowed = role == 'hod' && hodStatus == 'pending';
-                final isHrActionAllowed =
-                    role == 'hr' && hodStatus == 'approved' && hrStatus == 'pending';
-                final canTakeAction = isHodActionAllowed || isHrActionAllowed;
+                final status = leave.status.trim().toLowerCase();
+                final ceoStatus = leave.ceoStatus.trim().toLowerCase();
+
+                final isHrActionAllowed = role == 'hr' && hrStatus == 'pending' && status != 'pending_ceo';
+                final isCeoActionAllowed =
+                    role == 'ceo' && status == 'pending_ceo' && (ceoStatus.isEmpty || ceoStatus == 'pending');
+
+                final canTakeAction = isHrActionAllowed || isCeoActionAllowed;
 
                 return Column(
                   mainAxisAlignment: MainAxisAlignment.start,
@@ -314,10 +317,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                   children: [
                     _DetailCard(label: 'Request ID', value: leave.id),
                     _DetailCard(label: 'Employee ID', value: leave.employeeId),
-                    _DetailCard(
-                      label: 'Leave Type',
-                      value: _leaveTypeName(leave.leaveTypeId),
-                    ),
+                    _DetailCard(label: 'Leave Type', value: _leaveTypeName(leave.leaveTypeId)),
                     _DetailCard(
                       label: 'Dates',
                       value: '${_formatDate(leave.startDate)} - ${_formatDate(leave.endDate)}',
@@ -339,19 +339,23 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(
-                                  child: _StatusTile(
-                                    label: 'HOD',
-                                    value: _capitalize(leave.hodStatus),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _StatusTile(
-                                    label: 'HR',
-                                    value: _capitalize(leave.hrStatus),
-                                  ),
-                                ),
+                                (status == 'pending_ceo' || leave.ceoStatus.trim().isNotEmpty)
+                                    ? Expanded(
+                                        child: _StatusTile(
+                                          label: 'CEO',
+                                          value: leave.ceoStatus.trim().isEmpty
+                                              ? 'Pending'
+                                              : _capitalize(leave.ceoStatus),
+                                        ),
+                                      )
+                                    :
+                                      // const SizedBox(width: 8),
+                                      Expanded(
+                                        child: _StatusTile(
+                                          label: 'HR',
+                                          value: _capitalize(leave.hrStatus),
+                                        ),
+                                      ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: _StatusTile(

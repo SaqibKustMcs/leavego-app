@@ -16,6 +16,8 @@ import 'package:leavego_app/models/task_detail_response.dart';
 import 'package:leavego_app/models/tasks_response.dart';
 import 'package:leavego_app/models/users_response.dart';
 import 'package:leavego_app/models/supporting_tasks_response.dart';
+import 'package:leavego_app/models/news_action_response.dart';
+import 'package:leavego_app/models/news_response.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AppController extends ChangeNotifier {
@@ -91,19 +93,41 @@ class AppController extends ChangeNotifier {
   int tasksLastPage = 1;
   bool tasksHasMore = false;
 
-  Future<LoginResponse?> login({
-    required String email,
-    required String password,
-  }) async {
+  bool createNewsLoading = false;
+  String? createNewsError;
+
+  bool newsLoading = false;
+  bool newsLoadingMore = false;
+  String? newsError;
+  List<NewsItem> newsItems = <NewsItem>[];
+  int newsCurrentPage = 1;
+  int newsLastPage = 1;
+  bool newsHasMore = false;
+
+  bool updateNewsLoading = false;
+  String? updateNewsError;
+  bool deleteNewsLoading = false;
+  String? deleteNewsError;
+
+  /// When set, [MainScreen] switches bottom navigation to this index (2 = Tasks tab).
+  int? pendingMainTabIndex;
+
+  void requestSwitchToTasksTab() {
+    pendingMainTabIndex = 2;
+    notifyListeners();
+  }
+
+  void clearPendingMainTabIndex() {
+    pendingMainTabIndex = null;
+  }
+
+  Future<LoginResponse?> login({required String email, required String password}) async {
     isLoading = true;
     errorMessage = null;
     notifyListeners();
 
     try {
-      final response = await _apiService.login(
-        email: email,
-        password: password,
-      );
+      final response = await _apiService.login(email: email, password: password);
       final token = response.data.token;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(tokenStorageKey, token);
@@ -130,6 +154,34 @@ class AppController extends ChangeNotifier {
     return prefs.getString(tokenStorageKey);
   }
 
+  Future<NewsActionResponse?> createNews({
+    required String title,
+    required String content,
+  }) async {
+    createNewsLoading = true;
+    createNewsError = null;
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+      final response = await _apiService.createNews(
+        token: token,
+        title: title,
+        content: content,
+      );
+      return response;
+    } catch (e) {
+      createNewsError = e.toString().replaceFirst('Exception: ', '');
+      return null;
+    } finally {
+      createNewsLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> loadDashboard() async {
     dashboardLoading = true;
     dashboardError = null;
@@ -145,6 +197,120 @@ class AppController extends ChangeNotifier {
       dashboardError = e.toString().replaceFirst('Exception: ', '');
     } finally {
       dashboardLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadNews({bool refresh = false}) async {
+    if (newsLoading) return;
+    newsLoading = true;
+    if (refresh) {
+      newsError = null;
+      newsCurrentPage = 1;
+      newsLastPage = 1;
+      newsHasMore = false;
+    }
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+
+      final page = await _apiService.news(token: token, page: 1);
+      newsItems = page.items;
+      newsCurrentPage = page.currentPage;
+      newsLastPage = page.lastPage;
+      newsHasMore = newsCurrentPage < newsLastPage;
+    } catch (e) {
+      newsError = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      newsLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadMoreNews() async {
+    if (newsLoadingMore || newsLoading || !newsHasMore) return;
+    newsLoadingMore = true;
+    newsError = null;
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+
+      final nextPage = newsCurrentPage + 1;
+      final page = await _apiService.news(token: token, page: nextPage);
+      newsItems = <NewsItem>[...newsItems, ...page.items];
+      newsCurrentPage = page.currentPage;
+      newsLastPage = page.lastPage;
+      newsHasMore = newsCurrentPage < newsLastPage;
+    } catch (e) {
+      newsError = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      newsLoadingMore = false;
+      notifyListeners();
+    }
+  }
+
+  Future<NewsActionResponse?> updateNews({
+    required String newsId,
+    required String title,
+    required String content,
+    required String status,
+  }) async {
+    updateNewsLoading = true;
+    updateNewsError = null;
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+
+      final response = await _apiService.updateNews(
+        token: token,
+        newsId: newsId,
+        title: title,
+        content: content,
+        status: status,
+      );
+
+      await loadNews(refresh: true);
+      return response;
+    } catch (e) {
+      updateNewsError = e.toString().replaceFirst('Exception: ', '');
+      return null;
+    } finally {
+      updateNewsLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<NewsActionResponse?> deleteNews({required String newsId}) async {
+    deleteNewsLoading = true;
+    deleteNewsError = null;
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+
+      final response = await _apiService.deleteNews(token: token, newsId: newsId);
+      await loadNews(refresh: true);
+      return response;
+    } catch (e) {
+      deleteNewsError = e.toString().replaceFirst('Exception: ', '');
+      return null;
+    } finally {
+      deleteNewsLoading = false;
       notifyListeners();
     }
   }
@@ -300,7 +466,7 @@ class AppController extends ChangeNotifier {
       }
 
       final role = (profile.role).trim().toLowerCase();
-      final page = (role == 'hod' || role == 'hr')
+      final page = (role == 'ceo' || role == 'hr')
           ? await _apiService.pendingApprovals(token: token)
           : await _apiService.myLeaves(token: token);
       myLeaves = page.items;
@@ -324,10 +490,7 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  Future<String?> approveLeaveRequest({
-    required String approvalId,
-    required String remarks,
-  }) async {
+  Future<String?> approveLeaveRequest({required String approvalId, required String remarks}) async {
     approvalActionLoading = true;
     approvalActionError = null;
     notifyListeners();
@@ -353,10 +516,7 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  Future<String?> rejectLeaveRequest({
-    required String approvalId,
-    required String remarks,
-  }) async {
+  Future<String?> rejectLeaveRequest({required String approvalId, required String remarks}) async {
     approvalActionLoading = true;
     approvalActionError = null;
     notifyListeners();
@@ -438,10 +598,7 @@ class AppController extends ChangeNotifier {
       if (token == null || token.isEmpty) {
         throw Exception('Token not found. Please login again.');
       }
-      final msg = await _apiService.readNotification(
-        token: token,
-        notificationId: notificationId,
-      );
+      final msg = await _apiService.readNotification(token: token, notificationId: notificationId);
       await loadUnreadCount();
       return msg;
     } catch (e) {
@@ -663,11 +820,7 @@ class AppController extends ChangeNotifier {
       if (token == null || token.isEmpty) {
         throw Exception('Token not found. Please login again.');
       }
-      return await _apiService.addTaskComment(
-        token: token,
-        taskId: taskId,
-        comment: comment,
-      );
+      return await _apiService.addTaskComment(token: token, taskId: taskId, comment: comment);
     } catch (e) {
       addTaskCommentError = e.toString().replaceFirst('Exception: ', '');
       return null;
@@ -697,7 +850,11 @@ class AppController extends ChangeNotifier {
         requestedTo: requestedTo,
         timelineNote: timelineNote,
       );
-      await loadTasks(refresh: true);
+      await Future.wait(<Future<void>>[
+        loadTasks(refresh: true),
+        loadOutgoingSupportingTasks(),
+        loadIncomingSupportingTasks(),
+      ]);
       return response;
     } catch (e) {
       createSupportingTaskError = e.toString().replaceFirst('Exception: ', '');

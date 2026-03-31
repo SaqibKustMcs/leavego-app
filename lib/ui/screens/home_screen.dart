@@ -48,11 +48,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final pending = summary?.pending ?? data?.pendingHod ?? 0;
     final approved = summary?.approved ?? 0;
     final rejected = summary?.rejected ?? 0;
+    final totalRequests = summary?.totalRequests ?? 0;
     final totalAssigned = summary?.totalAssigned ?? 0;
     final totalUsed = summary?.totalUsed ?? 0;
     final totalRemaining = summary?.totalRemaining ?? 0;
     final pendingHod = data?.pendingHod ?? 0;
     final pendingHr = data?.pendingHr ?? 0;
+    final taskSummary = data?.tasks;
+    final hrPending = data?.hrPendingLeaveRequests;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FC),
@@ -160,21 +163,39 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ],
                     ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _MetricTile(
+                          title: isHodOrHr ? 'Approved' : 'Rejected',
+                          value: isHodOrHr ? '${hrPending?.approved ?? approved}' : '$rejected',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _MetricTile(
+                          title: isHodOrHr ? 'Rejected' : 'Requests',
+                          value: isHodOrHr ? '${hrPending?.rejected ?? rejected}' : '$totalRequests',
+                        ),
+                      ),
+                    ],
+                  ),
                   if (!isHodOrHr) ...[
                     const SizedBox(height: 10),
                     Row(
                       children: [
                         Expanded(
                           child: _MetricTile(
-                            title: 'Rejected',
-                            value: '$rejected',
+                            title: 'Assigned',
+                            value: '$totalAssigned',
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: _MetricTile(
-                            title: 'Assigned',
-                            value: '$totalAssigned',
+                            title: 'Used',
+                            value: '$totalUsed',
                           ),
                         ),
                       ],
@@ -184,15 +205,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Expanded(
                           child: _MetricTile(
-                            title: 'Used',
-                            value: '$totalUsed',
+                            title: 'Remaining',
+                            value: '$totalRemaining',
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: _MetricTile(
-                            title: 'Remaining',
-                            value: '$totalRemaining',
+                            title: 'Requests',
+                            value: '$totalRequests',
                           ),
                         ),
                       ],
@@ -201,8 +222,107 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-            if (!isHodOrHr) ...[
+            if (taskSummary != null) ...[
               const SizedBox(height: 18),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Task Summary',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.navy,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _BalanceStat(
+                            title: 'Assigned',
+                            value: '${taskSummary.assigned}',
+                            bg: const Color(0xFFDCE7FF),
+                            fg: AppTheme.navy,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _BalanceStat(
+                            title: 'In Progress',
+                            value: '${taskSummary.inProgress}',
+                            bg: const Color(0xFFE7EEFF),
+                            fg: const Color(0xFF1565C0),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _BalanceStat(
+                            title: 'Completed',
+                            value: '${taskSummary.completed}',
+                            bg: const Color(0xFFDFF5E2),
+                            fg: const Color(0xFF1B5E20),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _BalanceStat(
+                            title: 'Blocked',
+                            value: '${taskSummary.blocked}',
+                            bg: const Color(0xFFFFF4DC),
+                            fg: const Color(0xFF9A6A00),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _BalanceStat(
+                            title: 'Overdue',
+                            value: '${taskSummary.overdue}',
+                            bg: const Color(0xFFFCE3E1),
+                            fg: const Color(0xFF8B1D18),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _BalanceStat(
+                            title: 'Total',
+                            value: '${taskSummary.total}',
+                            bg: const Color(0xFFE9ECF3),
+                            fg: const Color(0xFF1E293B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            if (data != null && data.leaveBalances.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              Text(
+                'Leave Balances',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.navy,
+                ),
+              ),
+              const SizedBox(height: 10),
               if (_appController.dashboardLoading)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 14),
@@ -224,16 +344,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: theme.colorScheme.error,
                     ),
                   ),
-                )
-              else if (data == null || data.leaveBalances.isEmpty)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Text('No leave balance data found.'),
                 )
               else
                 ...data.leaveBalances.map((item) {
@@ -275,7 +385,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             Expanded(
                               child: _BalanceStat(
-                                title: 'Allocated',
+                                title: 'Assigned',
                                 value: '$allocated',
                                 bg: const Color(0xFFDCE7FF),
                                 fg: AppTheme.navy,

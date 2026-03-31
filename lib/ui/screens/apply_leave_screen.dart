@@ -36,9 +36,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
   void _onUpdate() {
     if (!mounted) return;
     if (_selectedLeaveTypeId != null &&
-        _appController.leaveTypes
-            .where((type) => type.id == _selectedLeaveTypeId)
-            .isEmpty) {
+        _appController.leaveTypes.where((type) => type.id == _selectedLeaveTypeId).isEmpty) {
       _selectedLeaveTypeId = null;
     }
     setState(() {});
@@ -99,9 +97,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
             : _tryParseYmd(_endDateController.text)) ??
         firstAllowedDate;
 
-    final safeInitial = initial.isBefore(firstAllowedDate)
-        ? firstAllowedDate
-        : initial;
+    final safeInitial = initial.isBefore(firstAllowedDate) ? firstAllowedDate : initial;
 
     final selected = await showDatePicker(
       context: context,
@@ -193,11 +189,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
     );
     if (!mounted) return;
     if (response != null) {
-      _showSnack(
-        response.message.isNotEmpty
-            ? response.message
-            : 'Leave request submitted',
-      );
+      _showSnack(response.message.isNotEmpty ? response.message : 'Leave request submitted');
       await _appController.loadMyLeaves();
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -207,9 +199,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -243,10 +233,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                       child: const SizedBox(
                         width: 42,
                         height: 42,
-                        child: Icon(
-                          Icons.arrow_back_rounded,
-                          color: Colors.white,
-                        ),
+                        child: Icon(Icons.arrow_back_rounded, color: Colors.white),
                       ),
                     ),
                   ),
@@ -258,10 +245,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                       color: Colors.white.withValues(alpha: 0.16),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(
-                      Icons.edit_calendar_rounded,
-                      color: Colors.white,
-                    ),
+                    child: const Icon(Icons.edit_calendar_rounded, color: Colors.white),
                   ),
                   const SizedBox(width: 12),
                   Column(
@@ -311,10 +295,8 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                       initialValue: _selectedLeaveTypeId,
                       items: _appController.leaveTypes
                           .map(
-                            (type) => DropdownMenuItem<String>(
-                              value: type.id,
-                              child: Text(type.name),
-                            ),
+                            (type) =>
+                                DropdownMenuItem<String>(value: type.id, child: Text(type.name)),
                           )
                           .toList(),
                       onChanged: (value) {
@@ -325,9 +307,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                       decoration: InputDecoration(
                         labelText: 'Leave Type',
                         hintText: 'Select leave type',
-                        errorText: leaveTypeError.value.isEmpty
-                            ? null
-                            : leaveTypeError.value,
+                        errorText: leaveTypeError.value.isEmpty ? null : leaveTypeError.value,
                       ),
                     ),
                   ),
@@ -335,9 +315,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                     const SizedBox(height: 8),
                     Text(
                       _appController.leaveTypesError!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.error,
-                      ),
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
                     ),
                   ],
                   const SizedBox(height: 12),
@@ -353,9 +331,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                         labelText: 'Start Date',
                         hintText: 'YYYY-MM-DD',
                         suffixIcon: const Icon(Icons.calendar_today_outlined),
-                        errorText: startDateError.value.isEmpty
-                            ? null
-                            : startDateError.value,
+                        errorText: startDateError.value.isEmpty ? null : startDateError.value,
                       ),
                     ),
                   ),
@@ -372,9 +348,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                         labelText: 'End Date',
                         hintText: 'YYYY-MM-DD',
                         suffixIcon: const Icon(Icons.calendar_today_outlined),
-                        errorText: endDateError.value.isEmpty
-                            ? null
-                            : endDateError.value,
+                        errorText: endDateError.value.isEmpty ? null : endDateError.value,
                       ),
                     ),
                   ),
@@ -391,9 +365,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                       decoration: InputDecoration(
                         labelText: 'Reason',
                         hintText: 'Briefly describe the reason for leave.',
-                        errorText: reasonError.value.isEmpty
-                            ? null
-                            : reasonError.value,
+                        errorText: reasonError.value.isEmpty ? null : reasonError.value,
                       ),
                     ),
                   ),
@@ -405,9 +377,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          isRequired
-                              ? 'Attachment (required)'
-                              : 'Attachment (optional)',
+                          isRequired ? 'Attachment (required)' : 'Attachment (optional)',
                           style: theme.textTheme.labelMedium,
                         ),
                         const SizedBox(height: 6),
@@ -417,9 +387,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                               child: Text(
                                 _attachmentPath == null
                                     ? 'No attachment selected'
-                                    : _attachmentPath!
-                                          .split(RegExp(r'[\\/]'))
-                                          .last,
+                                    : _attachmentPath!.split(RegExp(r'[\\/]')).last,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.bodySmall,
@@ -447,15 +415,11 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                   const SizedBox(height: 20),
                   Container(
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [AppTheme.navy, AppTheme.lightNavy],
-                      ),
+                      gradient: const LinearGradient(colors: [AppTheme.navy, AppTheme.lightNavy]),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: FilledButton(
-                      onPressed: _appController.applyLeaveLoading
-                          ? null
-                          : _submit,
+                      onPressed: _appController.applyLeaveLoading ? null : _submit,
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
@@ -465,10 +429,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                           ? const SizedBox(
                               height: 20,
                               width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                             )
                           : const Text('Submit Request'),
                     ),

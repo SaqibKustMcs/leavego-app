@@ -39,6 +39,7 @@ dependencies:
   get: ^4.7.3
   file_picker: ^10.3.10
   url_launcher: ^6.3.2
+  tabler_icons: ^2.5.0+1
 
 dev_dependencies:
   flutter_test:

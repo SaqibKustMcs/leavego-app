@@ -8,6 +8,7 @@ import 'package:leavego_app/ui/screens/tasks_screen.dart';
 import 'package:leavego_app/ui/screens/notification_screen.dart';
 import 'package:leavego_app/ui/screens/profile_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:tabler_icons/tabler_icons.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -32,6 +33,17 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _onUpdate() {
+    final pending = _appController.pendingMainTabIndex;
+    if (pending != null && mounted) {
+      _appController.clearPendingMainTabIndex();
+      final role = (_appController.meData?.role ?? '').trim().toLowerCase();
+      final canCreateTask = role == '$role';
+      final maxTab = canCreateTask ? 5 : 4;
+      setState(() {
+        _currentIndex = pending.clamp(0, maxTab);
+      });
+      return;
+    }
     if (mounted) setState(() {});
   }
 
@@ -119,34 +131,38 @@ class _MainScreenState extends State<MainScreen> {
           type: BottomNavigationBarType.fixed,
           items: [
             const BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
+              icon: Icon(TablerIcons.apps),
+              activeIcon: Icon(TablerIcons.apps_filled),
               label: 'Home',
             ),
             const BottomNavigationBarItem(
-              icon: Icon(Icons.list_alt_outlined),
-              activeIcon: Icon(Icons.list_alt_rounded),
+              icon: Icon(TablerIcons.circle_check),
+              activeIcon: Icon(TablerIcons.circle_check_filled),
               label: 'Requests',
             ),
             const BottomNavigationBarItem(
-              icon: Icon(Icons.task_alt_outlined),
-              activeIcon: Icon(Icons.task_alt_rounded),
+              icon: Icon(TablerIcons.square_check),
+              activeIcon: Icon(TablerIcons.square_check_filled),
               label: 'Tasks',
             ),
             if (canCreateTask)
               const BottomNavigationBarItem(
-                icon: Icon(Icons.add_box_outlined),
-                activeIcon: Icon(Icons.add_box_rounded),
+                icon: Icon(TablerIcons.square_rounded_plus),
+                activeIcon: Icon(TablerIcons.square_rounded_plus_filled),
                 label: 'Create',
               ),
             BottomNavigationBarItem(
-              icon: _badgeIcon(icon: Icons.notifications_none, count: unread, active: false),
-              activeIcon: _badgeIcon(icon: Icons.notifications, count: unread, active: true),
+              icon: _badgeIcon(icon: TablerIcons.bell, count: unread, active: false),
+              activeIcon: _badgeIcon(
+                icon: TablerIcons.bell_filled,
+                count: unread,
+                active: true,
+              ),
               label: 'Notifications',
             ),
             const BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
+              icon: Icon(TablerIcons.badge),
+              activeIcon: Icon(TablerIcons.badge_filled),
               label: 'Profile',
             ),
           ],

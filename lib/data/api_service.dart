@@ -15,6 +15,8 @@ import 'package:leavego_app/models/task_detail_response.dart';
 import 'package:leavego_app/models/tasks_response.dart';
 import 'package:leavego_app/models/users_response.dart';
 import 'package:leavego_app/models/supporting_tasks_response.dart';
+import 'package:leavego_app/models/news_action_response.dart';
+import 'package:leavego_app/models/news_response.dart';
 
 class ApiService {
   ApiService(this._dataService);
@@ -141,6 +143,128 @@ class ApiService {
     final response = ApplyLeaveResponse.fromJson(payload);
     if (!response.success) {
       throw Exception(response.message.isNotEmpty ? response.message : 'Failed to apply leave');
+    }
+    return response;
+  }
+
+  Future<NewsActionResponse> createNews({
+    required String token,
+    required String title,
+    required String content,
+  }) async {
+    final result = await _dataService.postMultipart(
+      url: '$baseUrl/news',
+      fields: <String, String>{
+        'title': title,
+        'content': content,
+        'target_audience': 'all',
+      },
+      filePath: null,
+      fileFieldName: 'image',
+      headers: <String, String>{
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    );
+
+    final statusCode = result['statusCode'] as int? ?? 500;
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+
+    if (statusCode < 200 || statusCode >= 300) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to create news');
+    }
+
+    final response = NewsActionResponse.fromJson(payload);
+    if (!response.success) {
+      throw Exception(response.message.isNotEmpty ? response.message : 'Failed to create news');
+    }
+    return response;
+  }
+
+  Future<NewsPageData> news({required String token, int page = 1}) async {
+    final result = await _dataService.get(
+      url: '$baseUrl/news?page=$page',
+      headers: <String, String>{
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    );
+
+    final statusCode = result['statusCode'] as int? ?? 500;
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+
+    if (statusCode < 200 || statusCode >= 300) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to load news');
+    }
+
+    final response = NewsResponse.fromJson(payload);
+    if (!response.success) {
+      throw Exception('Failed to load news');
+    }
+
+    return response.data;
+  }
+
+  Future<NewsActionResponse> updateNews({
+    required String token,
+    required String newsId,
+    required String title,
+    required String content,
+    required String status,
+  }) async {
+    final result = await _dataService.put(
+      url: '$baseUrl/news/$newsId',
+      body: <String, dynamic>{
+        'title': title,
+        'content': content,
+        'status': status,
+      },
+      headers: <String, String>{
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    );
+
+    final statusCode = result['statusCode'] as int? ?? 500;
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+
+    if (statusCode < 200 || statusCode >= 300) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to update news');
+    }
+
+    final response = NewsActionResponse.fromJson(payload);
+    if (!response.success) {
+      throw Exception(response.message.isNotEmpty ? response.message : 'Failed to update news');
+    }
+    return response;
+  }
+
+  Future<NewsActionResponse> deleteNews({
+    required String token,
+    required String newsId,
+  }) async {
+    final result = await _dataService.delete(
+      url: '$baseUrl/news/$newsId',
+      headers: <String, String>{
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    );
+
+    final statusCode = result['statusCode'] as int? ?? 500;
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+
+    if (statusCode < 200 || statusCode >= 300) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to delete news');
+    }
+
+    final response = NewsActionResponse.fromJson(payload);
+    if (!response.success) {
+      throw Exception(response.message.isNotEmpty ? response.message : 'Failed to delete news');
     }
     return response;
   }
@@ -536,7 +660,7 @@ class ApiService {
       body: <String, dynamic>{
         'task_id': taskId,
         'requested_to': requestedTo,
-        'timeline_note': timelineNote,
+        'message': timelineNote,
       },
       headers: <String, String>{'Authorization': 'Bearer $token'},
     );
@@ -605,7 +729,8 @@ class ApiService {
   }) async {
     final result = await _dataService.post(
       url: '$baseUrl/supporting-tasks/$supportingTaskId/accept',
-      body: <String, dynamic>{'response_comment': responseComment, 'timeline_note': timelineNote},
+      body: {},
+      // body: <String, dynamic>{'response_message': responseComment, 'timeline_note': timelineNote},
       headers: <String, String>{'Authorization': 'Bearer $token'},
     );
 
@@ -632,7 +757,8 @@ class ApiService {
   }) async {
     final result = await _dataService.post(
       url: '$baseUrl/supporting-tasks/$supportingTaskId/decline',
-      body: <String, dynamic>{'response_comment': responseComment},
+      body: {},
+      // body: <String, dynamic>{'response_comment': responseComment},
       headers: <String, String>{'Authorization': 'Bearer $token'},
     );
 

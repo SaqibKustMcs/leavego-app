@@ -77,9 +77,8 @@ class _SupportingTasksScreenState extends State<SupportingTasksScreen>
     return raw
         .split('_')
         .map(
-          (part) => part.isEmpty
-              ? part
-              : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
+          (part) =>
+              part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
         )
         .join(' ');
   }
@@ -95,325 +94,57 @@ class _SupportingTasksScreenState extends State<SupportingTasksScreen>
     }
   }
 
-  Future<void> _showAcceptSheet(SupportingTaskItem item) async {
-    final responseCommentController = TextEditingController();
-    final timelineNoteController = TextEditingController();
-    var responseCommentError = '';
-    var timelineNoteError = '';
-    var isSubmitting = false;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            Future<void> submit() async {
-              final responseComment = responseCommentController.text.trim();
-              final timelineNote = timelineNoteController.text.trim();
-              var hasError = false;
-
-              if (responseComment.isEmpty) {
-                responseCommentError = 'Please enter response comment';
-                hasError = true;
-              }
-              if (timelineNote.isEmpty) {
-                timelineNoteError = 'Please enter timeline note';
-                hasError = true;
-              }
-
-              if (hasError) {
-                setModalState(() {});
-                return;
-              }
-
-              setModalState(() {
-                isSubmitting = true;
-                responseCommentError = '';
-                timelineNoteError = '';
-              });
-
-              final response = await _appController.acceptSupportingTask(
-                supportingTaskId: item.id.toString(),
-                responseComment: responseComment,
-                timelineNote: timelineNote,
-              );
-
-              if (!mounted) return;
-
-              setModalState(() => isSubmitting = false);
-
-              if (response != null) {
-                if (context.mounted) {
-                  Navigator.of(context).pop();
-                }
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      response.message.isNotEmpty
-                          ? response.message
-                          : 'Supporting task accepted successfully',
-                    ),
-                  ),
-                );
-                return;
-              }
-
-              responseCommentError =
-                  _appController.acceptSupportingTaskError ??
-                  'Failed to accept supporting task';
-              setModalState(() {});
-            }
-
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 16,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-              ),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Accept Support Request',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.navy,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      item.task?.title ?? 'Supporting Task',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: const Color(0xFF6A778B),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: responseCommentController,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        labelText: 'Response Comment',
-                        hintText: 'Accepted, I will help on this',
-                        errorText: responseCommentError.isEmpty
-                            ? null
-                            : responseCommentError,
-                      ),
-                      onChanged: (_) {
-                        if (responseCommentError.isNotEmpty) {
-                          setModalState(() => responseCommentError = '');
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: timelineNoteController,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        labelText: 'Timeline Note',
-                        hintText: 'Will finish before 5 PM',
-                        errorText: timelineNoteError.isEmpty
-                            ? null
-                            : timelineNoteError,
-                      ),
-                      onChanged: (_) {
-                        if (timelineNoteError.isNotEmpty) {
-                          setModalState(() => timelineNoteError = '');
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [AppTheme.navy, AppTheme.lightNavy],
-                        ),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: FilledButton(
-                        onPressed: isSubmitting ? null : submit,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          minimumSize: const Size(double.infinity, 48),
-                        ),
-                        child: isSubmitting
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text('Accept Request'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+  Future<void> _acceptDirect(SupportingTaskItem item) async {
+    final response = await _appController.acceptSupportingTask(
+      supportingTaskId: item.id.toString(),
+      responseComment: 'Accepted',
+      timelineNote: '-',
     );
+    if (!mounted) return;
+    if (response != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            response.message.isNotEmpty
+                ? response.message
+                : 'Supporting task accepted successfully',
+          ),
+        ),
+      );
+      return;
+    }
+    final err = _appController.acceptSupportingTaskError;
+    if (err != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+    }
   }
 
-  Future<void> _showDeclineSheet(SupportingTaskItem item) async {
-    final responseCommentController = TextEditingController();
-    var responseCommentError = '';
-    var isSubmitting = false;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            Future<void> submit() async {
-              final responseComment = responseCommentController.text.trim();
-              if (responseComment.isEmpty) {
-                setModalState(
-                  () => responseCommentError = 'Please enter response comment',
-                );
-                return;
-              }
-
-              setModalState(() {
-                isSubmitting = true;
-                responseCommentError = '';
-              });
-
-              final response = await _appController.declineSupportingTask(
-                supportingTaskId: item.id.toString(),
-                responseComment: responseComment,
-              );
-
-              if (!mounted) return;
-
-              setModalState(() => isSubmitting = false);
-
-              if (response != null) {
-                if (context.mounted) {
-                  Navigator.of(context).pop();
-                }
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      response.message.isNotEmpty
-                          ? response.message
-                          : 'Supporting task declined successfully',
-                    ),
-                  ),
-                );
-                return;
-              }
-
-              responseCommentError =
-                  _appController.declineSupportingTaskError ??
-                  'Failed to decline supporting task';
-              setModalState(() {});
-            }
-
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 16,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-              ),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Decline Support Request',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.navy,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      item.task?.title ?? 'Supporting Task',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: const Color(0xFF6A778B),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: responseCommentController,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        labelText: 'Response Comment',
-                        hintText: 'Unable to take this right now',
-                        errorText: responseCommentError.isEmpty
-                            ? null
-                            : responseCommentError,
-                      ),
-                      onChanged: (_) {
-                        if (responseCommentError.isNotEmpty) {
-                          setModalState(() => responseCommentError = '');
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFC62828),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: FilledButton(
-                        onPressed: isSubmitting ? null : submit,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          minimumSize: const Size(double.infinity, 48),
-                        ),
-                        child: isSubmitting
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text('Decline Request'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+  Future<void> _declineDirect(SupportingTaskItem item) async {
+    final response = await _appController.declineSupportingTask(
+      supportingTaskId: item.id.toString(),
+      responseComment: 'Declined',
     );
+    if (!mounted) return;
+    if (response != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            response.message.isNotEmpty
+                ? response.message
+                : 'Supporting task declined successfully',
+          ),
+        ),
+      );
+      return;
+    }
+    final err = _appController.declineSupportingTaskError;
+    if (err != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FC),
       appBar: AppBar(
@@ -457,8 +188,11 @@ class _SupportingTasksScreenState extends State<SupportingTasksScreen>
                 toLabel: _toLabel,
                 statusColor: _statusColor,
                 isOutgoing: false,
-                onAccept: _showAcceptSheet,
-                onDecline: _showDeclineSheet,
+                actionInProgress:
+                    _appController.acceptSupportingTaskLoading ||
+                    _appController.declineSupportingTaskLoading,
+                onAccept: _acceptDirect,
+                onDecline: _declineDirect,
               ),
             ],
           ),
@@ -478,6 +212,7 @@ class _SupportListTab extends StatelessWidget {
     required this.toLabel,
     required this.statusColor,
     required this.isOutgoing,
+    this.actionInProgress = false,
     this.onAccept,
     this.onDecline,
   });
@@ -490,6 +225,7 @@ class _SupportListTab extends StatelessWidget {
   final String Function(String) toLabel;
   final Color Function(String) statusColor;
   final bool isOutgoing;
+  final bool actionInProgress;
   final Future<void> Function(SupportingTaskItem item)? onAccept;
   final Future<void> Function(SupportingTaskItem item)? onDecline;
 
@@ -499,7 +235,7 @@ class _SupportListTab extends StatelessWidget {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (error != null && items.isEmpty) {
+    if (error != null && items.isEmpty && !loading) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -512,36 +248,36 @@ class _SupportListTab extends StatelessWidget {
       );
     }
 
-    if (items.isEmpty) {
+    if (items.isEmpty && !loading) {
       return ListView(
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: ClampingScrollPhysics(),
-        ),
+        physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
         padding: const EdgeInsets.all(20),
-        children: [
-          _MessageCard(message: emptyMessage),
-        ],
+        children: [_MessageCard(message: emptyMessage)],
       );
     }
 
     return ListView.builder(
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: ClampingScrollPhysics(),
-      ),
+      physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-      itemCount: items.length + (error != null ? 1 : 0),
+      itemCount: items.length + (error != null ? 1 : 0) + (loading && items.isNotEmpty ? 1 : 0),
       itemBuilder: (context, index) {
-        if (index >= items.length) {
+        if (loading && items.isNotEmpty && index == 0) {
+          return const Padding(
+            padding: EdgeInsets.only(bottom: 10),
+            child: LinearProgressIndicator(minHeight: 3),
+          );
+        }
+        final dataIndex = loading && items.isNotEmpty ? index - 1 : index;
+
+        if (dataIndex >= items.length) {
           return Padding(
             padding: const EdgeInsets.only(top: 8),
             child: _MessageCard(message: error!, isError: true),
           );
         }
 
-        final item = items[index];
-        final personName = isOutgoing
-            ? item.receiver?.name ?? '-'
-            : item.requester?.name ?? '-';
+        final item = items[dataIndex];
+        final personName = isOutgoing ? item.receiver?.name ?? '-' : item.requester?.name ?? '-';
         final personLabel = isOutgoing ? 'Requested To' : 'Requested By';
 
         return Container(
@@ -574,10 +310,7 @@ class _SupportListTab extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  _StatusPill(
-                    label: toLabel(item.status),
-                    color: statusColor(item.status),
-                  ),
+                  _StatusPill(label: toLabel(item.status), color: statusColor(item.status)),
                 ],
               ),
               const SizedBox(height: 10),
@@ -586,16 +319,14 @@ class _SupportListTab extends StatelessWidget {
               _InfoRow(label: personLabel, value: personName),
               const SizedBox(height: 8),
               _InfoRow(
-                label: 'Timeline Note',
+                label: 'Message',
                 value: item.timelineNote.isEmpty ? '-' : item.timelineNote,
               ),
-              const SizedBox(height: 8),
-              _InfoRow(
-                label: 'Response',
-                value: item.responseMessage?.isNotEmpty == true
-                    ? item.responseMessage!
-                    : '-',
-              ),
+              // const SizedBox(height: 8),
+              // _InfoRow(
+              //   label: 'Response',
+              //   value: item.responseMessage?.isNotEmpty == true ? item.responseMessage! : '-',
+              // ),
               const SizedBox(height: 8),
               _InfoRow(label: 'Created At', value: formatDate(item.createdAt)),
               if (!isOutgoing && item.status.trim().toLowerCase() == 'pending') ...[
@@ -604,7 +335,9 @@ class _SupportListTab extends StatelessWidget {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: onAccept == null ? null : () => onAccept!(item),
+                        onPressed: actionInProgress || onAccept == null
+                            ? null
+                            : () => onAccept!(item),
                         icon: const Icon(Icons.check_circle_outline_rounded),
                         label: const Text('Accept'),
                       ),
@@ -612,12 +345,12 @@ class _SupportListTab extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: onDecline == null ? null : () => onDecline!(item),
+                        onPressed: actionInProgress || onDecline == null
+                            ? null
+                            : () => onDecline!(item),
                         icon: const Icon(Icons.cancel_outlined),
                         label: const Text('Decline'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFC62828),
-                        ),
+                        style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFFC62828)),
                       ),
                     ),
                   ],
@@ -632,10 +365,7 @@ class _SupportListTab extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.label,
-    required this.value,
-  });
+  const _InfoRow({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -673,10 +403,7 @@ class _InfoRow extends StatelessWidget {
 }
 
 class _StatusPill extends StatelessWidget {
-  const _StatusPill({
-    required this.label,
-    required this.color,
-  });
+  const _StatusPill({required this.label, required this.color});
 
   final String label;
   final Color color;
@@ -691,21 +418,14 @@ class _StatusPill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.w700,
-          fontSize: 12,
-        ),
+        style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12),
       ),
     );
   }
 }
 
 class _MessageCard extends StatelessWidget {
-  const _MessageCard({
-    required this.message,
-    this.isError = false,
-  });
+  const _MessageCard({required this.message, this.isError = false});
 
   final String message;
   final bool isError;
@@ -720,10 +440,7 @@ class _MessageCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(16),
-      ),
+      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(16)),
       child: Text(
         message,
         style: theme.textTheme.bodySmall?.copyWith(

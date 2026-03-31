@@ -13,14 +13,24 @@ class MyLeaveRequestsScreen extends StatefulWidget {
   State<MyLeaveRequestsScreen> createState() => _MyLeaveRequestsScreenState();
 }
 
-class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen> {
+class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen>
+    with SingleTickerProviderStateMixin {
   late final AppController _appController;
+  late final TabController _tabController;
+  static const int _tabMyRequests = 0;
+  static const int _tabPending = 1;
+  bool _bootstrapped = false;
 
   Future<void> _onRefresh() async {
-    await Future.wait([
-      _appController.loadRequestsByRole(),
-      _appController.loadLeaveTypes(),
-    ]);
+    final role = (_appController.meData?.role ?? '').trim().toLowerCase();
+    final isCeoOrHr = role == 'ceo' || role == 'hr';
+    final loader = isCeoOrHr
+        ? (_tabController.index == _tabPending
+            ? _appController.loadRequestsByRole
+            : _appController.loadMyLeaves)
+        : _appController.loadRequestsByRole;
+
+    await Future.wait([loader(), _appController.loadLeaveTypes()]);
   }
 
   @override
@@ -28,19 +38,41 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen> {
     super.initState();
     _appController = Get.find<AppController>();
     _appController.addListener(_onUpdate);
-    _appController.loadRequestsByRole();
+    _tabController = TabController(length: 2, vsync: this);
+    if (_appController.meData == null) _appController.loadMe();
+    _bootstrap();
     if (_appController.leaveTypes.isEmpty) {
       _appController.loadLeaveTypes();
     }
   }
 
+  Future<void> _bootstrap() async {
+    if (_bootstrapped) return;
+    _bootstrapped = true;
+
+    final role = (_appController.meData?.role ?? '').trim().toLowerCase();
+    final isCeoOrHr = role == 'ceo' || role == 'hr';
+
+    // Default: show "My Requests" first for CEO/HR.
+    if (isCeoOrHr) {
+      await _appController.loadMyLeaves();
+    } else {
+      await _appController.loadRequestsByRole();
+    }
+  }
+
   void _onUpdate() {
+    // If role arrives later, re-bootstrap once.
+    if (_appController.meData != null && !_bootstrapped) {
+      _bootstrap();
+    }
     if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
     _appController.removeListener(_onUpdate);
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -48,8 +80,13 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final role = (_appController.meData?.role ?? '').trim().toLowerCase();
-    final isApprover = role == 'hod' || role == 'hr';
+    final isCeoOrHr = role == 'ceo' || role == 'hr';
+    final isApproverOnly = role == 'hod';
+    final isApprover = isApproverOnly || (isCeoOrHr && _tabController.index == _tabPending);
     final emptyMessage = isApprover ? 'No pending approvals found.' : 'No leave requests found.';
+    final title = isCeoOrHr
+        ? (_tabController.index == _tabPending ? 'Pending Approvals' : 'My Leave Requests')
+        : (isApproverOnly ? 'Pending Approvals' : 'My Leave Requests');
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FC),
@@ -62,7 +99,7 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen> {
             Row(
               children: [
                 Text(
-                  isApprover ? 'Pending Approvals' : 'My Leave Requests',
+                  title,
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: AppTheme.navy,
@@ -72,11 +109,51 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen> {
                 TextButton(
                   onPressed: _appController.myLeavesLoading
                       ? null
-                      : _appController.loadRequestsByRole,
+                      : () async {
+                          if (isCeoOrHr && _tabController.index == _tabMyRequests) {
+                            await _appController.loadMyLeaves();
+                          } else {
+                            await _appController.loadRequestsByRole();
+                          }
+                        },
                   child: const Text('Refresh'),
                 ),
               ],
             ),
+            if (isCeoOrHr) ...[
+              const SizedBox(height: 10),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE3EAF8)),
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  labelColor: AppTheme.navy,
+                  unselectedLabelColor: const Color(0xFF6A778B),
+                  indicatorColor: AppTheme.navy,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  dividerColor: Colors.transparent,
+                  onTap: (index) async {
+                    // Switch dataset based on tab.
+                    if (index == _tabPending) {
+                      await _appController.loadRequestsByRole();
+                    } else {
+                      await _appController.loadMyLeaves();
+                    }
+                    if (_appController.leaveTypes.isEmpty) {
+                      await _appController.loadLeaveTypes();
+                    }
+                    if (mounted) setState(() {});
+                  },
+                  tabs: const [
+                    Tab(text: 'My Requests'),
+                    Tab(text: 'Pending'),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
             if (_appController.myLeavesLoading)
               const Padding(
@@ -147,26 +224,22 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen> {
           ],
         ),
       ),
-      floatingActionButton: isApprover
-          ? null
-          : Container(
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: [AppTheme.navy, AppTheme.lightNavy]),
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: FloatingActionButton.extended(
-                backgroundColor: Colors.transparent,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                onPressed: () {
-                  Navigator.of(
-                    context,
-                  ).push(MaterialPageRoute(builder: (_) => const ApplyLeaveScreen()));
-                },
-                icon: const Icon(Icons.add),
-                label: const Text('Apply Leave'),
-              ),
-            ),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [AppTheme.navy, AppTheme.lightNavy]),
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: FloatingActionButton.extended(
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          onPressed: () {
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ApplyLeaveScreen()));
+          },
+          icon: const Icon(Icons.add),
+          label: const Text('Apply Leave'),
+        ),
+      ),
     );
   }
 

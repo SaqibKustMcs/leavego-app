@@ -37,6 +37,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   void initState() {
     super.initState();
     _appController = Get.find<AppController>();
+    if (_appController.meData == null) {
+      _appController.loadMe();
+    }
     _future = _appController.loadTaskDetail(taskId: widget.taskId);
   }
 
@@ -308,6 +311,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
             final task = detail.task;
             _selectedStatus ??= task.status;
+            final currentUserId = _appController.meData?.id.toString();
+            final canCreateSupportingTask = currentUserId != null &&
+                currentUserId.isNotEmpty &&
+                (task.assignedTo ?? '').toString() == currentUserId;
 
             return ListView(
               physics: const ClampingScrollPhysics(),
@@ -426,21 +433,30 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        onPressed: () async {
-                          final created = await Navigator.of(context).push<bool>(
-                            MaterialPageRoute(
-                              builder: (_) => CreateSupportingTaskScreen(task: task),
-                            ),
-                          );
-                          if (created == true) {
-                            _reloadDetail();
-                          }
-                        },
-                        icon: const Icon(Icons.support_agent_rounded),
-                        label: const Text('Create Supporting Task'),
-                      ),
-                      const SizedBox(height: 10),
+                      if (canCreateSupportingTask) ...[
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            final created = await Navigator.of(context).push<bool>(
+                              MaterialPageRoute(
+                                builder: (_) => CreateSupportingTaskScreen(task: task),
+                              ),
+                            );
+                            if (created == true) {
+                              _reloadDetail();
+                            }
+                          },
+                          icon: const Icon(Icons.support_agent_rounded),
+                          label: const Text('Create Supporting Task'),
+                        ),
+                        const SizedBox(height: 10),
+                      ] else
+                        Text(
+                          'Only the assigned user can create a supporting task for this item.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: const Color(0xFF6A778B),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       OutlinedButton.icon(
                         onPressed: () {
                           Navigator.of(

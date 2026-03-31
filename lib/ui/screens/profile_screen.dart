@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
+import 'package:leavego_app/ui/screens/create_news_screen.dart';
+import 'package:leavego_app/ui/screens/news_screen.dart';
 import 'package:leavego_app/ui/screens/login_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 
@@ -51,6 +53,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final name = me?.name ?? 'Employee';
     final email = me?.email ?? '-';
     final role = me?.role ?? '-';
+    final lowerRole = role.trim().toLowerCase();
+    final canCreateNews = lowerRole == 'hr' || lowerRole == 'ceo';
     final departmentId = me?.departmentId ?? '-';
     final initials = _initials(name);
     final isActive = me?.isActive == true;
@@ -182,6 +186,68 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         value: statusLabel,
                         valueColor: isActive ? const Color(0xFF1B8A5A) : const Color(0xFF9B2C2C),
                       ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _SectionCard(
+                  title: 'News',
+                  child: Column(
+                    children: [
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8EEFC),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.article_outlined, color: AppTheme.navy),
+                        ),
+                        title: const Text(
+                          'Company News',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        subtitle: const Text('View latest announcements'),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () {
+                          Navigator.of(
+                            context,
+                          ).push(MaterialPageRoute(builder: (_) => const NewsScreen()));
+                        },
+                      ),
+                      if (canCreateNews) ...[
+                        const Divider(height: 18),
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8EEFC),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.campaign_outlined, color: AppTheme.navy),
+                          ),
+                          title: const Text(
+                            'Create News',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          subtitle: const Text('Publish announcements for a target audience'),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: () async {
+                            final created = await Navigator.of(context).push<bool>(
+                              MaterialPageRoute(builder: (_) => const CreateNewsScreen()),
+                            );
+                            if (created == true && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('News published')),
+                              );
+                            }
+                          },
+                        ),
+                      ],
                     ],
                   ),
                 ),
