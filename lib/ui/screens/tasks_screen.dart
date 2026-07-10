@@ -4,6 +4,7 @@ import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/departments_response.dart';
 import 'package:leavego_app/models/users_response.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_loader.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -172,7 +173,7 @@ class _TasksScreenState extends State<TasksScreen> {
       isValid = false;
     }
     if (_dueDateController.text.trim().isEmpty) {
-      dueDateError.value = 'Please select due date';
+      dueDateError.value = 'Please select end date';
       isValid = false;
     }
 
@@ -507,7 +508,7 @@ class _TaskCreateCard extends StatelessWidget {
           if (usersLoading || departmentsLoading)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
-              child: LinearProgressIndicator(minHeight: 3),
+              child: AppLoader(size: 24),
             ),
           if (usersError != null || departmentsError != null)
             Padding(
@@ -640,7 +641,7 @@ class _TaskCreateCard extends StatelessWidget {
               readOnly: true,
               onTap: onPickDueDate,
               decoration: InputDecoration(
-                labelText: 'Due Date',
+                labelText: 'End Date',
                 hintText: 'YYYY-MM-DD',
                 suffixIcon: const Icon(Icons.calendar_today_outlined),
                 errorText: dueDateError.value.isEmpty ? null : dueDateError.value,
@@ -674,11 +675,7 @@ class _TaskCreateCard extends StatelessWidget {
                 minimumSize: const Size(double.infinity, 50),
               ),
               child: createTaskLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
+                  ? const AppButtonLoader(size: 22)
                   : const Text('Create Task'),
             ),
           ),

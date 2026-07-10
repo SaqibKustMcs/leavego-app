@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/leave_detail_response.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_loader.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class LeaveDetailScreen extends StatefulWidget {
@@ -278,7 +279,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Padding(
                     padding: EdgeInsets.symmetric(vertical: 28),
-                    child: Center(child: CircularProgressIndicator()),
+                    child: AppLoader(),
                   );
                 }
                 if (snapshot.hasError) {
@@ -459,14 +460,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                                       ? null
                                       : () => _submitApprovalAction(requestId: leave.id),
                                   child: _appController.approvalActionLoading
-                                      ? const SizedBox(
-                                          height: 18,
-                                          width: 18,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.white,
-                                          ),
-                                        )
+                                      ? const AppButtonLoader()
                                       : Text(
                                           _selectedApprovalAction == 'reject'
                                               ? 'Submit Rejection'

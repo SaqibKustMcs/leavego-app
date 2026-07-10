@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/tasks_response.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_loader.dart';
 
 class CreateSupportingTaskScreen extends StatefulWidget {
   const CreateSupportingTaskScreen({super.key, required this.task});
@@ -169,7 +170,7 @@ class _CreateSupportingTaskScreenState extends State<CreateSupportingTaskScreen>
                   if (_appController.usersLoading)
                     const Padding(
                       padding: EdgeInsets.only(top: 12),
-                      child: LinearProgressIndicator(minHeight: 3),
+                      child: AppLoader(size: 24),
                     ),
                   const SizedBox(height: 12),
                   Obx(
@@ -228,14 +229,7 @@ class _CreateSupportingTaskScreenState extends State<CreateSupportingTaskScreen>
                         minimumSize: const Size(double.infinity, 50),
                       ),
                       child: _appController.createSupportingTaskLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
+                          ? const AppButtonLoader(size: 22)
                           : const Text('Create Supporting Task'),
                     ),
                   ),

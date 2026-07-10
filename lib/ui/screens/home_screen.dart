@@ -140,10 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 14),
             ],
             if (_appController.dashboardLoading && data == null)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 48),
-                child: AppLoader(),
-              ),
+              const Padding(padding: EdgeInsets.symmetric(vertical: 48), child: AppLoader()),
             // Container(
             //   padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
             //   decoration: BoxDecoration(
@@ -393,9 +390,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       foregroundColor: AppTheme.navy,
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     ),
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const MyLeaveRequestsScreen()),
-                    ),
+                    onPressed: () => Navigator.of(
+                      context,
+                    ).push(MaterialPageRoute(builder: (_) => const MyLeaveRequestsScreen())),
                     icon: const Icon(Icons.assignment_outlined, size: 18),
                     label: const Text(
                       'Leave Requests',
@@ -645,11 +642,7 @@ class _NewsCarouselState extends State<_NewsCarousel> {
 }
 
 class _NewsCarouselCard extends StatelessWidget {
-  const _NewsCarouselCard({
-    required this.item,
-    required this.dateLabel,
-    required this.onTap,
-  });
+  const _NewsCarouselCard({required this.item, required this.dateLabel, required this.onTap});
 
   final NewsItem item;
   final String dateLabel;
@@ -870,26 +863,26 @@ class _HomeHeader extends StatelessWidget {
               ],
             ),
           ),
-          if (canCreateNews)
-            TextButton.icon(
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.white,
-                backgroundColor: Colors.white.withValues(alpha: 0.16),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
-                ),
-              ),
-              onPressed: onCreateNewsTap,
-              icon: const Icon(Icons.add_rounded, size: 16),
-              label: const Text(
-                'Create News',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-              ),
-            ),
+          // if (canCreateNews)
+          //   TextButton.icon(
+          //     style: TextButton.styleFrom(
+          //       foregroundColor: Colors.white,
+          //       backgroundColor: Colors.white.withValues(alpha: 0.16),
+          //       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          //       minimumSize: Size.zero,
+          //       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          //       shape: RoundedRectangleBorder(
+          //         borderRadius: BorderRadius.circular(12),
+          //         side: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
+          //       ),
+          //     ),
+          //     onPressed: onCreateNewsTap,
+          //     icon: const Icon(Icons.add_rounded, size: 16),
+          //     label: const Text(
+          //       'Create News',
+          //       style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+          //     ),
+          //   ),
         ],
       ),
     );

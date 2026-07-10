@@ -18,6 +18,7 @@ import 'package:leavego_app/models/users_response.dart';
 import 'package:leavego_app/models/supporting_tasks_response.dart';
 import 'package:leavego_app/models/news_action_response.dart';
 import 'package:leavego_app/models/news_response.dart';
+import 'package:leavego_app/models/projects_response.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AppController extends ChangeNotifier {
@@ -93,6 +94,28 @@ class AppController extends ChangeNotifier {
   int tasksLastPage = 1;
   bool tasksHasMore = false;
 
+  bool projectsLoading = false;
+  bool projectsLoadingMore = false;
+  String? projectsError;
+  List<ProjectItem> projects = <ProjectItem>[];
+  int projectsCurrentPage = 1;
+  int projectsLastPage = 1;
+  bool projectsHasMore = false;
+
+  int? selectedProjectId;
+  bool projectTasksMyTasksOnly = false;
+  String? projectTasksStatusFilter;
+  bool projectMembersLoading = false;
+  String? projectMembersError;
+  List<ProjectMember> projectMembers = <ProjectMember>[];
+  bool projectTasksLoading = false;
+  bool projectTasksLoadingMore = false;
+  String? projectTasksError;
+  List<TaskItem> projectTasks = <TaskItem>[];
+  int projectTasksCurrentPage = 1;
+  int projectTasksLastPage = 1;
+  bool projectTasksHasMore = false;
+
   bool createNewsLoading = false;
   String? createNewsError;
 
@@ -109,16 +132,40 @@ class AppController extends ChangeNotifier {
   bool deleteNewsLoading = false;
   String? deleteNewsError;
 
-  /// When set, [MainScreen] switches bottom navigation to this index (2 = Tasks tab).
+  /// When set, [MainScreen] switches bottom navigation to this index (1 = Projects tab).
   int? pendingMainTabIndex;
 
   void requestSwitchToTasksTab() {
+    pendingMainTabIndex = 1;
+    notifyListeners();
+  }
+
+  /// Requests [MainScreen] to switch to the notifications bottom tab.
+  void requestSwitchToNotificationsTab() {
     pendingMainTabIndex = 2;
     notifyListeners();
   }
 
   void clearPendingMainTabIndex() {
     pendingMainTabIndex = null;
+  }
+
+  String? lastFcmToken;
+
+  /// Sends the FCM device token to the backend (best-effort, never throws).
+  Future<void> registerFcmToken(String fcmToken, {String platform = 'unknown'}) async {
+    lastFcmToken = fcmToken;
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) return;
+      await _apiService.registerDeviceToken(
+        token: token,
+        fcmToken: fcmToken,
+        platform: platform,
+      );
+    } catch (_) {
+      // Ignore: push registration should not disrupt app flow.
+    }
   }
 
   Future<LoginResponse?> login({required String email, required String password}) async {
@@ -727,6 +774,47 @@ class AppController extends ChangeNotifier {
     }
   }
 
+  Future<CreateTaskResponse?> createProjectTask({
+    required int projectId,
+    required String title,
+    required String description,
+    required String priority,
+    required String assignedTo,
+    required String startDate,
+    required String dueDate,
+    required int estimatedHours,
+  }) async {
+    createTaskLoading = true;
+    createTaskError = null;
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+      final response = await _apiService.createProjectTask(
+        token: token,
+        projectId: projectId,
+        title: title,
+        description: description,
+        priority: priority,
+        assignedTo: assignedTo,
+        startDate: startDate,
+        dueDate: dueDate,
+        estimatedHours: estimatedHours,
+      );
+      await loadProjectTasks(projectId: projectId, refresh: true);
+      return response;
+    } catch (e) {
+      createTaskError = e.toString().replaceFirst('Exception: ', '');
+      return null;
+    } finally {
+      createTaskLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<TaskActionResponse?> updateTask({
     required String taskId,
     required String title,
@@ -1015,6 +1103,177 @@ class AppController extends ChangeNotifier {
       tasksError = e.toString().replaceFirst('Exception: ', '');
     } finally {
       tasksLoadingMore = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadProjects({bool refresh = false}) async {
+    if (refresh) {
+      projectsCurrentPage = 1;
+      projectsLastPage = 1;
+      projectsHasMore = false;
+    }
+
+    projectsLoading = true;
+    projectsError = null;
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+      final page = await _apiService.projects(token: token, page: 1);
+      projects = page.items;
+      projectsCurrentPage = page.currentPage;
+      projectsLastPage = page.lastPage;
+      projectsHasMore = page.hasMore;
+    } catch (e) {
+      projectsError = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      projectsLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadMoreProjects() async {
+    if (projectsLoadingMore || projectsLoading || !projectsHasMore) return;
+
+    projectsLoadingMore = true;
+    notifyListeners();
+
+    try {
+      final nextPage = projectsCurrentPage + 1;
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+      final page = await _apiService.projects(token: token, page: nextPage);
+      projects = <ProjectItem>[...projects, ...page.items];
+      projectsCurrentPage = page.currentPage;
+      projectsLastPage = page.lastPage;
+      projectsHasMore = page.hasMore;
+    } catch (e) {
+      projectsError = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      projectsLoadingMore = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadProjectMembers({required int projectId}) async {
+    projectMembersLoading = true;
+    projectMembersError = null;
+    projectMembers = <ProjectMember>[];
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+      projectMembers = await _apiService.projectMembers(
+        token: token,
+        projectId: projectId,
+      );
+    } catch (e) {
+      projectMembersError = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      projectMembersLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> setProjectTasksFilter({
+    required int projectId,
+    required String filter,
+  }) async {
+    switch (filter) {
+      case 'my_tasks':
+        projectTasksMyTasksOnly = true;
+        projectTasksStatusFilter = null;
+        break;
+      case 'assigned':
+        projectTasksMyTasksOnly = false;
+        projectTasksStatusFilter = 'assigned';
+        break;
+      default:
+        projectTasksMyTasksOnly = false;
+        projectTasksStatusFilter = null;
+        break;
+    }
+    await loadProjectTasks(projectId: projectId, refresh: true);
+  }
+
+  Future<void> loadProjectTasks({required int projectId, bool refresh = false}) async {
+    if (refresh) {
+      projectTasksCurrentPage = 1;
+      projectTasksLastPage = 1;
+      projectTasksHasMore = false;
+      projectTasks = <TaskItem>[];
+    }
+
+    selectedProjectId = projectId;
+    projectTasksLoading = true;
+    projectTasksError = null;
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+      final page = await _apiService.projectTasks(
+        token: token,
+        projectId: projectId,
+        page: 1,
+        myTasks: projectTasksMyTasksOnly,
+        status: projectTasksStatusFilter,
+      );
+      projectTasks = page.items;
+      projectTasksCurrentPage = page.currentPage;
+      projectTasksLastPage = page.lastPage;
+      projectTasksHasMore = page.hasMore;
+    } catch (e) {
+      projectTasksError = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      projectTasksLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadMoreProjectTasks() async {
+    if (projectTasksLoadingMore ||
+        projectTasksLoading ||
+        !projectTasksHasMore ||
+        selectedProjectId == null) {
+      return;
+    }
+
+    projectTasksLoadingMore = true;
+    notifyListeners();
+
+    try {
+      final nextPage = projectTasksCurrentPage + 1;
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+      final page = await _apiService.projectTasks(
+        token: token,
+        projectId: selectedProjectId!,
+        page: nextPage,
+        myTasks: projectTasksMyTasksOnly,
+        status: projectTasksStatusFilter,
+      );
+      projectTasks = <TaskItem>[...projectTasks, ...page.items];
+      projectTasksCurrentPage = page.currentPage;
+      projectTasksLastPage = page.lastPage;
+      projectTasksHasMore = page.hasMore;
+    } catch (e) {
+      projectTasksError = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      projectTasksLoadingMore = false;
       notifyListeners();
     }
   }

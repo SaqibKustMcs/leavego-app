@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/leave_type_response.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_loader.dart';
 
 class ApplyLeaveScreen extends StatefulWidget {
   const ApplyLeaveScreen({super.key});
@@ -288,7 +289,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                   if (_appController.leaveTypesLoading)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 12),
-                      child: LinearProgressIndicator(minHeight: 3),
+                      child: AppLoader(size: 24),
                     ),
                   Obx(
                     () => DropdownButtonFormField<String>(
@@ -426,11 +427,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                         minimumSize: const Size(double.infinity, 50),
                       ),
                       child: _appController.applyLeaveLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            )
+                          ? const AppButtonLoader(size: 22)
                           : const Text('Submit Request'),
                     ),
                   ),

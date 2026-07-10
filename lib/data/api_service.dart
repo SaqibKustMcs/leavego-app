@@ -17,6 +17,7 @@ import 'package:leavego_app/models/users_response.dart';
 import 'package:leavego_app/models/supporting_tasks_response.dart';
 import 'package:leavego_app/models/news_action_response.dart';
 import 'package:leavego_app/models/news_response.dart';
+import 'package:leavego_app/models/projects_response.dart';
 
 class ApiService {
   ApiService(this._dataService);
@@ -468,6 +469,27 @@ class ApiService {
     return 0;
   }
 
+  /// Registers an FCM device token with the backend so the server can deliver
+  /// push notifications to this device. Best-effort: returns whether the call
+  /// succeeded and never throws so it can be fired without blocking the UI.
+  Future<bool> registerDeviceToken({
+    required String token,
+    required String fcmToken,
+    String platform = 'unknown',
+  }) async {
+    try {
+      final result = await _dataService.post(
+        url: '$baseUrl/device-token',
+        body: <String, dynamic>{'token': fcmToken, 'platform': platform},
+        headers: <String, String>{'Authorization': 'Bearer $token'},
+      );
+      final statusCode = result['statusCode'] as int? ?? 500;
+      return statusCode >= 200 && statusCode < 300;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<List<AppUserItem>> users({required String token}) async {
     final result = await _dataService.get(
       url: '$baseUrl/users',
@@ -546,6 +568,47 @@ class ApiService {
     final response = CreateTaskResponse.fromJson(payload);
     if (!response.success) {
       throw Exception(response.message.isNotEmpty ? response.message : 'Failed to create task');
+    }
+    return response;
+  }
+
+  Future<CreateTaskResponse> createProjectTask({
+    required String token,
+    required int projectId,
+    required String title,
+    required String description,
+    required String priority,
+    required String assignedTo,
+    required String startDate,
+    required String dueDate,
+    required int estimatedHours,
+  }) async {
+    final result = await _dataService.post(
+      url: '$baseUrl/projects/$projectId/tasks',
+      body: <String, dynamic>{
+        'title': title,
+        'description': description,
+        'priority': priority,
+        'task_type': null,
+        'assigned_to': assignedTo,
+        'department_id': null,
+        'start_date': startDate,
+        'due_date': dueDate,
+        'estimated_hours': estimatedHours,
+      },
+      headers: <String, String>{'Authorization': 'Bearer $token'},
+    );
+
+    final statusCode = result['statusCode'] as int? ?? 500;
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+
+    if (statusCode < 200 || statusCode >= 300) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to create project task');
+    }
+
+    final response = CreateTaskResponse.fromJson(payload);
+    if (!response.success) {
+      throw Exception(response.message.isNotEmpty ? response.message : 'Failed to create project task');
     }
     return response;
   }
@@ -776,6 +839,81 @@ class ApiService {
       );
     }
     return response;
+  }
+
+  Future<ProjectsPageData> projects({required String token, int page = 1}) async {
+    final result = await _dataService.get(
+      url: '$baseUrl/projects?page=$page',
+      headers: <String, String>{'Authorization': 'Bearer $token'},
+    );
+
+    final statusCode = result['statusCode'] as int? ?? 500;
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+
+    if (statusCode < 200 || statusCode >= 300) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to load projects');
+    }
+
+    final response = ProjectsResponse.fromJson(payload);
+    if (!response.success) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to load projects');
+    }
+    return response.data;
+  }
+
+  Future<List<ProjectMember>> projectMembers({
+    required String token,
+    required int projectId,
+  }) async {
+    final result = await _dataService.get(
+      url: '$baseUrl/projects/$projectId/members',
+      headers: <String, String>{'Authorization': 'Bearer $token'},
+    );
+
+    final statusCode = result['statusCode'] as int? ?? 500;
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+
+    if (statusCode < 200 || statusCode >= 300) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to load project members');
+    }
+
+    final response = ProjectMembersResponse.fromJson(payload);
+    if (!response.success) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to load project members');
+    }
+    return response.data;
+  }
+
+  Future<TasksPageData> projectTasks({
+    required String token,
+    required int projectId,
+    int page = 1,
+    bool myTasks = false,
+    String? status,
+  }) async {
+    final query = <String>['page=$page'];
+    if (myTasks) query.add('my_tasks=1');
+    if (status != null && status.trim().isNotEmpty) {
+      query.add('status=${Uri.encodeQueryComponent(status.trim())}');
+    }
+
+    final result = await _dataService.get(
+      url: '$baseUrl/projects/$projectId/tasks?${query.join('&')}',
+      headers: <String, String>{'Authorization': 'Bearer $token'},
+    );
+
+    final statusCode = result['statusCode'] as int? ?? 500;
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+
+    if (statusCode < 200 || statusCode >= 300) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to load project tasks');
+    }
+
+    final response = TasksResponse.fromJson(payload);
+    if (!response.success) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to load project tasks');
+    }
+    return response.data;
   }
 
   Future<TasksPageData> tasks({required String token, int page = 1}) async {

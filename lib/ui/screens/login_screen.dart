@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
+import 'package:leavego_app/services/push_notification_service.dart';
 import 'package:leavego_app/ui/screens/main_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_loader.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -45,6 +47,12 @@ class _LoginScreenState extends State<LoginScreen> {
     );
     if (!mounted) return;
     if (result != null) {
+      await PushNotificationService.instance.requestPermission();
+      final fcmToken = await PushNotificationService.instance.getToken();
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        debugPrint('FCM TOKEN (login) => $fcmToken');
+      }
+      if (!mounted) return;
       Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const MainScreen()));
     }
   }
@@ -282,14 +290,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         ),
                                       ),
                                       child: _appController.isLoading
-                                          ? const SizedBox(
-                                              height: 20,
-                                              width: 20,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: Colors.white,
-                                              ),
-                                            )
+                                          ? const AppButtonLoader(size: 22)
                                           : const Text(
                                               'Sign In',
                                               style: TextStyle(

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "681929113120",
+    "project_id": "devbay-b3096",
+    "storage_bucket": "devbay-b3096.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:681929113120:android:e4984be5175df731438645",
+        "android_client_info": {
+          "package_name": "com.app.devbay"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCqPjksEX_PsYxb0aM5qS1_7DnP8bO6oVE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

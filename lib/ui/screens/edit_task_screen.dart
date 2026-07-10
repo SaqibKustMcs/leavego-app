@@ -5,6 +5,7 @@ import 'package:leavego_app/models/departments_response.dart';
 import 'package:leavego_app/models/tasks_response.dart';
 import 'package:leavego_app/models/users_response.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_loader.dart';
 
 class EditTaskScreen extends StatefulWidget {
   const EditTaskScreen({super.key, required this.task});
@@ -39,20 +40,8 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
   final dueDateError = ''.obs;
   final estimatedHoursError = ''.obs;
 
-  static const _priorities = <String>[
-    'low',
-    'medium',
-    'high',
-    'urgent',
-    'critical',
-  ];
-  static const _statuses = <String>[
-    'assigned',
-    'in_progress',
-    'qa',
-    'completed',
-    'overdue',
-  ];
+  static const _priorities = <String>['low', 'medium', 'high', 'urgent', 'critical'];
+  static const _statuses = <String>['assigned', 'in_progress', 'qa', 'completed', 'overdue'];
 
   @override
   void initState() {
@@ -63,12 +52,8 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     _startDateController.text = _toDateOnly(widget.task.startDate);
     _dueDateController.text = _toDateOnly(widget.task.dueDate);
     _estimatedHoursController.text = widget.task.estimatedHours.toString();
-    _selectedPriority = _priorities.contains(widget.task.priority)
-        ? widget.task.priority
-        : null;
-    _selectedStatus = _statuses.contains(widget.task.status)
-        ? widget.task.status
-        : null;
+    _selectedPriority = _priorities.contains(widget.task.priority) ? widget.task.priority : null;
+    _selectedStatus = _statuses.contains(widget.task.status) ? widget.task.status : null;
     _selectedAssignedTo = widget.task.assignedTo;
     _selectedDepartmentId = widget.task.departmentId;
 
@@ -117,9 +102,8 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     return raw
         .split('_')
         .map(
-          (part) => part.isEmpty
-              ? part
-              : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
+          (part) =>
+              part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
         )
         .join(' ');
   }
@@ -136,17 +120,12 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     estimatedHoursError.value = '';
   }
 
-  Future<void> _pickDate({
-    required TextEditingController controller,
-    DateTime? firstDate,
-  }) async {
+  Future<void> _pickDate({required TextEditingController controller, DateTime? firstDate}) async {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final allowedFirstDate = firstDate ?? today;
     final initial = _tryParseDate(controller.text) ?? allowedFirstDate;
-    final safeInitial = initial.isBefore(allowedFirstDate)
-        ? allowedFirstDate
-        : initial;
+    final safeInitial = initial.isBefore(allowedFirstDate) ? allowedFirstDate : initial;
 
     final selected = await showDatePicker(
       context: context,
@@ -194,7 +173,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
       isValid = false;
     }
     if (_dueDateController.text.trim().isEmpty) {
-      dueDateError.value = 'Please select due date';
+      dueDateError.value = 'Please select end date';
       isValid = false;
     }
 
@@ -236,9 +215,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            response.message.isNotEmpty
-                ? response.message
-                : 'Task updated successfully',
+            response.message.isNotEmpty ? response.message : 'Task updated successfully',
           ),
         ),
       );
@@ -247,9 +224,9 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     }
 
     if (_appController.updateTaskError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_appController.updateTaskError!)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_appController.updateTaskError!)));
     }
   }
 
@@ -266,9 +243,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
       _selectedAssignedTo = null;
     }
     if (_selectedDepartmentId != null &&
-        !departments.any(
-          (department) => department.id.toString() == _selectedDepartmentId,
-        )) {
+        !departments.any((department) => department.id.toString() == _selectedDepartmentId)) {
       _selectedDepartmentId = null;
     }
 
@@ -311,15 +286,12 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                   const SizedBox(height: 4),
                   Text(
                     'Edit task info, assignment, status, and dates.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: const Color(0xFF6A778B),
-                    ),
+                    style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF6A778B)),
                   ),
-                  if (_appController.usersLoading ||
-                      _appController.departmentsLoading)
+                  if (_appController.usersLoading || _appController.departmentsLoading)
                     const Padding(
                       padding: EdgeInsets.only(top: 12),
-                      child: LinearProgressIndicator(minHeight: 3),
+                      child: AppLoader(size: 24),
                     ),
                   const SizedBox(height: 12),
                   Text(
@@ -336,9 +308,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                       onChanged: (_) => titleError.value = '',
                       decoration: InputDecoration(
                         labelText: 'Title',
-                        errorText: titleError.value.isEmpty
-                            ? null
-                            : titleError.value,
+                        errorText: titleError.value.isEmpty ? null : titleError.value,
                       ),
                     ),
                   ),
@@ -350,9 +320,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                       onChanged: (_) => descriptionError.value = '',
                       decoration: InputDecoration(
                         labelText: 'Description',
-                        errorText: descriptionError.value.isEmpty
-                            ? null
-                            : descriptionError.value,
+                        errorText: descriptionError.value.isEmpty ? null : descriptionError.value,
                       ),
                     ),
                   ),
@@ -374,9 +342,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                       },
                       decoration: InputDecoration(
                         labelText: 'Priority',
-                        errorText: priorityError.value.isEmpty
-                            ? null
-                            : priorityError.value,
+                        errorText: priorityError.value.isEmpty ? null : priorityError.value,
                       ),
                     ),
                   ),
@@ -398,9 +364,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                       },
                       decoration: InputDecoration(
                         labelText: 'Status',
-                        errorText: statusError.value.isEmpty
-                            ? null
-                            : statusError.value,
+                        errorText: statusError.value.isEmpty ? null : statusError.value,
                       ),
                     ),
                   ),
@@ -422,9 +386,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                       },
                       decoration: InputDecoration(
                         labelText: 'Assign To',
-                        errorText: assignedToError.value.isEmpty
-                            ? null
-                            : assignedToError.value,
+                        errorText: assignedToError.value.isEmpty ? null : assignedToError.value,
                       ),
                     ),
                   ),
@@ -446,9 +408,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                       },
                       decoration: InputDecoration(
                         labelText: 'Department',
-                        errorText: departmentError.value.isEmpty
-                            ? null
-                            : departmentError.value,
+                        errorText: departmentError.value.isEmpty ? null : departmentError.value,
                       ),
                     ),
                   ),
@@ -465,9 +425,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                         labelText: 'Start Date',
                         hintText: 'YYYY-MM-DD',
                         suffixIcon: const Icon(Icons.calendar_today_outlined),
-                        errorText: startDateError.value.isEmpty
-                            ? null
-                            : startDateError.value,
+                        errorText: startDateError.value.isEmpty ? null : startDateError.value,
                       ),
                     ),
                   ),
@@ -479,18 +437,13 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                       onTap: () async {
                         dueDateError.value = '';
                         final start = _tryParseDate(_startDateController.text);
-                        await _pickDate(
-                          controller: _dueDateController,
-                          firstDate: start,
-                        );
+                        await _pickDate(controller: _dueDateController, firstDate: start);
                       },
                       decoration: InputDecoration(
-                        labelText: 'Due Date',
+                        labelText: 'End Date',
                         hintText: 'YYYY-MM-DD',
                         suffixIcon: const Icon(Icons.calendar_today_outlined),
-                        errorText: dueDateError.value.isEmpty
-                            ? null
-                            : dueDateError.value,
+                        errorText: dueDateError.value.isEmpty ? null : dueDateError.value,
                       ),
                     ),
                   ),
@@ -511,29 +464,18 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                   const SizedBox(height: 18),
                   Container(
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [AppTheme.navy, AppTheme.lightNavy],
-                      ),
+                      gradient: const LinearGradient(colors: [AppTheme.navy, AppTheme.lightNavy]),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: FilledButton(
-                      onPressed: _appController.updateTaskLoading
-                          ? null
-                          : _submit,
+                      onPressed: _appController.updateTaskLoading ? null : _submit,
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
                         minimumSize: const Size(double.infinity, 50),
                       ),
                       child: _appController.updateTaskLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
+                          ? const AppButtonLoader(size: 22)
                           : const Text('Update Task'),
                     ),
                   ),

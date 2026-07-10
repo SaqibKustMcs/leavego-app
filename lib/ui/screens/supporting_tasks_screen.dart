@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/supporting_tasks_response.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_loader.dart';
 
 class SupportingTasksScreen extends StatefulWidget {
   const SupportingTasksScreen({super.key});
@@ -232,7 +233,7 @@ class _SupportListTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (loading && items.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const AppLoader();
     }
 
     if (error != null && items.isEmpty && !loading) {
@@ -264,7 +265,7 @@ class _SupportListTab extends StatelessWidget {
         if (loading && items.isNotEmpty && index == 0) {
           return const Padding(
             padding: EdgeInsets.only(bottom: 10),
-            child: LinearProgressIndicator(minHeight: 3),
+            child: AppLoader(size: 22),
           );
         }
         final dataIndex = loading && items.isNotEmpty ? index - 1 : index;

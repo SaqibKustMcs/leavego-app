@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_loader.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -128,11 +129,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       elevation: 0,
                     ),
                     icon: _appController.notificationsReadAllLoading
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
+                        ? const AppButtonLoader(size: 18)
                         : const Icon(Icons.done_all_rounded, size: 18),
                     label: Text(
                       _appController.notificationsReadAllLoading ? 'Processing' : 'Read all',
@@ -144,7 +141,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
             if (_appController.notificationsLoading)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: CircularProgressIndicator()),
+                child: AppLoader(),
               )
             else if (_appController.notificationsError != null)
               Container(

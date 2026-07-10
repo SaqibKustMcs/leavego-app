@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_loader.dart';
 
 class CreateNewsScreen extends StatefulWidget {
   const CreateNewsScreen({super.key});
@@ -164,11 +165,7 @@ class _CreateNewsScreenState extends State<CreateNewsScreen> {
                         minimumSize: const Size(double.infinity, 48),
                       ),
                       child: _appController.createNewsLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            )
+                          ? const AppButtonLoader(size: 22)
                           : const Text('Publish News'),
                     ),
                   ),

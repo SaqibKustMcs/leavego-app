@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/news_response.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_loader.dart';
 
 class EditNewsScreen extends StatefulWidget {
   const EditNewsScreen({super.key, required this.news});
@@ -176,11 +177,7 @@ class _EditNewsScreenState extends State<EditNewsScreen> {
                         minimumSize: const Size(double.infinity, 48),
                       ),
                       child: _appController.updateNewsLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            )
+                          ? const AppButtonLoader(size: 22)
                           : const Text('Update News'),
                     ),
                   ),

@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/ui/screens/home_screen.dart';
-import 'package:leavego_app/ui/screens/my_leave_requests_screen.dart';
-import 'package:leavego_app/ui/screens/task_list_screen.dart';
-import 'package:leavego_app/ui/screens/tasks_screen.dart';
+import 'package:leavego_app/ui/screens/projects_screen.dart';
 import 'package:leavego_app/ui/screens/notification_screen.dart';
 import 'package:leavego_app/ui/screens/profile_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
@@ -36,11 +34,8 @@ class _MainScreenState extends State<MainScreen> {
     final pending = _appController.pendingMainTabIndex;
     if (pending != null && mounted) {
       _appController.clearPendingMainTabIndex();
-      final role = (_appController.meData?.role ?? '').trim().toLowerCase();
-      final canCreateTask = role == '$role';
-      final maxTab = canCreateTask ? 5 : 4;
       setState(() {
-        _currentIndex = pending.clamp(0, maxTab);
+        _currentIndex = pending.clamp(0, 3);
       });
       return;
     }
@@ -89,18 +84,14 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final role = (_appController.meData?.role ?? '').trim().toLowerCase();
-    final canCreateTask = role == '$role'; //|| role == 'hr';
-    final screens = <Widget>[
-      const HomeScreen(),
-      const MyLeaveRequestsScreen(),
-      const TaskListScreen(),
-      if (canCreateTask) const TasksScreen(),
-      const NotificationScreen(),
-      const ProfileScreen(),
+    const screens = <Widget>[
+      HomeScreen(),
+      ProjectsScreen(),
+      NotificationScreen(),
+      ProfileScreen(),
     ];
 
-    final notificationsIndex = canCreateTask ? 4 : 3;
+    const notificationsIndex = 2;
     if (_currentIndex >= screens.length) _currentIndex = 0;
 
     final unread = _appController.unreadCount;
@@ -125,11 +116,7 @@ class _MainScreenState extends State<MainScreen> {
             setState(() => _currentIndex = index);
             // Always fetch fresh data when user opens these tabs.
             if (index == 1) {
-              await _appController.loadRequestsByRole();
-              return;
-            }
-            if (index == 2) {
-              await _appController.loadTasks(refresh: true);
+              await _appController.loadProjects(refresh: true);
               return;
             }
             if (index == notificationsIndex) {
@@ -148,29 +135,19 @@ class _MainScreenState extends State<MainScreen> {
               activeIcon: Icon(TablerIcons.apps_filled),
               label: 'Home',
             ),
+            // const BottomNavigationBarItem(
+            //   icon: Icon(TablerIcons.circle_check),
+            //   activeIcon: Icon(TablerIcons.circle_check_filled),
+            //   label: 'Requests',
+            // ),
             const BottomNavigationBarItem(
-              icon: Icon(TablerIcons.circle_check),
-              activeIcon: Icon(TablerIcons.circle_check_filled),
-              label: 'Requests',
+              icon: Icon(TablerIcons.folder),
+              activeIcon: Icon(TablerIcons.folder_filled),
+              label: 'Projects',
             ),
-            const BottomNavigationBarItem(
-              icon: Icon(TablerIcons.square_check),
-              activeIcon: Icon(TablerIcons.square_check_filled),
-              label: 'Tasks',
-            ),
-            if (canCreateTask)
-              const BottomNavigationBarItem(
-                icon: Icon(TablerIcons.square_rounded_plus),
-                activeIcon: Icon(TablerIcons.square_rounded_plus_filled),
-                label: 'Create',
-              ),
             BottomNavigationBarItem(
               icon: _badgeIcon(icon: TablerIcons.bell, count: unread, active: false),
-              activeIcon: _badgeIcon(
-                icon: TablerIcons.bell_filled,
-                count: unread,
-                active: true,
-              ),
+              activeIcon: _badgeIcon(icon: TablerIcons.bell_filled, count: unread, active: true),
               label: 'Notifications',
             ),
             const BottomNavigationBarItem(

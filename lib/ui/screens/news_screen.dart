@@ -4,6 +4,7 @@ import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/news_response.dart';
 import 'package:leavego_app/ui/screens/edit_news_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_loader.dart';
 
 class NewsScreen extends StatefulWidget {
   const NewsScreen({super.key});
@@ -130,7 +131,7 @@ class _NewsScreenState extends State<NewsScreen> {
               if (loading && items.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(child: CircularProgressIndicator()),
+                  child: AppLoader(),
                 )
               else if (error != null && items.isEmpty)
                 Container(
@@ -158,7 +159,7 @@ class _NewsScreenState extends State<NewsScreen> {
                 if (loading)
                   const Padding(
                     padding: EdgeInsets.only(bottom: 10),
-                    child: LinearProgressIndicator(minHeight: 3),
+                    child: AppLoader(size: 22),
                   ),
                 ...items.map(
                   (item) => _NewsCard(
@@ -181,11 +182,7 @@ class _NewsScreenState extends State<NewsScreen> {
                   OutlinedButton(
                     onPressed: _appController.newsLoadingMore ? null : _appController.loadMoreNews,
                     child: _appController.newsLoadingMore
-                        ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
+                        ? const AppButtonLoader(color: AppTheme.navy)
                         : const Text('Load more'),
                   ),
                 if (_appController.newsError != null && items.isNotEmpty)

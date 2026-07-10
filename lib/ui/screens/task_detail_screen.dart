@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/task_detail_response.dart';
-import 'package:leavego_app/models/tasks_response.dart';
 import 'package:leavego_app/ui/screens/create_supporting_task_screen.dart';
 import 'package:leavego_app/ui/screens/edit_task_screen.dart';
 import 'package:leavego_app/ui/screens/supporting_tasks_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_loader.dart';
 
 class TaskDetailScreen extends StatefulWidget {
   const TaskDetailScreen({super.key, required this.taskId});
@@ -188,14 +188,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           minimumSize: const Size(double.infinity, 48),
                         ),
                         child: isSubmitting
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
+                            ? const AppButtonLoader(size: 22)
                             : const Text('Post Comment'),
                       ),
                     ),
@@ -288,7 +281,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
+              return const AppLoader();
             }
 
             if (snapshot.hasError) {
@@ -410,10 +403,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                             label: _toLabel(task.priority),
                             background: _priorityColor(task.priority),
                           ),
-                          _HeaderBadge(
-                            label: _toLabel(task.taskType),
-                            background: Colors.white.withValues(alpha: 0.18),
-                          ),
                         ],
                       ),
                     ],
@@ -506,14 +495,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                             minimumSize: const Size(double.infinity, 48),
                           ),
                           child: _appController.updateTaskStatusLoading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
+                              ? const AppButtonLoader(size: 22)
                               : const Text('Update Status'),
                         ),
                       ),
@@ -526,8 +508,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   child: Column(
                     children: [
                       _DetailRow(label: 'Task ID', value: '#${task.id}'),
-                      const Divider(height: 18),
-                      _DetailRow(label: 'Department', value: task.department?.name ?? '-'),
                       const Divider(height: 18),
                       _DetailRow(label: 'Assigned To', value: task.assignee?.name ?? '-'),
                       const Divider(height: 18),

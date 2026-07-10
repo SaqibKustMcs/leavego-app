@@ -1,35 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
+import 'package:leavego_app/models/projects_response.dart';
 import 'package:leavego_app/models/tasks_response.dart';
+import 'package:leavego_app/ui/screens/create_project_task_screen.dart';
 import 'package:leavego_app/ui/screens/task_detail_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
 
-class TaskListScreen extends StatefulWidget {
-  const TaskListScreen({super.key});
+class ProjectTasksScreen extends StatefulWidget {
+  const ProjectTasksScreen({super.key, required this.project});
+
+  final ProjectItem project;
 
   @override
-  State<TaskListScreen> createState() => _TaskListScreenState();
+  State<ProjectTasksScreen> createState() => _ProjectTasksScreenState();
 }
 
-class _TaskListScreenState extends State<TaskListScreen> {
+class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
   late final AppController _appController;
+  String _selectedFilter = 'all';
+
+  static const _filters = <Map<String, String>>[
+    {'id': 'all', 'label': 'All'},
+    {'id': 'my_tasks', 'label': 'My Tasks'},
+    {'id': 'assigned', 'label': 'Assigned'},
+  ];
 
   @override
   void initState() {
     super.initState();
     _appController = Get.find<AppController>();
     _appController.addListener(_onUpdate);
-    if (_appController.meData == null) {
-      _appController.loadMe();
-    }
-    _appController.loadTasks(refresh: true);
+    _appController.projectTasksMyTasksOnly = false;
+    _appController.projectTasksStatusFilter = null;
+    _appController.loadProjectTasks(projectId: widget.project.id, refresh: true);
   }
 
   void _onUpdate() {
-    if (!mounted) return;
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   @override
@@ -38,41 +47,42 @@ class _TaskListScreenState extends State<TaskListScreen> {
     super.dispose();
   }
 
-  Future<void> _onRefresh() async {
-    await Future.wait(<Future<void>>[
-      _appController.loadMe(),
-      _appController.loadTasks(refresh: true),
-    ]);
+  Future<void> _onFilterSelected(String filter) async {
+    if (_selectedFilter == filter) return;
+    setState(() => _selectedFilter = filter);
+    await _appController.setProjectTasksFilter(
+      projectId: widget.project.id,
+      filter: filter,
+    );
   }
 
-  DateTime? _tryParseDate(String raw) {
-    if (raw.trim().isEmpty) return null;
-    try {
-      final normalized = raw.contains(' ') ? raw.replaceFirst(' ', 'T') : raw;
-      return DateTime.parse(normalized);
-    } catch (_) {
-      return null;
-    }
+  Future<void> _onRefresh() async {
+    await _appController.loadProjectTasks(projectId: widget.project.id, refresh: true);
   }
 
   String _formatDate(String? raw) {
-    final date = raw == null ? null : _tryParseDate(raw);
-    if (date == null) return '-';
-    const months = <String>[
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
+    if (raw == null || raw.trim().isEmpty) return '-';
+    try {
+      final normalized = raw.contains(' ') ? raw.replaceFirst(' ', 'T') : raw;
+      final date = DateTime.parse(normalized).toLocal();
+      const months = <String>[
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
+    } catch (_) {
+      return raw;
+    }
   }
 
   String _toLabel(String raw) {
@@ -119,93 +129,79 @@ class _TaskListScreenState extends State<TaskListScreen> {
     }
   }
 
+  String _emptyMessageForFilter() {
+    switch (_selectedFilter) {
+      case 'my_tasks':
+        return 'No tasks assigned to you in this project.';
+      case 'assigned':
+        return 'No assigned tasks found for this project.';
+      default:
+        return 'No tasks found for this project.';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final tasks = _appController.tasks;
+    final tasks = _appController.projectTasks;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FC),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final created = await Navigator.of(context).push<bool>(
+            MaterialPageRoute(
+              builder: (_) => CreateProjectTaskScreen(project: widget.project),
+            ),
+          );
+          if (created == true) {
+            await _appController.loadProjectTasks(projectId: widget.project.id, refresh: true);
+          }
+        },
+        backgroundColor: AppTheme.navy,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Create Task'),
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _onRefresh,
           child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: ClampingScrollPhysics(),
-            ),
+            physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
             children: [
-              Container(
-                padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppTheme.navy, AppTheme.lightNavy],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    color: AppTheme.navy,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                   ),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.task_alt_rounded,
-                        color: Colors.white,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      widget.project.name,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.navy,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Tasks',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            'Track assigned work and task progress',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.white.withValues(alpha: 0.85),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${tasks.length} items',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                widget.project.description.isEmpty ? 'Project tasks' : widget.project.description,
+                style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF6A778B)),
               ),
               const SizedBox(height: 14),
               Row(
                 children: [
                   Expanded(
                     child: Text(
-                      'Task List',
+                      'Tasks',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
                         color: AppTheme.navy,
@@ -213,7 +209,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                     ),
                   ),
                   Text(
-                    'Page ${_appController.tasksCurrentPage}/${_appController.tasksLastPage}',
+                    'Page ${_appController.projectTasksCurrentPage}/${_appController.projectTasksLastPage}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: const Color(0xFF6A778B),
                       fontWeight: FontWeight.w600,
@@ -222,20 +218,46 @@ class _TaskListScreenState extends State<TaskListScreen> {
                 ],
               ),
               const SizedBox(height: 10),
-              if (_appController.tasksLoading && tasks.isEmpty)
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: _filters.map((filter) {
+                    final id = filter['id']!;
+                    final label = filter['label']!;
+                    final selected = _selectedFilter == id;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(label),
+                        selected: selected,
+                        onSelected: (_) => _onFilterSelected(id),
+                        selectedColor: AppTheme.navy.withValues(alpha: 0.12),
+                        labelStyle: TextStyle(
+                          color: selected ? AppTheme.navy : const Color(0xFF5F6D84),
+                          fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                        ),
+                        side: BorderSide(
+                          color: selected ? AppTheme.navy : const Color(0xFFD7DEEA),
+                        ),
+                        backgroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (_appController.projectTasksLoading && tasks.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 30),
                   child: AppLoader(),
                 )
-              else if (_appController.tasksError != null && tasks.isEmpty)
-                _MessageCard(
-                  message: _appController.tasksError!,
-                  isError: true,
-                )
+              else if (_appController.projectTasksError != null && tasks.isEmpty)
+                _MessageCard(message: _appController.projectTasksError!, isError: true)
               else if (tasks.isEmpty)
-                const _MessageCard(
-                  message: 'No tasks found. Pull down to refresh.',
-                )
+                _MessageCard(message: _emptyMessageForFilter())
               else
                 ...tasks.map(
                   (task) => _TaskListCard(
@@ -247,34 +269,27 @@ class _TaskListScreenState extends State<TaskListScreen> {
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => TaskDetailScreen(
-                            taskId: task.id.toString(),
-                          ),
+                          builder: (_) => TaskDetailScreen(taskId: task.id.toString()),
                         ),
                       );
                     },
                   ),
                 ),
-              if (_appController.tasksError != null && tasks.isNotEmpty) ...[
+              if (_appController.projectTasksError != null && tasks.isNotEmpty) ...[
                 const SizedBox(height: 10),
-                _MessageCard(
-                  message: _appController.tasksError!,
-                  isError: true,
-                ),
+                _MessageCard(message: _appController.projectTasksError!, isError: true),
               ],
-              if (_appController.tasksHasMore) ...[
+              if (_appController.projectTasksHasMore) ...[
                 const SizedBox(height: 8),
                 OutlinedButton(
-                  onPressed: _appController.tasksLoadingMore
+                  onPressed: _appController.projectTasksLoadingMore
                       ? null
-                      : _appController.loadMoreTasks,
+                      : _appController.loadMoreProjectTasks,
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
-                  child: _appController.tasksLoadingMore
+                  child: _appController.projectTasksLoadingMore
                       ? const AppButtonLoader(color: AppTheme.navy, size: 20)
                       : const Text('Load more'),
                 ),
@@ -373,17 +388,6 @@ class _TaskListCard extends StatelessWidget {
                       background: statusColor.withValues(alpha: 0.12),
                       foreground: statusColor,
                     ),
-                    _TaskPill(
-                      label: toLabel(task.taskType),
-                      background: const Color(0xFFE8EEFC),
-                      foreground: AppTheme.navy,
-                    ),
-                    if (task.isSupportingTask)
-                      const _TaskPill(
-                        label: 'Supporting',
-                        background: Color(0xFFFFF4E5),
-                        foreground: Color(0xFFB26A00),
-                      ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -394,28 +398,9 @@ class _TaskListCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 _TaskMetaRow(
-                  icon: Icons.badge_outlined,
-                  label: 'Created by',
-                  value: task.creator?.name ?? '-',
-                ),
-                const SizedBox(height: 8),
-                _TaskMetaRow(
-                  icon: Icons.apartment_rounded,
-                  label: 'Department',
-                  value: task.department?.name ?? '-',
-                ),
-                const SizedBox(height: 8),
-                _TaskMetaRow(
                   icon: Icons.event_outlined,
-                  label: 'Dates',
-                  value:
-                      '${formatDate(task.startDate)} -> ${formatDate(task.dueDate)}',
-                ),
-                const SizedBox(height: 8),
-                _TaskMetaRow(
-                  icon: Icons.schedule_rounded,
-                  label: 'Estimated hours',
-                  value: '${task.estimatedHours}h',
+                  label: 'Due date',
+                  value: formatDate(task.dueDate),
                 ),
               ],
             ),
@@ -505,10 +490,7 @@ class _TaskPill extends StatelessWidget {
 }
 
 class _MessageCard extends StatelessWidget {
-  const _MessageCard({
-    required this.message,
-    this.isError = false,
-  });
+  const _MessageCard({required this.message, this.isError = false});
 
   final String message;
   final bool isError;
@@ -516,22 +498,18 @@ class _MessageCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final textColor = isError ? theme.colorScheme.error : const Color(0xFF5F6D84);
-    final background = isError
-        ? theme.colorScheme.errorContainer.withValues(alpha: 0.5)
-        : Colors.white;
     return Container(
-      width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(16),
+        color: isError
+            ? theme.colorScheme.errorContainer.withValues(alpha: 0.45)
+            : Colors.white,
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Text(
         message,
         style: theme.textTheme.bodySmall?.copyWith(
-          color: textColor,
-          fontWeight: isError ? FontWeight.w600 : FontWeight.w500,
+          color: isError ? theme.colorScheme.error : const Color(0xFF5F6D84),
         ),
       ),
     );

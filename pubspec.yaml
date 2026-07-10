@@ -40,6 +40,10 @@ dependencies:
   file_picker: ^10.3.10
   url_launcher: ^6.3.2
   tabler_icons: ^2.5.0+1
+  firebase_core: ^4.11.0
+  flutter_spinkit: ^5.2.2
+  firebase_messaging: ^16.4.1
+  flutter_local_notifications: ^22.0.1
 
 dev_dependencies:
   flutter_test:

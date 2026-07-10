@@ -5,6 +5,7 @@ import 'package:leavego_app/ui/models/leave_request.dart';
 import 'package:leavego_app/ui/screens/apply_leave_screen.dart';
 import 'package:leavego_app/ui/screens/leave_detail_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_loader.dart';
 
 class MyLeaveRequestsScreen extends StatefulWidget {
   const MyLeaveRequestsScreen({super.key});
@@ -26,8 +27,8 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen>
     final isCeoOrHr = role == 'ceo' || role == 'hr';
     final loader = isCeoOrHr
         ? (_tabController.index == _tabPending
-            ? _appController.loadRequestsByRole
-            : _appController.loadMyLeaves)
+              ? _appController.loadRequestsByRole
+              : _appController.loadMyLeaves)
         : _appController.loadRequestsByRole;
 
     await Future.wait([loader(), _appController.loadLeaveTypes()]);
@@ -90,144 +91,156 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen>
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FC),
-      body: RefreshIndicator(
-        onRefresh: _onRefresh,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
-          children: [
-            Row(
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.navy,
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _onRefresh,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
+            children: [
+              Row(
+                children: [
+                  if (Navigator.of(context).canPop())
+                    Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: IconButton(
+                        onPressed: () => Navigator.of(context).maybePop(),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        color: AppTheme.navy,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        tooltip: 'Back',
+                      ),
+                    ),
+                  Text(
+                    title,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.navy,
+                    ),
                   ),
-                ),
-                const Spacer(),
-                TextButton(
-                  onPressed: _appController.myLeavesLoading
-                      ? null
-                      : () async {
-                          if (isCeoOrHr && _tabController.index == _tabMyRequests) {
-                            await _appController.loadMyLeaves();
-                          } else {
-                            await _appController.loadRequestsByRole();
-                          }
-                        },
-                  child: const Text('Refresh'),
-                ),
-              ],
-            ),
-            if (isCeoOrHr) ...[
-              const SizedBox(height: 10),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE3EAF8)),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  labelColor: AppTheme.navy,
-                  unselectedLabelColor: const Color(0xFF6A778B),
-                  indicatorColor: AppTheme.navy,
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  dividerColor: Colors.transparent,
-                  onTap: (index) async {
-                    // Switch dataset based on tab.
-                    if (index == _tabPending) {
-                      await _appController.loadRequestsByRole();
-                    } else {
-                      await _appController.loadMyLeaves();
-                    }
-                    if (_appController.leaveTypes.isEmpty) {
-                      await _appController.loadLeaveTypes();
-                    }
-                    if (mounted) setState(() {});
-                  },
-                  tabs: const [
-                    Tab(text: 'My Requests'),
-                    Tab(text: 'Pending'),
-                  ],
-                ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: _appController.myLeavesLoading
+                        ? null
+                        : () async {
+                            if (isCeoOrHr && _tabController.index == _tabMyRequests) {
+                              await _appController.loadMyLeaves();
+                            } else {
+                              await _appController.loadRequestsByRole();
+                            }
+                          },
+                    child: const Text('Refresh'),
+                  ),
+                ],
               ),
-            ],
-            const SizedBox(height: 10),
-            if (_appController.myLeavesLoading)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (_appController.myLeavesError != null)
-              Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.errorContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  _appController.myLeavesError!,
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
-                ),
-              )
-            else if (_appController.myLeaves.isEmpty)
-              Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(emptyMessage),
-              )
-            else
-              ..._appController.myLeaves.map((item) {
-                final leave = LeaveRequest.fromMyLeaveItem(item);
-                final leaveTypeName = _leaveTypeName(item.leaveTypeId, fallback: leave.leaveType);
-                final leaveTypeCode = _leaveTypeCode(item.leaveTypeId);
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
+              if (isCeoOrHr) ...[
+                const SizedBox(height: 10),
+                Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 14,
-                        offset: const Offset(0, 6),
-                      ),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE3EAF8)),
+                  ),
+                  child: TabBar(
+                    controller: _tabController,
+                    labelColor: AppTheme.navy,
+                    unselectedLabelColor: const Color(0xFF6A778B),
+                    indicatorColor: AppTheme.navy,
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    dividerColor: Colors.transparent,
+                    onTap: (index) async {
+                      // Switch dataset based on tab.
+                      if (index == _tabPending) {
+                        await _appController.loadRequestsByRole();
+                      } else {
+                        await _appController.loadMyLeaves();
+                      }
+                      if (_appController.leaveTypes.isEmpty) {
+                        await _appController.loadLeaveTypes();
+                      }
+                      if (mounted) setState(() {});
+                    },
+                    tabs: const [
+                      Tab(text: 'My Requests'),
+                      Tab(text: 'Pending'),
                     ],
                   ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    title: Text(
-                      leaveTypeCode == null || leaveTypeCode.isEmpty
-                          ? leaveTypeName
-                          : '$leaveTypeName ($leaveTypeCode)',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: Text(
-                      '${_formatDate(leave.startDate)} - ${_formatDate(leave.endDate)}',
-                    ),
-                    trailing: _StatusBadge(status: leave.status),
-                    onTap: () {
-                    final enableActions = isApprover;
-                      Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => LeaveDetailScreen(
-                          leaveId: item.id,
-                          enableActions: enableActions,
-                        ),
-                      ),
-                      );
-                    },
+                ),
+              ],
+              const SizedBox(height: 10),
+              if (_appController.myLeavesLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: AppLoader(),
+                )
+              else if (_appController.myLeavesError != null)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.errorContainer.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                );
-              }),
-          ],
+                  child: Text(
+                    _appController.myLeavesError!,
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+                  ),
+                )
+              else if (_appController.myLeaves.isEmpty)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(emptyMessage),
+                )
+              else
+                ..._appController.myLeaves.map((item) {
+                  final leave = LeaveRequest.fromMyLeaveItem(item);
+                  final leaveTypeName = _leaveTypeName(item.leaveTypeId, fallback: leave.leaveType);
+                  final leaveTypeCode = _leaveTypeCode(item.leaveTypeId);
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 14,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      title: Text(
+                        leaveTypeCode == null || leaveTypeCode.isEmpty
+                            ? leaveTypeName
+                            : '$leaveTypeName ($leaveTypeCode)',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(
+                        '${_formatDate(leave.startDate)} - ${_formatDate(leave.endDate)}',
+                      ),
+                      trailing: _StatusBadge(status: leave.status),
+                      onTap: () {
+                        final enableActions = isApprover;
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                LeaveDetailScreen(leaveId: item.id, enableActions: enableActions),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                }),
+            ],
+          ),
         ),
       ),
       floatingActionButton: Container(

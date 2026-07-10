@@ -5,6 +5,7 @@ import 'package:leavego_app/ui/screens/create_news_screen.dart';
 import 'package:leavego_app/ui/screens/news_screen.dart';
 import 'package:leavego_app/ui/screens/login_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_loader.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -291,14 +292,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
                       icon: _appController.logoutLoading
-                          ? SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: theme.colorScheme.error,
-                              ),
-                            )
+                          ? AppButtonLoader(color: theme.colorScheme.error, size: 18)
                           : const Icon(Icons.logout_rounded, size: 18),
                       label: Text(
                         _appController.logoutLoading ? 'Signing out…' : 'Log out',
