@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/tasks_response.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
 
 class CreateSupportingTaskScreen extends StatefulWidget {
@@ -118,8 +119,9 @@ class _CreateSupportingTaskScreenState extends State<CreateSupportingTaskScreen>
       backgroundColor: const Color(0xFFF2F5FC),
       appBar: AppBar(
         title: const Text('Create Supporting Task'),
+        leading: const AppBackButton(),
         backgroundColor: Colors.transparent,
-        foregroundColor: AppTheme.navy,
+        foregroundColor: Colors.black,
         elevation: 0,
       ),
       body: SafeArea(
@@ -147,7 +149,7 @@ class _CreateSupportingTaskScreenState extends State<CreateSupportingTaskScreen>
                     'Support Request',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: AppTheme.navy,
+                      color: Colors.black,
                     ),
                   ),
                   const SizedBox(height: 4),

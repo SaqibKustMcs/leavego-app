@@ -472,15 +472,38 @@ class ApiService {
   /// Registers an FCM device token with the backend so the server can deliver
   /// push notifications to this device. Best-effort: returns whether the call
   /// succeeded and never throws so it can be fired without blocking the UI.
-  Future<bool> registerDeviceToken({
+  Future<bool> registerFcmDeviceToken({
     required String token,
     required String fcmToken,
-    String platform = 'unknown',
+    required String platform,
+    required String deviceName,
   }) async {
     try {
       final result = await _dataService.post(
-        url: '$baseUrl/device-token',
-        body: <String, dynamic>{'token': fcmToken, 'platform': platform},
+        url: '$baseUrl/device-tokens/fcm',
+        body: <String, dynamic>{
+          'token': fcmToken,
+          'platform': platform,
+          'device_name': deviceName,
+        },
+        headers: <String, String>{'Authorization': 'Bearer $token'},
+      );
+      final statusCode = result['statusCode'] as int? ?? 500;
+      return statusCode >= 200 && statusCode < 300;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Removes an FCM device token from the backend on logout. Best-effort.
+  Future<bool> unregisterFcmDeviceToken({
+    required String token,
+    required String fcmToken,
+  }) async {
+    try {
+      final result = await _dataService.delete(
+        url: '$baseUrl/device-tokens/fcm',
+        body: <String, dynamic>{'token': fcmToken},
         headers: <String, String>{'Authorization': 'Bearer $token'},
       );
       final statusCode = result['statusCode'] as int? ?? 500;
@@ -861,6 +884,77 @@ class ApiService {
     return response.data;
   }
 
+  Future<Map<String, dynamic>> createProject({
+    required String token,
+    required String name,
+    required String description,
+    required String status,
+    required String startDate,
+    required String dueDate,
+    required List<int> memberIds,
+  }) async {
+    final result = await _dataService.post(
+      url: '$baseUrl/projects',
+      body: <String, dynamic>{
+        'name': name,
+        'description': description,
+        'status': status,
+        'start_date': startDate,
+        'due_date': dueDate,
+        'member_ids': memberIds,
+      },
+      headers: <String, String>{'Authorization': 'Bearer $token'},
+    );
+
+    final statusCode = result['statusCode'] as int? ?? 500;
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+
+    if (statusCode < 200 || statusCode >= 300) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to create project');
+    }
+
+    if (payload['success'] == false) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to create project');
+    }
+    return payload;
+  }
+
+  Future<Map<String, dynamic>> updateProject({
+    required String token,
+    required int projectId,
+    required String name,
+    required String description,
+    required String status,
+    required String startDate,
+    required String dueDate,
+    required List<int> memberIds,
+  }) async {
+    final result = await _dataService.put(
+      url: '$baseUrl/projects/$projectId',
+      body: <String, dynamic>{
+        'name': name,
+        'description': description,
+        'status': status,
+        'start_date': startDate,
+        'due_date': dueDate,
+        'member_ids': memberIds,
+      },
+      headers: <String, String>{'Authorization': 'Bearer $token'},
+    );
+
+    final statusCode = result['statusCode'] as int? ?? 500;
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+
+    if (statusCode < 200 || statusCode >= 300) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to update project');
+    }
+
+    if (payload['success'] == false) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to update project');
+    }
+    return payload;
+  }
+
   Future<List<ProjectMember>> projectMembers({
     required String token,
     required int projectId,
@@ -916,9 +1010,50 @@ class ApiService {
     return response.data;
   }
 
-  Future<TasksPageData> tasks({required String token, int page = 1}) async {
+  Future<TasksPageData> myPendingDueTasks({
+    required String token,
+    int page = 1,
+    int perPage = 20,
+    String? priority,
+  }) async {
+    final query = <String>['page=$page', 'per_page=$perPage'];
+    if (priority != null && priority.trim().isNotEmpty) {
+      query.add('priority=${Uri.encodeQueryComponent(priority.trim())}');
+    }
+
     final result = await _dataService.get(
-      url: '$baseUrl/tasks?page=$page',
+      url: '$baseUrl/tasks/my-pending-due?${query.join('&')}',
+      headers: <String, String>{'Authorization': 'Bearer $token'},
+    );
+
+    final statusCode = result['statusCode'] as int? ?? 500;
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+
+    if (statusCode < 200 || statusCode >= 300) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to load pending due tasks');
+    }
+
+    final response = TasksResponse.fromJson(payload);
+    if (!response.success) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to load pending due tasks');
+    }
+    return response.data;
+  }
+
+  Future<TasksPageData> tasks({
+    required String token,
+    int page = 1,
+    bool myTasks = false,
+    String? dueDateLte,
+  }) async {
+    final query = <String>['page=$page'];
+    if (myTasks) query.add('my_tasks=1');
+    if (dueDateLte != null && dueDateLte.trim().isNotEmpty) {
+      query.add('due_date_lte=${Uri.encodeQueryComponent(dueDateLte.trim())}');
+    }
+
+    final result = await _dataService.get(
+      url: '$baseUrl/tasks?${query.join('&')}',
       headers: <String, String>{'Authorization': 'Bearer $token'},
     );
 

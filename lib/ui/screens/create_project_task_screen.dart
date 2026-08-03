@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/projects_response.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
 
 class CreateProjectTaskScreen extends StatefulWidget {
@@ -52,30 +53,101 @@ class _CreateProjectTaskScreenState extends State<CreateProjectTaskScreen> {
     super.dispose();
   }
 
-  Future<void> _pickDate({
+  Future<void> _pickDateTime({
     required TextEditingController controller,
     DateTime? firstDate,
     DateTime? lastDate,
   }) async {
     final now = DateTime.now();
-    final picked = await showDatePicker(
+    final current = _tryParseDate(controller.text) ?? now;
+
+    final pickedDate = await showDatePicker(
       context: context,
-      initialDate: _tryParseDate(controller.text) ?? now,
+      initialDate: current,
       firstDate: firstDate ?? DateTime(now.year - 1),
       lastDate: lastDate ?? DateTime(now.year + 5),
     );
-    if (picked == null) return;
-    controller.text =
-        '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+    if (pickedDate == null || !mounted) return;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(current),
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+    );
+    if (pickedTime == null || !mounted) return;
+
+    final combined = DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      pickedTime.hour,
+      pickedTime.minute,
+    );
+    controller.text = _formatDateTime(combined);
+  }
+
+  /// Display format: `2026-07-14 03:30 PM`
+  String _formatDateTime(DateTime dateTime) {
+    final y = dateTime.year.toString().padLeft(4, '0');
+    final m = dateTime.month.toString().padLeft(2, '0');
+    final d = dateTime.day.toString().padLeft(2, '0');
+    final hour24 = dateTime.hour;
+    final period = hour24 >= 12 ? 'PM' : 'AM';
+    final hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
+    final h = hour12.toString().padLeft(2, '0');
+    final min = dateTime.minute.toString().padLeft(2, '0');
+    return '$y-$m-$d $h:$min $period';
   }
 
   DateTime? _tryParseDate(String raw) {
-    if (raw.trim().isEmpty) return null;
+    final value = raw.trim();
+    if (value.isEmpty) return null;
+
+    // Display format: yyyy-MM-dd hh:mm AM/PM
+    final amPmMatch = RegExp(
+      r'^(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}):(\d{2})\s*(AM|PM)$',
+      caseSensitive: false,
+    ).firstMatch(value);
+    if (amPmMatch != null) {
+      final year = int.parse(amPmMatch.group(1)!);
+      final month = int.parse(amPmMatch.group(2)!);
+      final day = int.parse(amPmMatch.group(3)!);
+      var hour = int.parse(amPmMatch.group(4)!);
+      final minute = int.parse(amPmMatch.group(5)!);
+      final period = amPmMatch.group(6)!.toUpperCase();
+
+      if (period == 'AM') {
+        if (hour == 12) hour = 0;
+      } else if (hour != 12) {
+        hour += 12;
+      }
+      return DateTime(year, month, day, hour, minute);
+    }
+
     try {
-      return DateTime.parse(raw);
+      final normalized = value.contains(' ') ? value.replaceFirst(' ', 'T') : value;
+      return DateTime.parse(normalized);
     } catch (_) {
       return null;
     }
+  }
+
+  /// Converts display value to API format `yyyy-MM-ddTHH:mm:ss`.
+  String _toApiDateTime(String raw) {
+    final parsed = _tryParseDate(raw);
+    if (parsed == null) return raw;
+    final y = parsed.year.toString().padLeft(4, '0');
+    final m = parsed.month.toString().padLeft(2, '0');
+    final d = parsed.day.toString().padLeft(2, '0');
+    final h = parsed.hour.toString().padLeft(2, '0');
+    final min = parsed.minute.toString().padLeft(2, '0');
+    final s = parsed.second.toString().padLeft(2, '0');
+    return '$y-$m-${d}T$h:$min:$s';
   }
 
   String _toLabel(String raw) {
@@ -97,7 +169,7 @@ class _CreateProjectTaskScreenState extends State<CreateProjectTaskScreen> {
     final dueDate = _tryParseDate(_dueDateController.text.trim());
     if (startDate != null && dueDate != null && dueDate.isBefore(startDate)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Due date must be same as or after start date')),
+        const SnackBar(content: Text('Due date & time must be same as or after start date & time')),
       );
       return;
     }
@@ -109,8 +181,8 @@ class _CreateProjectTaskScreenState extends State<CreateProjectTaskScreen> {
       description: _descriptionController.text.trim(),
       priority: _selectedPriority!,
       assignedTo: _selectedAssignedTo!,
-      startDate: _startDateController.text.trim(),
-      dueDate: _dueDateController.text.trim(),
+      startDate: _toApiDateTime(_startDateController.text.trim()),
+      dueDate: _toApiDateTime(_dueDateController.text.trim()),
       estimatedHours: estimatedHours,
     );
 
@@ -142,8 +214,9 @@ class _CreateProjectTaskScreenState extends State<CreateProjectTaskScreen> {
       backgroundColor: const Color(0xFFF2F5FC),
       appBar: AppBar(
         title: const Text('Create Task'),
+        leading: const AppBackButton(),
         backgroundColor: Colors.transparent,
-        foregroundColor: AppTheme.navy,
+        foregroundColor: Colors.black,
         elevation: 0,
       ),
       body: SafeArea(
@@ -156,7 +229,7 @@ class _CreateProjectTaskScreenState extends State<CreateProjectTaskScreen> {
                 widget.project.name,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w800,
-                  color: AppTheme.navy,
+                  color: Colors.black,
                 ),
               ),
               const SizedBox(height: 4),
@@ -269,14 +342,18 @@ class _CreateProjectTaskScreenState extends State<CreateProjectTaskScreen> {
                 controller: _startDateController,
                 readOnly: true,
                 decoration: InputDecoration(
-                  labelText: 'Start Date',
+                  labelText: 'Start Date & Time',
+                  hintText: 'Select date and time',
                   suffixIcon: IconButton(
-                    onPressed: () => _pickDate(controller: _startDateController),
+                    onPressed: () => _pickDateTime(controller: _startDateController),
                     icon: const Icon(Icons.calendar_today_outlined),
                   ),
                 ),
+                onTap: () => _pickDateTime(controller: _startDateController),
                 validator: (value) {
-                  if (value == null || value.trim().isEmpty) return 'Please select start date';
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please select start date & time';
+                  }
                   return null;
                 },
               ),
@@ -285,14 +362,18 @@ class _CreateProjectTaskScreenState extends State<CreateProjectTaskScreen> {
                 controller: _dueDateController,
                 readOnly: true,
                 decoration: InputDecoration(
-                  labelText: 'Due Date',
+                  labelText: 'Due Date & Time',
+                  hintText: 'Select date and time',
                   suffixIcon: IconButton(
-                    onPressed: () => _pickDate(controller: _dueDateController),
+                    onPressed: () => _pickDateTime(controller: _dueDateController),
                     icon: const Icon(Icons.calendar_today_outlined),
                   ),
                 ),
+                onTap: () => _pickDateTime(controller: _dueDateController),
                 validator: (value) {
-                  if (value == null || value.trim().isEmpty) return 'Please select due date';
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please select due date & time';
+                  }
                   return null;
                 },
               ),

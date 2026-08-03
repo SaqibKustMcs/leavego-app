@@ -3,7 +3,9 @@ import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/leave_detail_response.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
+import 'package:leavego_app/utils/app_roles.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class LeaveDetailScreen extends StatefulWidget {
@@ -218,59 +220,32 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
           physics: const ClampingScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           children: [
-            Container(
-              padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppTheme.navy, AppTheme.lightNavy],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Material(
-                    color: Colors.white.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () => Navigator.of(context).maybePop(),
-                      child: const SizedBox(
-                        width: 42,
-                        height: 42,
-                        child: Icon(Icons.arrow_back_rounded, color: Colors.white),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.description_rounded, color: Colors.white),
-                  ),
-                  const SizedBox(width: 12),
-                  const Column(
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const AppBackButton(),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Leave Detail',
-                        style: TextStyle(
-                          color: Colors.white,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          color: Colors.black,
                           fontWeight: FontWeight.w700,
-                          fontSize: 16,
                         ),
                       ),
-                      Text('Request information', style: TextStyle(color: Colors.white70)),
+                      Text(
+                        'Request information',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: const Color(0xFF6A778B),
+                        ),
+                      ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
             const SizedBox(height: 14),
             FutureBuilder<LeaveDetailData?>(
@@ -307,7 +282,8 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                 final status = leave.status.trim().toLowerCase();
                 final ceoStatus = leave.ceoStatus.trim().toLowerCase();
 
-                final isHrActionAllowed = role == 'hr' && hrStatus == 'pending';
+                final isHrActionAllowed =
+                    AppRoles.isHrLikeApprover(role) && hrStatus == 'pending';
                 final isCeoActionAllowed =
                     role == 'ceo' &&
                     status == 'pending_ceo' &&
@@ -320,8 +296,8 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                   mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _DetailCard(label: 'Request ID', value: leave.id),
-                    _DetailCard(label: 'Employee ID', value: leave.employeeId),
+                    // _DetailCard(label: 'Request ID', value: leave.id),
+                    // _DetailCard(label: 'Employee ID', value: leave.employeeId),
                     _DetailCard(label: 'Name', value: data.employeeName),
                     _DetailCard(label: 'Department', value: data.department),
                     _DetailCard(label: 'Leave Type', value: _leaveTypeName(leave.leaveTypeId)),
@@ -619,11 +595,11 @@ class _AttachmentCard extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: theme.textTheme.bodyMedium?.copyWith(color: const Color(0xFF112645)),
-            ),
+            // const SizedBox(height: 6),
+            // Text(
+            //   value,
+            //   style: theme.textTheme.bodyMedium?.copyWith(color: const Color(0xFF112645)),
+            // ),
             if (onView != null) ...[
               const SizedBox(height: 10),
               Align(
@@ -654,6 +630,7 @@ class _AttachmentImageScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
+        leading: const AppBackButton(color: Colors.white),
         title: const Text('Attachment'),
       ),
       body: Center(

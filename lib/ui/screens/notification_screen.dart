@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
+import 'package:leavego_app/services/notification_navigation_service.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
 
@@ -105,7 +106,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                         'Notifications',
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: AppTheme.navy,
+                          color: Colors.black,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -139,10 +140,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
             ),
             const SizedBox(height: 10),
             if (_appController.notificationsLoading)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: AppLoader(),
-              )
+              const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: AppLoader())
             else if (_appController.notificationsError != null)
               Container(
                 margin: const EdgeInsets.only(bottom: 10),
@@ -174,10 +172,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   decoration: BoxDecoration(
                     color: isUnread ? const Color(0xFFF7FAFF) : Colors.white,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: isUnread ? AppTheme.navy.withValues(alpha: 0.28) : Colors.transparent,
-                      width: 1,
-                    ),
+                    border: Border.all(color: isUnread ? Colors.red : Colors.transparent, width: 1),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.04),
@@ -189,16 +184,25 @@ class _NotificationScreenState extends State<NotificationScreen> {
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     onTap: () async {
-                      if (item.isRead) return;
+                      final messenger = ScaffoldMessenger.of(context);
+                      final notification = item;
+
+                      // 1) Mark notification as read on the server first.
                       final message = await _appController.readNotification(
-                        notificationId: item.id,
+                        notificationId: notification.id,
                       );
                       if (!mounted) return;
-                      if (message == null && _appController.notificationReadError != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                      if (message == null &&
+                          _appController.notificationReadError != null &&
+                          !notification.isRead) {
+                        messenger.showSnackBar(
                           SnackBar(content: Text(_appController.notificationReadError!)),
                         );
                       }
+
+                      // 2) Then open the related screen (task / leave / news).
+                      if (!mounted) return;
+                      await NotificationNavigationService.openFromInAppNotification(notification);
                     },
                     leading: Container(
                       width: 42,

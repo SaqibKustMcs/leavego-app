@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
@@ -47,10 +49,18 @@ class _LoginScreenState extends State<LoginScreen> {
     );
     if (!mounted) return;
     if (result != null) {
-      await PushNotificationService.instance.requestPermission();
-      final fcmToken = await PushNotificationService.instance.getToken();
+      final push = PushNotificationService.instance;
+      await push.initialize();
+      await push.requestPermission();
+      final fcmToken = await push.getToken();
       if (fcmToken != null && fcmToken.isNotEmpty) {
         debugPrint('FCM TOKEN (login) => $fcmToken');
+        final deviceName = await push.getDeviceName();
+        await _appController.registerFcmToken(
+          fcmToken,
+          platform: Platform.isIOS ? 'ios' : 'android',
+          deviceName: deviceName,
+        );
       }
       if (!mounted) return;
       Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const MainScreen()));
@@ -304,15 +314,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                             const SizedBox(height: 18),
-                            Center(
-                              child: Text(
-                                'Secure login powered by Friends Electronics API',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: const Color(0xFF5D6B84),
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
                           ],
                         ),
                       ),

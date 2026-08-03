@@ -5,6 +5,7 @@ import 'package:leavego_app/models/departments_response.dart';
 import 'package:leavego_app/models/tasks_response.dart';
 import 'package:leavego_app/models/users_response.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
 
 class EditTaskScreen extends StatefulWidget {
@@ -251,8 +252,9 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
       backgroundColor: const Color(0xFFF2F5FC),
       appBar: AppBar(
         title: const Text('Edit Task'),
+        leading: const AppBackButton(),
         backgroundColor: Colors.transparent,
-        foregroundColor: AppTheme.navy,
+        foregroundColor: Colors.black,
         elevation: 0,
       ),
       body: SafeArea(
@@ -280,7 +282,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
                     'Update Task',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: AppTheme.navy,
+                      color: Colors.black,
                     ),
                   ),
                   const SizedBox(height: 4),

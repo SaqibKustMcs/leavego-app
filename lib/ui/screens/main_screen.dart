@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
+import 'package:leavego_app/services/notification_navigation_service.dart';
 import 'package:leavego_app/ui/screens/home_screen.dart';
 import 'package:leavego_app/ui/screens/projects_screen.dart';
 import 'package:leavego_app/ui/screens/notification_screen.dart';
@@ -28,6 +29,9 @@ class _MainScreenState extends State<MainScreen> {
     if (_appController.meData == null) {
       _appController.loadMe();
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationNavigationService.flushPending();
+    });
   }
 
   void _onUpdate() {

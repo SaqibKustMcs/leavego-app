@@ -150,15 +150,20 @@ class DataService {
 
   Future<Map<String, dynamic>> delete({
     required String url,
+    Map<String, dynamic>? body,
     Map<String, String>? headers,
   }) async {
     final requestHeaders = <String, String>{
       'Content-Type': 'application/json',
       ...?headers,
     };
-    _logRequest(method: 'DELETE', url: url, headers: requestHeaders);
+    _logRequest(method: 'DELETE', url: url, headers: requestHeaders, body: body);
 
-    final response = await _http.delete(Uri.parse(url), headers: requestHeaders);
+    final response = await _http.delete(
+      Uri.parse(url),
+      headers: requestHeaders,
+      body: body == null ? null : jsonEncode(body),
+    );
     _logResponse(
       method: 'DELETE',
       url: url,

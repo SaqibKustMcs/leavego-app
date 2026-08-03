@@ -1,6 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:leavego_app/services/notification_navigation_service.dart';
 
 /// Handles Firebase Cloud Messaging setup: permissions, token retrieval,
 /// foreground display via local notifications, and tap routing callbacks.
@@ -41,6 +45,7 @@ class PushNotificationService {
     );
     await _localNotifications.initialize(
       settings: const InitializationSettings(android: androidInit, iOS: darwinInit),
+      onDidReceiveNotificationResponse: _onLocalNotificationTap,
     );
 
     await _localNotifications
@@ -63,6 +68,13 @@ class PushNotificationService {
     _messaging.onTokenRefresh.listen((token) {
       onTokenRefresh?.call(token);
     });
+
+    // Cold-start local notification tap (app launched from foreground local notif).
+    final launchDetails = await _localNotifications.getNotificationAppLaunchDetails();
+    if (launchDetails?.didNotificationLaunchApp == true &&
+        launchDetails?.notificationResponse != null) {
+      _onLocalNotificationTap(launchDetails!.notificationResponse!);
+    }
   }
 
   Future<NotificationSettings> requestPermission() {
@@ -82,17 +94,46 @@ class PushNotificationService {
     }
   }
 
-  /// The notification the app was launched from (when opened from terminated)]
-  ///
+  Future<String> getDeviceName() async {
+    if (Platform.isAndroid) {
+      return 'Android ${Platform.operatingSystemVersion}';
+    }
+    if (Platform.isIOS) {
+      return 'iOS ${Platform.operatingSystemVersion}';
+    }
+    return 'Mobile Device';
+  }
+
+  /// The notification the app was launched from (when opened from terminated).
   Future<RemoteMessage?> getInitialMessage() => _messaging.getInitialMessage();
+
+  void _onLocalNotificationTap(NotificationResponse response) {
+    final payload = response.payload;
+    if (payload == null || payload.trim().isEmpty) return;
+
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is! Map) return;
+      final data = decoded.map((key, value) => MapEntry(key.toString(), value));
+      NotificationNavigationService.openFromPayload(
+        rawData: Map<String, dynamic>.from(data),
+      );
+    } catch (e) {
+      debugPrint('Failed to handle local notification tap: $e');
+    }
+  }
 
   void _showLocalNotification(RemoteMessage message) {
     final notification = message.notification;
     if (notification == null) return;
+
+    final payload = jsonEncode(message.data);
+
     _localNotifications.show(
       id: notification.hashCode,
       title: notification.title,
       body: notification.body,
+      payload: payload,
       notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           _channel.id,

@@ -80,9 +80,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
     return raw
         .split('_')
         .map(
-          (part) => part.isEmpty
-              ? part
-              : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
+          (part) =>
+              part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
         )
         .join(' ');
   }
@@ -130,9 +129,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
         child: RefreshIndicator(
           onRefresh: _onRefresh,
           child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: ClampingScrollPhysics(),
-            ),
+            physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
             children: [
               Container(
@@ -154,10 +151,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                         color: Colors.white.withValues(alpha: 0.16),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
-                        Icons.task_alt_rounded,
-                        color: Colors.white,
-                      ),
+                      child: const Icon(Icons.task_alt_rounded, color: Colors.white),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -181,20 +175,14 @@ class _TaskListScreenState extends State<TaskListScreen> {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.16),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         '${tasks.length} items',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                       ),
                     ),
                   ],
@@ -223,19 +211,11 @@ class _TaskListScreenState extends State<TaskListScreen> {
               ),
               const SizedBox(height: 10),
               if (_appController.tasksLoading && tasks.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 30),
-                  child: AppLoader(),
-                )
+                const Padding(padding: EdgeInsets.symmetric(vertical: 30), child: AppLoader())
               else if (_appController.tasksError != null && tasks.isEmpty)
-                _MessageCard(
-                  message: _appController.tasksError!,
-                  isError: true,
-                )
+                _MessageCard(message: _appController.tasksError!, isError: true)
               else if (tasks.isEmpty)
-                const _MessageCard(
-                  message: 'No tasks found. Pull down to refresh.',
-                )
+                const _MessageCard(message: 'No tasks found. Pull down to refresh.')
               else
                 ...tasks.map(
                   (task) => _TaskListCard(
@@ -247,9 +227,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => TaskDetailScreen(
-                            taskId: task.id.toString(),
-                          ),
+                          builder: (_) => TaskDetailScreen(taskId: task.id.toString()),
                         ),
                       );
                     },
@@ -257,22 +235,15 @@ class _TaskListScreenState extends State<TaskListScreen> {
                 ),
               if (_appController.tasksError != null && tasks.isNotEmpty) ...[
                 const SizedBox(height: 10),
-                _MessageCard(
-                  message: _appController.tasksError!,
-                  isError: true,
-                ),
+                _MessageCard(message: _appController.tasksError!, isError: true),
               ],
               if (_appController.tasksHasMore) ...[
                 const SizedBox(height: 8),
                 OutlinedButton(
-                  onPressed: _appController.tasksLoadingMore
-                      ? null
-                      : _appController.loadMoreTasks,
+                  onPressed: _appController.tasksLoadingMore ? null : _appController.loadMoreTasks,
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                   child: _appController.tasksLoadingMore
                       ? const AppButtonLoader(color: AppTheme.navy, size: 20)
@@ -408,8 +379,7 @@ class _TaskListCard extends StatelessWidget {
                 _TaskMetaRow(
                   icon: Icons.event_outlined,
                   label: 'Dates',
-                  value:
-                      '${formatDate(task.startDate)} -> ${formatDate(task.dueDate)}',
+                  value: '${formatDate(task.startDate)} -> ${formatDate(task.dueDate)}',
                 ),
                 const SizedBox(height: 8),
                 _TaskMetaRow(
@@ -427,11 +397,7 @@ class _TaskListCard extends StatelessWidget {
 }
 
 class _TaskMetaRow extends StatelessWidget {
-  const _TaskMetaRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
+  const _TaskMetaRow({required this.icon, required this.label, required this.value});
 
   final IconData icon;
   final String label;
@@ -459,10 +425,7 @@ class _TaskMetaRow extends StatelessWidget {
                 ),
                 TextSpan(
                   text: value,
-                  style: const TextStyle(
-                    color: Color(0xFF1E293B),
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: const TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -474,11 +437,7 @@ class _TaskMetaRow extends StatelessWidget {
 }
 
 class _TaskPill extends StatelessWidget {
-  const _TaskPill({
-    required this.label,
-    required this.background,
-    required this.foreground,
-  });
+  const _TaskPill({required this.label, required this.background, required this.foreground});
 
   final String label;
   final Color background;
@@ -488,27 +447,17 @@ class _TaskPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
+      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(999)),
       child: Text(
         label,
-        style: TextStyle(
-          color: foreground,
-          fontWeight: FontWeight.w700,
-          fontSize: 12,
-        ),
+        style: TextStyle(color: foreground, fontWeight: FontWeight.w700, fontSize: 12),
       ),
     );
   }
 }
 
 class _MessageCard extends StatelessWidget {
-  const _MessageCard({
-    required this.message,
-    this.isError = false,
-  });
+  const _MessageCard({required this.message, this.isError = false});
 
   final String message;
   final bool isError;
@@ -523,10 +472,7 @@ class _MessageCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(16),
-      ),
+      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(16)),
       child: Text(
         message,
         style: theme.textTheme.bodySmall?.copyWith(

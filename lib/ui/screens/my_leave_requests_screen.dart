@@ -5,7 +5,9 @@ import 'package:leavego_app/ui/models/leave_request.dart';
 import 'package:leavego_app/ui/screens/apply_leave_screen.dart';
 import 'package:leavego_app/ui/screens/leave_detail_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
+import 'package:leavego_app/utils/app_roles.dart';
 
 class MyLeaveRequestsScreen extends StatefulWidget {
   const MyLeaveRequestsScreen({super.key});
@@ -23,8 +25,7 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen>
   bool _bootstrapped = false;
 
   Future<void> _onRefresh() async {
-    final role = (_appController.meData?.role ?? '').trim().toLowerCase();
-    final isCeoOrHr = role == 'ceo' || role == 'hr';
+    final isCeoOrHr = AppRoles.isCeoOrHrLike(_appController.meData?.role);
     final loader = isCeoOrHr
         ? (_tabController.index == _tabPending
               ? _appController.loadRequestsByRole
@@ -51,8 +52,7 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen>
     if (_bootstrapped) return;
     _bootstrapped = true;
 
-    final role = (_appController.meData?.role ?? '').trim().toLowerCase();
-    final isCeoOrHr = role == 'ceo' || role == 'hr';
+    final isCeoOrHr = AppRoles.isCeoOrHrLike(_appController.meData?.role);
 
     // Default: show "My Requests" first for CEO/HR.
     if (isCeoOrHr) {
@@ -80,8 +80,8 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final role = (_appController.meData?.role ?? '').trim().toLowerCase();
-    final isCeoOrHr = role == 'ceo' || role == 'hr';
+    final role = AppRoles.normalize(_appController.meData?.role);
+    final isCeoOrHr = AppRoles.isCeoOrHrLike(role);
     final isApproverOnly = role == 'hod';
     final isApprover = isApproverOnly || (isCeoOrHr && _tabController.index == _tabPending);
     final emptyMessage = isApprover ? 'No pending approvals found.' : 'No leave requests found.';
@@ -101,22 +101,15 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen>
               Row(
                 children: [
                   if (Navigator.of(context).canPop())
-                    Padding(
-                      padding: const EdgeInsets.only(right: 4),
-                      child: IconButton(
-                        onPressed: () => Navigator.of(context).maybePop(),
-                        icon: const Icon(Icons.arrow_back_rounded),
-                        color: AppTheme.navy,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        tooltip: 'Back',
-                      ),
+                    const Padding(
+                      padding: EdgeInsets.only(right: 4),
+                      child: AppBackButton(),
                     ),
                   Text(
                     title,
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: AppTheme.navy,
+                      color: Colors.black,
                     ),
                   ),
                   const Spacer(),
@@ -170,10 +163,7 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen>
               ],
               const SizedBox(height: 10),
               if (_appController.myLeavesLoading)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: AppLoader(),
-                )
+                const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: AppLoader())
               else if (_appController.myLeavesError != null)
                 Container(
                   margin: const EdgeInsets.only(bottom: 12),

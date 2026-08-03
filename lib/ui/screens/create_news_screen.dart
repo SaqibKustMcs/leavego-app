@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
 
 class CreateNewsScreen extends StatefulWidget {
@@ -84,8 +85,9 @@ class _CreateNewsScreenState extends State<CreateNewsScreen> {
       backgroundColor: const Color(0xFFF2F5FC),
       appBar: AppBar(
         title: const Text('Create News'),
+        leading: const AppBackButton(),
         backgroundColor: Colors.transparent,
-        foregroundColor: AppTheme.navy,
+        foregroundColor: Colors.black,
         elevation: 0,
       ),
       body: SafeArea(
@@ -113,7 +115,7 @@ class _CreateNewsScreenState extends State<CreateNewsScreen> {
                     'Announcement',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: AppTheme.navy,
+                      color: Colors.black,
                     ),
                   ),
                   const SizedBox(height: 4),

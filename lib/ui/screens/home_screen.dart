@@ -5,12 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/news_response.dart';
+import 'package:leavego_app/models/tasks_response.dart';
+import 'package:leavego_app/services/notification_navigation_service.dart';
 import 'package:leavego_app/services/push_notification_service.dart';
 import 'package:leavego_app/ui/screens/create_news_screen.dart';
 import 'package:leavego_app/ui/screens/my_leave_requests_screen.dart';
+import 'package:leavego_app/ui/screens/my_today_tasks_screen.dart';
 import 'package:leavego_app/ui/screens/news_screen.dart';
+import 'package:leavego_app/ui/screens/task_detail_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
+import 'package:leavego_app/utils/app_roles.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
     await Future.wait<void>([
       _appController.loadDashboard(),
       _appController.loadNews(refresh: true),
+      _appController.loadMyTodayTasks(refresh: true, applyPriorityFilter: false),
     ]);
   }
 
@@ -39,6 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     _appController.loadDashboard();
     _appController.loadNews(refresh: true);
+    _appController.loadMyTodayTasks(refresh: true, applyPriorityFilter: false);
     _setupPushNotifications();
   }
 
@@ -52,25 +59,31 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       _appController.loadUnreadCount();
     };
-    push.onMessageOpened = (_) {
+    push.onMessageOpened = (message) async {
       _appController.loadUnreadCount();
-      _appController.requestSwitchToNotificationsTab();
+      await NotificationNavigationService.openFromRemoteMessage(message);
     };
-    push.onTokenRefresh = (token) {
-      _appController.registerFcmToken(token, platform: _platformName);
+    push.onTokenRefresh = (token) async {
+      final deviceName = await push.getDeviceName();
+      _appController.registerFcmToken(token, platform: _platformName, deviceName: deviceName);
     };
 
     await push.requestPermission();
 
     final token = await push.getToken();
     if (token != null && token.isNotEmpty) {
-      await _appController.registerFcmToken(token, platform: _platformName);
+      final deviceName = await push.getDeviceName();
+      await _appController.registerFcmToken(token, platform: _platformName, deviceName: deviceName);
     }
 
     final initialMessage = await push.getInitialMessage();
     if (initialMessage != null) {
       _appController.loadUnreadCount();
-      _appController.requestSwitchToNotificationsTab();
+      // Wait for navigator to be ready after cold start.
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+        await NotificationNavigationService.openFromRemoteMessage(initialMessage);
+      });
     }
   }
 
@@ -100,10 +113,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final totalRemaining = summary?.totalRemaining ?? 0;
     final pendingHod = data?.pendingHod ?? 0;
     final pendingHr = data?.pendingHr ?? 0;
-    final taskSummary = data?.tasks;
     final hrPending = data?.hrPendingLeaveRequests;
     final newsItems = _appController.newsItems;
     final newsLoading = _appController.newsLoading;
+    final highlightTask = _appController.homePriorityTask;
+    final todayTasksLoading = _appController.myTodayTasksLoading;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FC),
@@ -116,10 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 8),
             _HomeHeader(
               name: _appController.meData?.name ?? '',
-              canCreateNews: () {
-                final lowerRole = (_appController.meData?.role ?? '').trim().toLowerCase();
-                return lowerRole == 'hr';
-              }(),
+              canCreateNews: AppRoles.canCreateNews(_appController.meData?.role),
               onCreateNewsTap: () => Navigator.of(
                 context,
               ).push(MaterialPageRoute(builder: (_) => const CreateNewsScreen())),
@@ -281,97 +292,82 @@ class _HomeScreenState extends State<HomeScreen> {
             //     ],
             //   ),
             // ),
-            if (taskSummary != null) ...[
-              const SizedBox(height: 18),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'My Today Task',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: Colors.black,
                     ),
-                  ],
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Task Summary',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.navy,
+                TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: theme.colorScheme.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  ),
+                  onPressed: () => Navigator.of(
+                    context,
+                  ).push(MaterialPageRoute(builder: (_) => const MyTodayTasksScreen())),
+                  child: const Text(
+                    'View all',
+                    style: TextStyle(
+                      decoration: TextDecoration.underline,
+                      decorationColor: AppTheme.navy,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (todayTasksLoading && highlightTask == null)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Center(child: AppLoader(size: 28)),
+                    )
+                  else if (highlightTask != null) ...[
+                    const SizedBox(height: 10),
+                    _HomeTodayTaskCard(
+                      task: highlightTask,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => TaskDetailScreen(taskId: highlightTask.id.toString()),
+                          ),
+                        );
+                      },
+                    ),
+                  ] else
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'No pending due tasks right now.',
+                        style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF6A778B)),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _BalanceStat(
-                            title: 'Assigned',
-                            value: '${taskSummary.assigned}',
-                            bg: const Color(0xFFDCE7FF),
-                            fg: AppTheme.navy,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _BalanceStat(
-                            title: 'In Progress',
-                            value: '${taskSummary.inProgress}',
-                            bg: const Color(0xFFE7EEFF),
-                            fg: const Color(0xFF1565C0),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _BalanceStat(
-                            title: 'Completed',
-                            value: '${taskSummary.completed}',
-                            bg: const Color(0xFFDFF5E2),
-                            fg: const Color(0xFF1B5E20),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _BalanceStat(
-                            title: 'Blocked',
-                            value: '${taskSummary.blocked}',
-                            bg: const Color(0xFFFFF4DC),
-                            fg: const Color(0xFF9A6A00),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _BalanceStat(
-                            title: 'Overdue',
-                            value: '${taskSummary.overdue}',
-                            bg: const Color(0xFFFCE3E1),
-                            fg: const Color(0xFF8B1D18),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _BalanceStat(
-                            title: 'Total',
-                            value: '${taskSummary.total}',
-                            bg: const Color(0xFFE9ECF3),
-                            fg: const Color(0xFF1E293B),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                ],
               ),
-            ],
+            ),
             if (data != null && data.leaveBalances.isNotEmpty) ...[
               const SizedBox(height: 18),
               Row(
@@ -381,7 +377,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       'Leave Balances',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
-                        color: AppTheme.navy,
+                        color: Colors.black,
                       ),
                     ),
                   ),
@@ -393,10 +389,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     onPressed: () => Navigator.of(
                       context,
                     ).push(MaterialPageRoute(builder: (_) => const MyLeaveRequestsScreen())),
-                    icon: const Icon(Icons.assignment_outlined, size: 18),
+                    // icon: const Icon(Icons.assignment_outlined, size: 18),
                     label: const Text(
                       'Leave Requests',
-                      style: TextStyle(fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        decoration: TextDecoration.underline,
+                        decorationColor: AppTheme.navy,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ],
@@ -590,11 +590,20 @@ class _NewsCarouselState extends State<_NewsCarousel> {
                 'Latest News',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w800,
-                  color: AppTheme.navy,
+                  color: Colors.black,
                 ),
               ),
             ),
-            TextButton(onPressed: widget.onSeeAll, child: const Text('See all')),
+            TextButton(
+              onPressed: widget.onSeeAll,
+              child: Text(
+                'See all',
+                style: TextStyle(
+                  decoration: TextDecoration.underline,
+                  decorationColor: AppTheme.navy,
+                ),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 6),
@@ -710,22 +719,22 @@ class _NewsCarouselCard extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        if (audience.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.18),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              audience.toUpperCase(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 10,
-                              ),
-                            ),
-                          ),
+                        if (audience.isNotEmpty) SizedBox(),
+                        // Container(
+                        //   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        //   decoration: BoxDecoration(
+                        //     color: Colors.white.withValues(alpha: 0.18),
+                        //     borderRadius: BorderRadius.circular(999),
+                        //   ),
+                        //   child: Text(
+                        //     audience.toUpperCase(),
+                        //     style: const TextStyle(
+                        //       color: Colors.white,
+                        //       fontWeight: FontWeight.w800,
+                        //       fontSize: 10,
+                        //     ),
+                        //   ),
+                        // ),
                         const Spacer(),
                         const Icon(Icons.campaign_rounded, color: Colors.white70, size: 20),
                       ],
@@ -884,6 +893,161 @@ class _HomeHeader extends StatelessWidget {
           //     ),
           //   ),
         ],
+      ),
+    );
+  }
+}
+
+class _HomeTodayTaskCard extends StatelessWidget {
+  const _HomeTodayTaskCard({required this.task, required this.onTap});
+
+  final TaskItem task;
+  final VoidCallback onTap;
+
+  String _formatDate(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return '-';
+    try {
+      final normalized = raw.contains(' ') ? raw.replaceFirst(' ', 'T') : raw;
+      final date = DateTime.parse(normalized).toLocal();
+      const months = <String>[
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
+    } catch (_) {
+      return raw;
+    }
+  }
+
+  String _toLabel(String raw) {
+    if (raw.trim().isEmpty) return '-';
+    return raw
+        .split('_')
+        .map(
+          (part) =>
+              part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
+        )
+        .join(' ');
+  }
+
+  Color _priorityColor(String priority) {
+    switch (priority.trim().toLowerCase()) {
+      case 'critical':
+        return const Color(0xFFB71C1C);
+      case 'urgent':
+        return const Color(0xFFC62828);
+      case 'high':
+        return const Color(0xFFEF6C00);
+      case 'medium':
+        return const Color(0xFF1565C0);
+      default:
+        return const Color(0xFF2E7D32);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final priority = task.priority.trim().toLowerCase();
+    final priorityColor = _priorityColor(priority);
+    final projectName = task.project?.name ?? '';
+
+    return Material(
+      color: const Color(0xFFF8FAFF),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      task.title,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.navy,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: priorityColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      _toLabel(task.priority),
+                      style: TextStyle(
+                        color: priorityColor,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (task.description.trim().isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  task.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF5F6D84),
+                    height: 1.4,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  if (projectName.isNotEmpty) ...[
+                    const Icon(Icons.folder_outlined, size: 16, color: Color(0xFF6A778B)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        projectName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: const Color(0xFF1E293B),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  const Icon(Icons.event_outlined, size: 16, color: Color(0xFF6A778B)),
+                  const SizedBox(width: 6),
+                  Text(
+                    _formatDate(task.dueDate),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: const Color(0xFF1E293B),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -4,7 +4,9 @@ import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/news_response.dart';
 import 'package:leavego_app/ui/screens/edit_news_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
+import 'package:leavego_app/utils/app_roles.dart';
 
 class NewsScreen extends StatefulWidget {
   const NewsScreen({super.key});
@@ -110,15 +112,16 @@ class _NewsScreenState extends State<NewsScreen> {
     final items = _appController.newsItems;
     final loading = _appController.newsLoading;
     final error = _appController.newsError;
-    final role = (_appController.meData?.role ?? '').trim().toLowerCase();
-    final canEdit = role == 'hr' || role == 'ceo';
+    final canEdit = AppRoles.canEditNews(_appController.meData?.role);
+    final canDelete = AppRoles.canDeleteNews(_appController.meData?.role);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FC),
       appBar: AppBar(
         title: const Text('Company News'),
+        leading: const AppBackButton(),
         backgroundColor: Colors.transparent,
-        foregroundColor: AppTheme.navy,
+        foregroundColor: Colors.black,
         elevation: 0,
       ),
       body: SafeArea(
@@ -129,10 +132,7 @@ class _NewsScreenState extends State<NewsScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             children: [
               if (loading && items.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: AppLoader(),
-                )
+                const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: AppLoader())
               else if (error != null && items.isEmpty)
                 Container(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -157,15 +157,13 @@ class _NewsScreenState extends State<NewsScreen> {
                 )
               else ...[
                 if (loading)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 10),
-                    child: AppLoader(size: 22),
-                  ),
+                  const Padding(padding: EdgeInsets.only(bottom: 10), child: AppLoader(size: 22)),
                 ...items.map(
                   (item) => _NewsCard(
                     item: item,
                     formatDate: _formatDate,
                     canEdit: canEdit,
+                    canDelete: canDelete,
                     onEdit: () async {
                       final updated = await Navigator.of(
                         context,
@@ -207,6 +205,7 @@ class _NewsCard extends StatelessWidget {
     required this.item,
     required this.formatDate,
     required this.canEdit,
+    required this.canDelete,
     required this.onEdit,
     required this.onDelete,
   });
@@ -214,6 +213,7 @@ class _NewsCard extends StatelessWidget {
   final NewsItem item;
   final String Function(String?) formatDate;
   final bool canEdit;
+  final bool canDelete;
   final VoidCallback onEdit;
   final VoidCallback? onDelete;
 
@@ -257,43 +257,44 @@ class _NewsCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              if (canEdit)
+              if (canEdit || canDelete)
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: InkWell(
-                        onTap: onEdit,
-                        child: Icon(Icons.edit_outlined, color: AppTheme.navy),
+                    if (canEdit)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                        child: InkWell(
+                          onTap: onEdit,
+                          child: Icon(Icons.edit_outlined, color: AppTheme.navy),
+                        ),
                       ),
-                    ),
-
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: InkWell(
-                        onTap: onDelete,
-                        child: Icon(Icons.delete_outlined, color: Colors.red),
+                    if (canDelete)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                        child: InkWell(
+                          onTap: onDelete,
+                          child: Icon(Icons.delete_outlined, color: Colors.red),
+                        ),
                       ),
-                    ),
                   ],
                 ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFDCE7FF),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  _audienceLabel(item.targetAudience),
-                  style: const TextStyle(
-                    color: AppTheme.navy,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
+              // Container(
+              //   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              //   decoration: BoxDecoration(
+              //     color: const Color(0xFFDCE7FF),
+              //     borderRadius: BorderRadius.circular(999),
+              //   ),
+              //   child: Text(
+              //     _audienceLabel(item.targetAudience),
+              //     style: const TextStyle(
+              //       color: AppTheme.navy,
+              //       fontWeight: FontWeight.w800,
+              //       fontSize: 11,
+              //     ),
+              //   ),
+              // ),
             ],
           ),
           const SizedBox(height: 8),
@@ -306,7 +307,7 @@ class _NewsCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'By ${item.postedByName} • ${item.postedByRole.toUpperCase()}',
+                  'By ${item.postedByName}',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: const Color(0xFF6A778B),
                     fontWeight: FontWeight.w600,

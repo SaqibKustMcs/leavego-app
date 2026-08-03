@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class AppTheme {
-  static const Color navy = Color(0xFF093747);
+  // static const Color navy = Color(0xFF093747);
+  // static const Color lightNavy = Color(0xFF1B5569);
+  static const Color navy = Color(0xFF2EB0A2);
   static const Color lightNavy = Color(0xFF1B5569);
   static const Color appBackground = Color(0xFFF4F6FA);
   static const Color cardBackground = Colors.white;
+  static const String fontFamily = 'Inter';
 
   static ThemeData light() {
     final colorScheme = ColorScheme.fromSeed(
@@ -16,16 +19,32 @@ class AppTheme {
       brightness: Brightness.light,
     );
 
+    final textTheme = ThemeData(brightness: Brightness.light).textTheme.apply(
+      fontFamily: fontFamily,
+      bodyColor: const Color(0xFF0F172A),
+      displayColor: const Color(0xFF0F172A),
+    );
+
     return ThemeData(
       useMaterial3: true,
+      fontFamily: fontFamily,
+      textTheme: textTheme,
+      primaryTextTheme: textTheme,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: appBackground,
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: Colors.white,
-        foregroundColor: Color(0xFF0F172A),
+        foregroundColor: Colors.black,
         centerTitle: false,
         elevation: 0,
-        systemOverlayStyle: SystemUiOverlayStyle(
+        iconTheme: const IconThemeData(color: Colors.black),
+        actionsIconTheme: const IconThemeData(color: Colors.black),
+        titleTextStyle: textTheme.titleLarge?.copyWith(
+          fontFamily: fontFamily,
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
+        ),
+        systemOverlayStyle: const SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
           statusBarIconBrightness: Brightness.dark,
           statusBarBrightness: Brightness.light,
@@ -39,10 +58,7 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey.shade300),
@@ -60,9 +76,11 @@ class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: navy,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+          textStyle: const TextStyle(
+            fontFamily: fontFamily,
+            fontWeight: FontWeight.w600,
           ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         ),
       ),

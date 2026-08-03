@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/projects_response.dart';
+import 'package:leavego_app/ui/screens/create_project_screen.dart';
 import 'package:leavego_app/ui/screens/project_tasks_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
+import 'package:leavego_app/utils/app_roles.dart';
 
 class ProjectsScreen extends StatefulWidget {
   const ProjectsScreen({super.key});
@@ -68,12 +70,13 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     return raw
         .split('_')
         .map(
-          (part) => part.isEmpty
-              ? part
-              : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
+          (part) =>
+              part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
         )
         .join(' ');
   }
+
+  bool get _canCreateProject => AppRoles.canManageProjects(_appController.meData?.role);
 
   @override
   Widget build(BuildContext context) {
@@ -82,12 +85,28 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FC),
+      floatingActionButton: _canCreateProject
+          ? FloatingActionButton.extended(
+              onPressed: () async {
+                final created = await Navigator.of(
+                  context,
+                ).push<bool>(MaterialPageRoute(builder: (_) => const CreateProjectScreen()));
+                if (created == true) {
+                  await _appController.loadProjects(refresh: true);
+                }
+              },
+              backgroundColor: AppTheme.navy,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Create Project'),
+            )
+          : null,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _onRefresh,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 88),
             children: [
               Container(
                 padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
@@ -139,10 +158,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                       ),
                       child: Text(
                         '${projects.length} items',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                       ),
                     ),
                   ],
@@ -150,10 +166,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
               ),
               const SizedBox(height: 14),
               if (_appController.projectsLoading && projects.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 30),
-                  child: AppLoader(),
-                )
+                const Padding(padding: EdgeInsets.symmetric(vertical: 30), child: AppLoader())
               else if (_appController.projectsError != null && projects.isEmpty)
                 _MessageCard(message: _appController.projectsError!, isError: true)
               else if (projects.isEmpty)
@@ -166,9 +179,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                     toLabel: _toLabel,
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => ProjectTasksScreen(project: project),
-                        ),
+                        MaterialPageRoute(builder: (_) => ProjectTasksScreen(project: project)),
                       );
                     },
                   ),
@@ -252,7 +263,7 @@ class _ProjectCard extends StatelessWidget {
                             project.name.isEmpty ? '-' : project.name,
                             style: theme.textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w800,
-                              color: AppTheme.navy,
+                              color: Colors.black,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -274,9 +285,7 @@ class _ProjectCard extends StatelessWidget {
                       background: status == 'active'
                           ? const Color(0xFFDFF5E2)
                           : const Color(0xFFE8EEFC),
-                      foreground: status == 'active'
-                          ? const Color(0xFF1B5E20)
-                          : AppTheme.navy,
+                      foreground: status == 'active' ? const Color(0xFF1B5E20) : AppTheme.navy,
                     ),
                   ],
                 ),
@@ -319,11 +328,7 @@ class _ProjectCard extends StatelessWidget {
 }
 
 class _ProjectPill extends StatelessWidget {
-  const _ProjectPill({
-    required this.label,
-    required this.background,
-    required this.foreground,
-  });
+  const _ProjectPill({required this.label, required this.background, required this.foreground});
 
   final String label;
   final Color background;
@@ -333,17 +338,10 @@ class _ProjectPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
+      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(999)),
       child: Text(
         label,
-        style: TextStyle(
-          color: foreground,
-          fontWeight: FontWeight.w700,
-          fontSize: 11,
-        ),
+        style: TextStyle(color: foreground, fontWeight: FontWeight.w700, fontSize: 11),
       ),
     );
   }
@@ -387,9 +385,7 @@ class _MessageCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isError
-            ? theme.colorScheme.errorContainer.withValues(alpha: 0.45)
-            : Colors.white,
+        color: isError ? theme.colorScheme.errorContainer.withValues(alpha: 0.45) : Colors.white,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Text(

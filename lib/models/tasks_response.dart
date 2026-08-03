@@ -119,6 +119,7 @@ class TaskItem {
     required this.priority,
     required this.status,
     required this.departmentId,
+    required this.projectId,
     required this.assignedBy,
     required this.assignedTo,
     required this.parentTaskId,
@@ -132,6 +133,7 @@ class TaskItem {
     required this.creator,
     required this.assignee,
     required this.department,
+    required this.project,
   });
 
   final int id;
@@ -141,6 +143,7 @@ class TaskItem {
   final String priority;
   final String status;
   final String? departmentId;
+  final String? projectId;
   final String? assignedBy;
   final String? assignedTo;
   final int? parentTaskId;
@@ -154,6 +157,7 @@ class TaskItem {
   final TaskPersonSummary? creator;
   final TaskPersonSummary? assignee;
   final TaskDepartmentSummary? department;
+  final TaskProjectSummary? project;
 
   factory TaskItem.fromJson(Map<String, dynamic> json) {
     return TaskItem(
@@ -164,6 +168,7 @@ class TaskItem {
       priority: (json['priority'] ?? '').toString(),
       status: (json['status'] ?? '').toString(),
       departmentId: json['department_id']?.toString(),
+      projectId: json['project_id']?.toString(),
       assignedBy: json['assigned_by']?.toString(),
       assignedTo: json['assigned_to']?.toString(),
       parentTaskId: _toNullableInt(json['parent_task_id']),
@@ -184,6 +189,9 @@ class TaskItem {
           ? TaskDepartmentSummary.fromJson(
               json['department'] as Map<String, dynamic>,
             )
+          : null,
+      project: json['project'] is Map<String, dynamic>
+          ? TaskProjectSummary.fromJson(json['project'] as Map<String, dynamic>)
           : null,
     );
   }
@@ -224,6 +232,20 @@ class TaskDepartmentSummary {
 
   factory TaskDepartmentSummary.fromJson(Map<String, dynamic> json) {
     return TaskDepartmentSummary(
+      id: json['id'] is int ? json['id'] as int : int.tryParse('${json['id']}') ?? 0,
+      name: (json['name'] ?? '').toString(),
+    );
+  }
+}
+
+class TaskProjectSummary {
+  const TaskProjectSummary({required this.id, required this.name});
+
+  final int id;
+  final String name;
+
+  factory TaskProjectSummary.fromJson(Map<String, dynamic> json) {
+    return TaskProjectSummary(
       id: json['id'] is int ? json['id'] as int : int.tryParse('${json['id']}') ?? 0,
       name: (json['name'] ?? '').toString(),
     );

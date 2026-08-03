@@ -7,6 +7,7 @@ import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/data/api_service.dart';
 import 'package:leavego_app/data/data_service.dart';
 import 'package:leavego_app/firebase_options.dart';
+import 'package:leavego_app/services/notification_navigation_service.dart';
 import 'package:leavego_app/services/push_notification_service.dart';
 import 'package:leavego_app/ui/screens/splash_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
@@ -43,8 +44,9 @@ class LeaveProApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'DevBay',
+      title: 'TeamFlow',
       theme: AppTheme.light(),
+      navigatorKey: NotificationNavigationService.navigatorKey,
       home: const SplashScreen(),
       debugShowCheckedModeBanner: false,
     );

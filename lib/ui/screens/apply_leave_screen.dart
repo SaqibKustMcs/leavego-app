@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/leave_type_response.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
 
 class ApplyLeaveScreen extends StatefulWidget {
@@ -213,62 +214,31 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
           physics: const ClampingScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
           children: [
-            Container(
-              padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppTheme.navy, AppTheme.lightNavy],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Row(
-                children: [
-                  Material(
-                    color: Colors.white.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () => Navigator.of(context).maybePop(),
-                      child: const SizedBox(
-                        width: 42,
-                        height: 42,
-                        child: Icon(Icons.arrow_back_rounded, color: Colors.white),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.edit_calendar_rounded, color: Colors.white),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
+            Row(
+              children: [
+                const AppBackButton(),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Apply Leave',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: Colors.white,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          color: Colors.black,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       Text(
                         'Create a new leave request',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.85),
+                          color: const Color(0xFF6A778B),
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
             const SizedBox(height: 14),
             Container(
@@ -367,6 +337,9 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                         labelText: 'Reason',
                         hintText: 'Briefly describe the reason for leave.',
                         errorText: reasonError.value.isEmpty ? null : reasonError.value,
+                        // alignLabelWithHint: false,
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
+                        hintStyle: TextStyle(color: Colors.grey),
                       ),
                     ),
                   ),

@@ -47,7 +47,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.navy,
+      backgroundColor: AppTheme.appBackground,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -58,7 +58,7 @@ class _SplashScreenState extends State<SplashScreen> {
               padding: const EdgeInsets.all(10),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.asset('assets/images/Devbay logo png.png', fit: BoxFit.cover),
+                child: Image.asset('assets/images/Teamflow.png', fit: BoxFit.cover),
               ),
             ),
 

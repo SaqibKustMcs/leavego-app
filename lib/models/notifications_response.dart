@@ -122,6 +122,10 @@ class AppNotificationItem {
     required this.createdAt,
     required this.updatedAt,
     required this.readAt,
+    required this.relatedId,
+    required this.taskId,
+    required this.leaveRequestId,
+    required this.data,
   });
 
   final String id;
@@ -133,20 +137,74 @@ class AppNotificationItem {
   final String? createdAt;
   final String? updatedAt;
   final String? readAt;
+  final String? relatedId;
+  final String? taskId;
+  final String? leaveRequestId;
+  final Map<String, dynamic> data;
 
   factory AppNotificationItem.fromJson(Map<String, dynamic> json) {
     final isRead = _toBool(json['is_read']);
+    final dataRaw = json['data'];
+    Map<String, dynamic> data = <String, dynamic>{};
+    if (dataRaw is Map<String, dynamic>) {
+      data = Map<String, dynamic>.from(dataRaw);
+    } else if (dataRaw is Map) {
+      data = dataRaw.map((key, value) => MapEntry(key.toString(), value));
+    }
+
+    final taskId = _firstNonEmpty(<dynamic>[
+      json['task_id'],
+      json['taskId'],
+      data['task_id'],
+      data['taskId'],
+    ]);
+    final leaveRequestId = _firstNonEmpty(<dynamic>[
+      json['leave_request_id'],
+      json['leaveRequestId'],
+      json['leave_id'],
+      json['leaveId'],
+      data['leave_request_id'],
+      data['leaveRequestId'],
+      data['leave_id'],
+      data['leaveId'],
+    ]);
+    final relatedId = _firstNonEmpty(<dynamic>[
+      taskId,
+      leaveRequestId,
+      json['related_id'],
+      json['entity_id'],
+      json['notifiable_id'],
+      json['reference_id'],
+      data['related_id'],
+      data['entity_id'],
+      data['id'],
+    ]);
+
     return AppNotificationItem(
       id: (json['id'] ?? '').toString(),
       userId: (json['user_id'] ?? '').toString(),
       title: (json['title'] ?? json['subject'] ?? 'Notification').toString(),
       message: (json['message'] ?? json['body'] ?? '').toString(),
-      type: (json['type'] ?? 'info').toString(),
+      type: (json['type'] ?? data['type'] ?? data['notification_type'] ?? 'info').toString(),
       isRead: isRead,
       createdAt: json['created_at']?.toString(),
       updatedAt: json['updated_at']?.toString(),
       readAt: json['read_at']?.toString(),
+      relatedId: relatedId,
+      taskId: taskId,
+      leaveRequestId: leaveRequestId,
+      data: data,
     );
+  }
+
+  static String? _firstNonEmpty(List<dynamic> values) {
+    for (final value in values) {
+      final text = value?.toString().trim();
+      if (text != null && text.isNotEmpty && text.toLowerCase() != 'null') {
+        return text;
+      }
+    }
+    return null;
   }
 
   static bool _toBool(dynamic value) {

@@ -3,10 +3,13 @@ import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/projects_response.dart';
 import 'package:leavego_app/models/tasks_response.dart';
+import 'package:leavego_app/ui/screens/create_project_screen.dart';
 import 'package:leavego_app/ui/screens/create_project_task_screen.dart';
 import 'package:leavego_app/ui/screens/task_detail_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
+import 'package:leavego_app/utils/app_roles.dart';
 
 class ProjectTasksScreen extends StatefulWidget {
   const ProjectTasksScreen({super.key, required this.project});
@@ -23,7 +26,7 @@ class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
 
   static const _filters = <Map<String, String>>[
     {'id': 'all', 'label': 'All'},
-    {'id': 'my_tasks', 'label': 'My Tasks'},
+    // {'id': 'my_tasks', 'label': 'My Tasks'},
     {'id': 'assigned', 'label': 'Assigned'},
   ];
 
@@ -50,10 +53,7 @@ class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
   Future<void> _onFilterSelected(String filter) async {
     if (_selectedFilter == filter) return;
     setState(() => _selectedFilter = filter);
-    await _appController.setProjectTasksFilter(
-      projectId: widget.project.id,
-      filter: filter,
-    );
+    await _appController.setProjectTasksFilter(projectId: widget.project.id, filter: filter);
   }
 
   Future<void> _onRefresh() async {
@@ -90,9 +90,8 @@ class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
     return raw
         .split('_')
         .map(
-          (part) => part.isEmpty
-              ? part
-              : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
+          (part) =>
+              part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
         )
         .join(' ');
   }
@@ -144,18 +143,18 @@ class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tasks = _appController.projectTasks;
+    final canEditProject = AppRoles.canManageProjects(_appController.meData?.role);
+    final project = widget.project;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FC),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           final created = await Navigator.of(context).push<bool>(
-            MaterialPageRoute(
-              builder: (_) => CreateProjectTaskScreen(project: widget.project),
-            ),
+            MaterialPageRoute(builder: (_) => CreateProjectTaskScreen(project: project)),
           );
           if (created == true) {
-            await _appController.loadProjectTasks(projectId: widget.project.id, refresh: true);
+            await _appController.loadProjectTasks(projectId: project.id, refresh: true);
           }
         },
         backgroundColor: AppTheme.navy,
@@ -172,28 +171,48 @@ class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
             children: [
               Row(
                 children: [
-                  IconButton(
-                    onPressed: () => Navigator.of(context).maybePop(),
-                    icon: const Icon(Icons.arrow_back_rounded),
-                    color: AppTheme.navy,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                  const SizedBox(width: 8),
+                  const AppBackButton(),
+                  const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      widget.project.name,
+                      project.name,
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w800,
-                        color: AppTheme.navy,
+                        color: Colors.black,
                       ),
                     ),
                   ),
+                  if (canEditProject)
+                    IconButton(
+                      onPressed: () async {
+                        final navigator = Navigator.of(context);
+                        final updated = await navigator.push<bool>(
+                          MaterialPageRoute(
+                            builder: (_) => CreateProjectScreen(project: project),
+                          ),
+                        );
+                        if (updated == true && mounted) {
+                          await _appController.loadProjects(refresh: true);
+                          if (!mounted) return;
+                          final matches = _appController.projects
+                              .where((item) => item.id == project.id);
+                          if (matches.isNotEmpty) {
+                            navigator.pushReplacement(
+                              MaterialPageRoute(
+                                builder: (_) => ProjectTasksScreen(project: matches.first),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.edit_outlined, color: Colors.black),
+                      tooltip: 'Edit project',
+                    ),
                 ],
               ),
               const SizedBox(height: 6),
               Text(
-                widget.project.description.isEmpty ? 'Project tasks' : widget.project.description,
+                project.description.isEmpty ? 'Project tasks' : project.description,
                 style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF6A778B)),
               ),
               const SizedBox(height: 14),
@@ -204,7 +223,7 @@ class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
                       'Tasks',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
-                        color: AppTheme.navy,
+                        color: Colors.black,
                       ),
                     ),
                   ),
@@ -236,13 +255,9 @@ class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
                           color: selected ? AppTheme.navy : const Color(0xFF5F6D84),
                           fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
                         ),
-                        side: BorderSide(
-                          color: selected ? AppTheme.navy : const Color(0xFFD7DEEA),
-                        ),
+                        side: BorderSide(color: selected ? AppTheme.navy : const Color(0xFFD7DEEA)),
                         backgroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(999),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
                       ),
                     );
                   }).toList(),
@@ -250,10 +265,7 @@ class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
               ),
               const SizedBox(height: 12),
               if (_appController.projectTasksLoading && tasks.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 30),
-                  child: AppLoader(),
-                )
+                const Padding(padding: EdgeInsets.symmetric(vertical: 30), child: AppLoader())
               else if (_appController.projectTasksError != null && tasks.isEmpty)
                 _MessageCard(message: _appController.projectTasksError!, isError: true)
               else if (tasks.isEmpty)
@@ -412,11 +424,7 @@ class _TaskListCard extends StatelessWidget {
 }
 
 class _TaskMetaRow extends StatelessWidget {
-  const _TaskMetaRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
+  const _TaskMetaRow({required this.icon, required this.label, required this.value});
 
   final IconData icon;
   final String label;
@@ -444,10 +452,7 @@ class _TaskMetaRow extends StatelessWidget {
                 ),
                 TextSpan(
                   text: value,
-                  style: const TextStyle(
-                    color: Color(0xFF1E293B),
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: const TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -459,11 +464,7 @@ class _TaskMetaRow extends StatelessWidget {
 }
 
 class _TaskPill extends StatelessWidget {
-  const _TaskPill({
-    required this.label,
-    required this.background,
-    required this.foreground,
-  });
+  const _TaskPill({required this.label, required this.background, required this.foreground});
 
   final String label;
   final Color background;
@@ -473,17 +474,10 @@ class _TaskPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
+      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(999)),
       child: Text(
         label,
-        style: TextStyle(
-          color: foreground,
-          fontWeight: FontWeight.w700,
-          fontSize: 12,
-        ),
+        style: TextStyle(color: foreground, fontWeight: FontWeight.w700, fontSize: 12),
       ),
     );
   }
@@ -501,9 +495,7 @@ class _MessageCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isError
-            ? theme.colorScheme.errorContainer.withValues(alpha: 0.45)
-            : Colors.white,
+        color: isError ? theme.colorScheme.errorContainer.withValues(alpha: 0.45) : Colors.white,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Text(

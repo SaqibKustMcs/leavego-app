@@ -19,6 +19,7 @@ import 'package:leavego_app/models/supporting_tasks_response.dart';
 import 'package:leavego_app/models/news_action_response.dart';
 import 'package:leavego_app/models/news_response.dart';
 import 'package:leavego_app/models/projects_response.dart';
+import 'package:leavego_app/utils/app_roles.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AppController extends ChangeNotifier {
@@ -94,6 +95,60 @@ class AppController extends ChangeNotifier {
   int tasksLastPage = 1;
   bool tasksHasMore = false;
 
+  bool myTodayTasksLoading = false;
+  bool myTodayTasksLoadingMore = false;
+  String? myTodayTasksError;
+  List<TaskItem> myTodayTasks = <TaskItem>[];
+  int myTodayTasksCurrentPage = 1;
+  int myTodayTasksLastPage = 1;
+  int myTodayTasksTotal = 0;
+  bool myTodayTasksHasMore = false;
+  String? myTodayTasksPriorityFilter;
+
+  /// Single featured task for homepage: highest priority, and if tied, the latest.
+  TaskItem? get homePriorityTask {
+    if (myTodayTasks.isEmpty) return null;
+
+    const highPriorities = <String>{'critical', 'urgent', 'high'};
+    const priorityOrder = <String>['critical', 'urgent', 'high', 'medium', 'low'];
+
+    int priorityRank(TaskItem task) {
+      final index = priorityOrder.indexOf(task.priority.trim().toLowerCase());
+      return index == -1 ? priorityOrder.length : index;
+    }
+
+    DateTime? parseDate(String? raw) {
+      if (raw == null || raw.trim().isEmpty) return null;
+      try {
+        final normalized = raw.contains(' ') ? raw.replaceFirst(' ', 'T') : raw;
+        return DateTime.parse(normalized).toLocal();
+      } catch (_) {
+        return null;
+      }
+    }
+
+    DateTime latestStamp(TaskItem task) {
+      return parseDate(task.createdAt) ??
+          parseDate(task.updatedAt) ??
+          DateTime.fromMillisecondsSinceEpoch(task.id);
+    }
+
+    final highPriorityTasks = myTodayTasks
+        .where((task) => highPriorities.contains(task.priority.trim().toLowerCase()))
+        .toList();
+    final candidates = highPriorityTasks.isNotEmpty
+        ? highPriorityTasks
+        : List<TaskItem>.from(myTodayTasks);
+
+    candidates.sort((a, b) {
+      final byPriority = priorityRank(a).compareTo(priorityRank(b));
+      if (byPriority != 0) return byPriority;
+      return latestStamp(b).compareTo(latestStamp(a)); // newest first
+    });
+
+    return candidates.first;
+  }
+
   bool projectsLoading = false;
   bool projectsLoadingMore = false;
   String? projectsError;
@@ -101,6 +156,10 @@ class AppController extends ChangeNotifier {
   int projectsCurrentPage = 1;
   int projectsLastPage = 1;
   bool projectsHasMore = false;
+  bool createProjectLoading = false;
+  String? createProjectError;
+  bool updateProjectLoading = false;
+  String? updateProjectError;
 
   int? selectedProjectId;
   bool projectTasksMyTasksOnly = false;
@@ -153,18 +212,44 @@ class AppController extends ChangeNotifier {
   String? lastFcmToken;
 
   /// Sends the FCM device token to the backend (best-effort, never throws).
-  Future<void> registerFcmToken(String fcmToken, {String platform = 'unknown'}) async {
+  Future<void> registerFcmToken(
+    String fcmToken, {
+    required String platform,
+    required String deviceName,
+  }) async {
     lastFcmToken = fcmToken;
     try {
       final token = await _token();
       if (token == null || token.isEmpty) return;
-      await _apiService.registerDeviceToken(
+      await _apiService.registerFcmDeviceToken(
         token: token,
         fcmToken: fcmToken,
         platform: platform,
+        deviceName: deviceName,
       );
     } catch (_) {
       // Ignore: push registration should not disrupt app flow.
+    }
+  }
+
+  /// Removes the FCM device token from the backend (best-effort, never throws).
+  Future<void> unregisterFcmToken([String? fcmToken]) async {
+    final tokenToRemove = fcmToken ?? lastFcmToken;
+    if (tokenToRemove == null || tokenToRemove.isEmpty) return;
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) return;
+      await _apiService.unregisterFcmDeviceToken(
+        token: token,
+        fcmToken: tokenToRemove,
+      );
+    } catch (_) {
+      // Ignore: push unregistration should not block logout.
+    } finally {
+      if (fcmToken == null || fcmToken == lastFcmToken) {
+        lastFcmToken = null;
+      }
     }
   }
 
@@ -203,6 +288,12 @@ class AppController extends ChangeNotifier {
   }
 
   Future<NewsActionResponse?> createNews({required String title, required String content}) async {
+    if (!AppRoles.canCreateNews(meData?.role)) {
+      createNewsError = 'You do not have permission to create news.';
+      notifyListeners();
+      return null;
+    }
+
     createNewsLoading = true;
     createNewsError = null;
     notifyListeners();
@@ -304,6 +395,12 @@ class AppController extends ChangeNotifier {
     required String content,
     required String status,
   }) async {
+    if (!AppRoles.canEditNews(meData?.role)) {
+      updateNewsError = 'You do not have permission to edit news.';
+      notifyListeners();
+      return null;
+    }
+
     updateNewsLoading = true;
     updateNewsError = null;
     notifyListeners();
@@ -334,6 +431,12 @@ class AppController extends ChangeNotifier {
   }
 
   Future<NewsActionResponse?> deleteNews({required String newsId}) async {
+    if (!AppRoles.canDeleteNews(meData?.role)) {
+      deleteNewsError = 'You do not have permission to delete news.';
+      notifyListeners();
+      return null;
+    }
+
     deleteNewsLoading = true;
     deleteNewsError = null;
     notifyListeners();
@@ -383,6 +486,7 @@ class AppController extends ChangeNotifier {
     try {
       final token = await _token();
       if (token != null && token.isNotEmpty) {
+        await unregisterFcmToken();
         await _apiService.logout(token: token);
       }
 
@@ -507,7 +611,7 @@ class AppController extends ChangeNotifier {
       }
 
       final role = (profile.role).trim().toLowerCase();
-      final page = (role == 'ceo' || role == 'hr')
+      final page = AppRoles.isCeoOrHrLike(role)
           ? await _apiService.pendingApprovals(token: token)
           : await _apiService.myLeaves(token: token);
       myLeaves = page.items;
@@ -620,6 +724,10 @@ class AppController extends ChangeNotifier {
                   createdAt: n.createdAt,
                   updatedAt: n.updatedAt,
                   readAt: n.readAt,
+                  relatedId: n.relatedId,
+                  taskId: n.taskId,
+                  leaveRequestId: n.leaveRequestId,
+                  data: n.data,
                 )
               : n,
         )
@@ -628,6 +736,10 @@ class AppController extends ChangeNotifier {
   }
 
   Future<String?> readNotification({required String notificationId}) async {
+    // Avoid duplicate API calls if already marked read.
+    final alreadyRead = notifications.any((n) => n.id == notificationId && n.isRead);
+    if (alreadyRead) return 'Already read';
+
     notificationReadLoading = true;
     notificationReadError = null;
     _markNotificationReadLocal(notificationId);
@@ -1107,6 +1219,81 @@ class AppController extends ChangeNotifier {
     }
   }
 
+  Future<void> setMyTodayTasksPriorityFilter(String? priority) async {
+    myTodayTasksPriorityFilter = priority;
+    notifyListeners();
+    await loadMyTodayTasks(refresh: true);
+  }
+
+  Future<void> loadMyTodayTasks({
+    bool refresh = false,
+    bool applyPriorityFilter = true,
+  }) async {
+    if (refresh) {
+      myTodayTasksCurrentPage = 1;
+      myTodayTasksLastPage = 1;
+      myTodayTasksTotal = 0;
+      myTodayTasksHasMore = false;
+      myTodayTasks = <TaskItem>[];
+    }
+
+    myTodayTasksLoading = true;
+    myTodayTasksError = null;
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+      final page = await _apiService.myPendingDueTasks(
+        token: token,
+        page: 1,
+        priority: applyPriorityFilter ? myTodayTasksPriorityFilter : null,
+      );
+      myTodayTasks = page.items;
+      myTodayTasksCurrentPage = page.currentPage;
+      myTodayTasksLastPage = page.lastPage;
+      myTodayTasksTotal = page.total;
+      myTodayTasksHasMore = page.hasMore || page.currentPage < page.lastPage;
+    } catch (e) {
+      myTodayTasksError = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      myTodayTasksLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadMoreMyTodayTasks() async {
+    if (myTodayTasksLoadingMore || myTodayTasksLoading || !myTodayTasksHasMore) return;
+
+    myTodayTasksLoadingMore = true;
+    notifyListeners();
+
+    try {
+      final nextPage = myTodayTasksCurrentPage + 1;
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+      final page = await _apiService.myPendingDueTasks(
+        token: token,
+        page: nextPage,
+        priority: myTodayTasksPriorityFilter,
+      );
+      myTodayTasks = <TaskItem>[...myTodayTasks, ...page.items];
+      myTodayTasksCurrentPage = page.currentPage;
+      myTodayTasksLastPage = page.lastPage;
+      myTodayTasksTotal = page.total;
+      myTodayTasksHasMore = page.hasMore || page.currentPage < page.lastPage;
+    } catch (e) {
+      myTodayTasksError = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      myTodayTasksLoadingMore = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> loadProjects({bool refresh = false}) async {
     if (refresh) {
       projectsCurrentPage = 1;
@@ -1132,6 +1319,94 @@ class AppController extends ChangeNotifier {
       projectsError = e.toString().replaceFirst('Exception: ', '');
     } finally {
       projectsLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>?> createProject({
+    required String name,
+    required String description,
+    required String status,
+    required String startDate,
+    required String dueDate,
+    required List<int> memberIds,
+  }) async {
+    if (!AppRoles.canManageProjects(meData?.role)) {
+      createProjectError = 'You do not have permission to create projects.';
+      notifyListeners();
+      return null;
+    }
+
+    createProjectLoading = true;
+    createProjectError = null;
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+      final response = await _apiService.createProject(
+        token: token,
+        name: name,
+        description: description,
+        status: status,
+        startDate: startDate,
+        dueDate: dueDate,
+        memberIds: memberIds,
+      );
+      await loadProjects(refresh: true);
+      return response;
+    } catch (e) {
+      createProjectError = e.toString().replaceFirst('Exception: ', '');
+      return null;
+    } finally {
+      createProjectLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>?> updateProject({
+    required int projectId,
+    required String name,
+    required String description,
+    required String status,
+    required String startDate,
+    required String dueDate,
+    required List<int> memberIds,
+  }) async {
+    if (!AppRoles.canManageProjects(meData?.role)) {
+      updateProjectError = 'You do not have permission to edit projects.';
+      notifyListeners();
+      return null;
+    }
+
+    updateProjectLoading = true;
+    updateProjectError = null;
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+      final response = await _apiService.updateProject(
+        token: token,
+        projectId: projectId,
+        name: name,
+        description: description,
+        status: status,
+        startDate: startDate,
+        dueDate: dueDate,
+        memberIds: memberIds,
+      );
+      await loadProjects(refresh: true);
+      return response;
+    } catch (e) {
+      updateProjectError = e.toString().replaceFirst('Exception: ', '');
+      return null;
+    } finally {
+      updateProjectLoading = false;
       notifyListeners();
     }
   }

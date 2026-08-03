@@ -6,6 +6,7 @@ import 'package:leavego_app/ui/screens/news_screen.dart';
 import 'package:leavego_app/ui/screens/login_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
+import 'package:leavego_app/utils/app_roles.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -55,7 +56,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final email = me?.email ?? '-';
     final role = me?.role ?? '-';
     final lowerRole = role.trim().toLowerCase();
-    final canCreateNews = lowerRole == 'hr' || lowerRole == 'ceo';
+    final canCreateNews = AppRoles.canCreateNews(lowerRole);
     final departmentId = me?.department ?? '-';
     final initials = _initials(name);
     final isActive = me?.isActive == true;
@@ -134,20 +135,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 14),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _ChipBadge(icon: Icons.badge_outlined, label: role.toUpperCase()),
-                          _ChipBadge(
-                            icon: isActive
-                                ? Icons.verified_rounded
-                                : Icons.pause_circle_filled_rounded,
-                            label: statusLabel,
-                          ),
-                        ],
-                      ),
+                      // const SizedBox(height: 14),
+                      // Wrap(
+                      //   spacing: 8,
+                      //   runSpacing: 8,
+                      //   children: [
+                      //     // _ChipBadge(icon: Icons.badge_outlined, label: role.toUpperCase()),
+                      //     // _ChipBadge(
+                      //     //   icon: isActive
+                      //     //       ? Icons.verified_rounded
+                      //     //       : Icons.pause_circle_filled_rounded,
+                      //     //   label: statusLabel,
+                      //     // ),
+                      //   ],
+                      // ),
                     ],
                   ),
                 ),

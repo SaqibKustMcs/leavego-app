@@ -6,6 +6,7 @@ import 'package:leavego_app/ui/screens/create_supporting_task_screen.dart';
 import 'package:leavego_app/ui/screens/edit_task_screen.dart';
 import 'package:leavego_app/ui/screens/supporting_tasks_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
 
 class TaskDetailScreen extends StatefulWidget {
@@ -305,15 +306,45 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             final task = detail.task;
             _selectedStatus ??= task.status;
             final currentUserId = _appController.meData?.id.toString();
-            final canCreateSupportingTask = currentUserId != null &&
+            final canCreateSupportingTask =
+                currentUserId != null &&
                 currentUserId.isNotEmpty &&
                 (task.assignedTo ?? '').toString() == currentUserId;
 
             return ListView(
               physics: const ClampingScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-              children: [
-                Container(
+                children: [
+                  Row(
+                    children: [
+                      const AppBackButton(),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'Task Detail',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            color: Colors.black,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      if (canEditTask)
+                        IconButton(
+                          onPressed: () async {
+                            final updated = await Navigator.of(context).push<bool>(
+                              MaterialPageRoute(builder: (_) => EditTaskScreen(task: task)),
+                            );
+                            if (updated == true) {
+                              _reloadDetail();
+                            }
+                          },
+                          icon: const Icon(Icons.edit_outlined, color: Colors.black),
+                          tooltip: 'Edit task',
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
                   padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
@@ -326,55 +357,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Material(
-                            color: Colors.white.withValues(alpha: 0.16),
-                            borderRadius: BorderRadius.circular(12),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(12),
-                              onTap: () => Navigator.of(context).maybePop(),
-                              child: const SizedBox(
-                                width: 42,
-                                height: 42,
-                                child: Icon(Icons.arrow_back_rounded, color: Colors.white),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Task Detail',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                          if (canEditTask)
-                            Material(
-                              color: Colors.white.withValues(alpha: 0.16),
-                              borderRadius: BorderRadius.circular(12),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(12),
-                                onTap: () async {
-                                  final updated = await Navigator.of(context).push<bool>(
-                                    MaterialPageRoute(builder: (_) => EditTaskScreen(task: task)),
-                                  );
-                                  if (updated == true) {
-                                    _reloadDetail();
-                                  }
-                                },
-                                child: const SizedBox(
-                                  width: 42,
-                                  height: 42,
-                                  child: Icon(Icons.edit_outlined, color: Colors.white),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
                       Text(
                         task.title,
                         style: theme.textTheme.titleLarge?.copyWith(
@@ -409,56 +391,56 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                _DetailSection(
-                  title: 'Supporting Task',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Create a support request for this task when you need help from another team member.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: const Color(0xFF6A778B),
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      if (canCreateSupportingTask) ...[
-                        OutlinedButton.icon(
-                          onPressed: () async {
-                            final created = await Navigator.of(context).push<bool>(
-                              MaterialPageRoute(
-                                builder: (_) => CreateSupportingTaskScreen(task: task),
-                              ),
-                            );
-                            if (created == true) {
-                              _reloadDetail();
-                            }
-                          },
-                          icon: const Icon(Icons.support_agent_rounded),
-                          label: const Text('Create Supporting Task'),
-                        ),
-                        const SizedBox(height: 10),
-                      ] else
-                        Text(
-                          'Only the assigned user can create a supporting task for this item.',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: const Color(0xFF6A778B),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.of(
-                            context,
-                          ).push(MaterialPageRoute(builder: (_) => const SupportingTasksScreen()));
-                        },
-                        icon: const Icon(Icons.list_alt_rounded),
-                        label: const Text('View Supporting Tasks'),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
+                // _DetailSection(
+                //   title: 'Supporting Task',
+                //   child: Column(
+                //     crossAxisAlignment: CrossAxisAlignment.start,
+                //     children: [
+                //       Text(
+                //         'Create a support request for this task when you need help from another team member.',
+                //         style: theme.textTheme.bodySmall?.copyWith(
+                //           color: const Color(0xFF6A778B),
+                //           height: 1.4,
+                //         ),
+                //       ),
+                //       const SizedBox(height: 12),
+                //       if (canCreateSupportingTask) ...[
+                //         OutlinedButton.icon(
+                //           onPressed: () async {
+                //             final created = await Navigator.of(context).push<bool>(
+                //               MaterialPageRoute(
+                //                 builder: (_) => CreateSupportingTaskScreen(task: task),
+                //               ),
+                //             );
+                //             if (created == true) {
+                //               _reloadDetail();
+                //             }
+                //           },
+                //           icon: const Icon(Icons.support_agent_rounded),
+                //           label: const Text('Create Supporting Task'),
+                //         ),
+                //         const SizedBox(height: 10),
+                //       ] else
+                //         Text(
+                //           'Only the assigned user can create a supporting task for this item.',
+                //           style: theme.textTheme.bodySmall?.copyWith(
+                //             color: const Color(0xFF6A778B),
+                //             fontWeight: FontWeight.w600,
+                //           ),
+                //         ),
+                //       OutlinedButton.icon(
+                //         onPressed: () {
+                //           Navigator.of(
+                //             context,
+                //           ).push(MaterialPageRoute(builder: (_) => const SupportingTasksScreen()));
+                //         },
+                //         icon: const Icon(Icons.list_alt_rounded),
+                //         label: const Text('View Supporting Tasks'),
+                //       ),
+                //     ],
+                //   ),
+                // ),
+                // const SizedBox(height: 12),
                 _DetailSection(
                   title: 'Update Status',
                   child: Column(
