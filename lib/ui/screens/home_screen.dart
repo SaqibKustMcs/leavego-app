@@ -68,8 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _appController.registerFcmToken(token, platform: _platformName, deviceName: deviceName);
     };
 
-    await push.requestPermission();
-
+    // Permission is requested from MainScreen after bottom navbar is visible.
     final token = await push.getToken();
     if (token != null && token.isNotEmpty) {
       final deviceName = await push.getDeviceName();

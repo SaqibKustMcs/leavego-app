@@ -1,4 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Trust system/user CAs and include API intermediates for older Android trust stores. -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="true" />
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+            <certificates src="@raw/cpanel_intermediate" />
+            <certificates src="@raw/sectigo_e46_cross" />
+        </trust-anchors>
+    </base-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">office.friendselectronics.com</domain>
+        <domain includeSubdomains="true">friendselectronics.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+            <certificates src="@raw/cpanel_intermediate" />
+            <certificates src="@raw/sectigo_e46_cross" />
+        </trust-anchors>
+    </domain-config>
 </network-security-config>

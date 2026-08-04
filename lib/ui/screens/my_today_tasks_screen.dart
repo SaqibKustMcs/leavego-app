@@ -109,9 +109,8 @@ class _MyTodayTasksScreenState extends State<MyTodayTasksScreen> {
     return raw
         .split('_')
         .map(
-          (part) => part.isEmpty
-              ? part
-              : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
+          (part) =>
+              part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
         )
         .join(' ');
   }
@@ -178,51 +177,48 @@ class _MyTodayTasksScreenState extends State<MyTodayTasksScreen> {
                 style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF6A778B)),
               ),
               const SizedBox(height: 12),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: List.generate(_priorityLabels.length, (index) {
-                    final selected = selectedIndex == index;
-                    return Padding(
-                      padding: EdgeInsets.only(right: index == _priorityLabels.length - 1 ? 0 : 8),
-                      child: _PriorityFilterChip(
-                        label: _priorityLabels[index],
-                        selected: selected,
-                        onTap: () => _onPriorityTabSelected(index),
-                      ),
-                    );
-                  }),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Tasks',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    total > 0
-                        ? 'Page ${_appController.myTodayTasksCurrentPage}/${_appController.myTodayTasksLastPage} · $showingCount/$total'
-                        : 'Page ${_appController.myTodayTasksCurrentPage}/${_appController.myTodayTasksLastPage}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: const Color(0xFF6A778B),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
+              // SingleChildScrollView(
+              //   scrollDirection: Axis.horizontal,
+              //   child: Row(
+              //     children: List.generate(_priorityLabels.length, (index) {
+              //       final selected = selectedIndex == index;
+              //       return Padding(
+              //         padding: EdgeInsets.only(right: index == _priorityLabels.length - 1 ? 0 : 8),
+              //         child: _PriorityFilterChip(
+              //           label: _priorityLabels[index],
+              //           selected: selected,
+              //           onTap: () => _onPriorityTabSelected(index),
+              //         ),
+              //       );
+              //     }),
+              //   ),
+              // ),
+              // const SizedBox(height: 14),
+              // Row(
+              //   children: [
+              //     Expanded(
+              //       child: Text(
+              //         'Tasks',
+              //         style: theme.textTheme.titleMedium?.copyWith(
+              //           fontWeight: FontWeight.w800,
+              //           color: Colors.black,
+              //         ),
+              //       ),
+              //     ),
+              //     Text(
+              //       total > 0
+              //           ? 'Page ${_appController.myTodayTasksCurrentPage}/${_appController.myTodayTasksLastPage} · $showingCount/$total'
+              //           : 'Page ${_appController.myTodayTasksCurrentPage}/${_appController.myTodayTasksLastPage}',
+              //       style: theme.textTheme.bodySmall?.copyWith(
+              //         color: const Color(0xFF6A778B),
+              //         fontWeight: FontWeight.w600,
+              //       ),
+              //     ),
+              //   ],
+              // ),
               const SizedBox(height: 10),
               if (_appController.myTodayTasksLoading && tasks.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 30),
-                  child: AppLoader(),
-                )
+                const Padding(padding: EdgeInsets.symmetric(vertical: 30), child: AppLoader())
               else if (_appController.myTodayTasksError != null && tasks.isEmpty)
                 _MessageCard(message: _appController.myTodayTasksError!, isError: true)
               else if (tasks.isEmpty)
@@ -271,11 +267,7 @@ class _MyTodayTasksScreenState extends State<MyTodayTasksScreen> {
 }
 
 class _PriorityFilterChip extends StatelessWidget {
-  const _PriorityFilterChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
+  const _PriorityFilterChip({required this.label, required this.selected, required this.onTap});
 
   final String label;
   final bool selected;
@@ -430,11 +422,7 @@ class _TaskListCard extends StatelessWidget {
 }
 
 class _TaskMetaRow extends StatelessWidget {
-  const _TaskMetaRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
+  const _TaskMetaRow({required this.icon, required this.label, required this.value});
 
   final IconData icon;
   final String label;
@@ -462,10 +450,7 @@ class _TaskMetaRow extends StatelessWidget {
                 ),
                 TextSpan(
                   text: value,
-                  style: const TextStyle(
-                    color: Color(0xFF1E293B),
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: const TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -477,11 +462,7 @@ class _TaskMetaRow extends StatelessWidget {
 }
 
 class _TaskPill extends StatelessWidget {
-  const _TaskPill({
-    required this.label,
-    required this.background,
-    required this.foreground,
-  });
+  const _TaskPill({required this.label, required this.background, required this.foreground});
 
   final String label;
   final Color background;
@@ -491,17 +472,10 @@ class _TaskPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
+      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(999)),
       child: Text(
         label,
-        style: TextStyle(
-          color: foreground,
-          fontWeight: FontWeight.w700,
-          fontSize: 12,
-        ),
+        style: TextStyle(color: foreground, fontWeight: FontWeight.w700, fontSize: 12),
       ),
     );
   }
@@ -519,9 +493,7 @@ class _MessageCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isError
-            ? theme.colorScheme.errorContainer.withValues(alpha: 0.45)
-            : Colors.white,
+        color: isError ? theme.colorScheme.errorContainer.withValues(alpha: 0.45) : Colors.white,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Text(

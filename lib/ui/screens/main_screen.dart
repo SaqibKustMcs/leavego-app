@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/services/notification_navigation_service.dart';
+import 'package:leavego_app/services/push_notification_service.dart';
 import 'package:leavego_app/ui/screens/home_screen.dart';
 import 'package:leavego_app/ui/screens/projects_screen.dart';
 import 'package:leavego_app/ui/screens/notification_screen.dart';
@@ -19,6 +22,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   late final AppController _appController;
+  bool _notificationPermissionRequested = false;
 
   @override
   void initState() {
@@ -31,7 +35,32 @@ class _MainScreenState extends State<MainScreen> {
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       NotificationNavigationService.flushPending();
+      _requestNotificationPermissionAfterNavReady();
     });
+  }
+
+  /// Ask notification permission only after bottom navbar is on screen.
+  Future<void> _requestNotificationPermissionAfterNavReady() async {
+    if (_notificationPermissionRequested || !mounted) return;
+    _notificationPermissionRequested = true;
+
+    // Let the main shell paint first so the dialog appears over bottom nav.
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+
+    final push = PushNotificationService.instance;
+    await push.initialize();
+    await push.requestPermission();
+
+    final token = await push.getToken();
+    if (token != null && token.isNotEmpty) {
+      final deviceName = await push.getDeviceName();
+      await _appController.registerFcmToken(
+        token,
+        platform: Platform.isIOS ? 'ios' : 'android',
+        deviceName: deviceName,
+      );
+    }
   }
 
   void _onUpdate() {

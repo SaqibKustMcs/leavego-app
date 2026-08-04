@@ -5,6 +5,7 @@ import 'package:leavego_app/models/projects_response.dart';
 import 'package:leavego_app/ui/screens/create_project_screen.dart';
 import 'package:leavego_app/ui/screens/project_tasks_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_gradient_fab.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
 import 'package:leavego_app/utils/app_roles.dart';
 
@@ -86,7 +87,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FC),
       floatingActionButton: _canCreateProject
-          ? FloatingActionButton.extended(
+          ? AppGradientFab(
+              label: 'Create Project',
               onPressed: () async {
                 final created = await Navigator.of(
                   context,
@@ -95,10 +97,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                   await _appController.loadProjects(refresh: true);
                 }
               },
-              backgroundColor: AppTheme.navy,
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Create Project'),
             )
           : null,
       body: SafeArea(

@@ -71,6 +71,7 @@ flutter:
     - assets/images/devbaytechnologies_logo.jpeg
     - assets/images/Devbay logo png.png
     - assets/images/
+    - assets/certs/
 
   fonts:
     - family: Inter

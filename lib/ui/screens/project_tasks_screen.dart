@@ -8,6 +8,7 @@ import 'package:leavego_app/ui/screens/create_project_task_screen.dart';
 import 'package:leavego_app/ui/screens/task_detail_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_back_button.dart';
+import 'package:leavego_app/ui/widgets/app_gradient_fab.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
 import 'package:leavego_app/utils/app_roles.dart';
 
@@ -148,7 +149,8 @@ class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FC),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: AppGradientFab(
+        label: 'Create Task',
         onPressed: () async {
           final created = await Navigator.of(context).push<bool>(
             MaterialPageRoute(builder: (_) => CreateProjectTaskScreen(project: project)),
@@ -157,10 +159,6 @@ class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
             await _appController.loadProjectTasks(projectId: project.id, refresh: true);
           }
         },
-        backgroundColor: AppTheme.navy,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Create Task'),
       ),
       body: SafeArea(
         child: RefreshIndicator(

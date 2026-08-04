@@ -63,6 +63,15 @@ class AppController extends ChangeNotifier {
   String? usersError;
   List<AppUserItem> users = <AppUserItem>[];
 
+  bool employeesLoading = false;
+  bool employeesLoadingMore = false;
+  String? employeesError;
+  List<AppUserItem> employees = <AppUserItem>[];
+  int employeesCurrentPage = 1;
+  int employeesLastPage = 1;
+  int employeesTotal = 0;
+  bool employeesHasMore = false;
+
   bool departmentsLoading = false;
   String? departmentsError;
   List<DepartmentItem> departments = <DepartmentItem>[];
@@ -191,6 +200,13 @@ class AppController extends ChangeNotifier {
   bool deleteNewsLoading = false;
   String? deleteNewsError;
 
+  bool createEmployeeLoading = false;
+  String? createEmployeeError;
+  bool updateEmployeeLoading = false;
+  String? updateEmployeeError;
+  bool deleteEmployeeLoading = false;
+  String? deleteEmployeeError;
+
   /// When set, [MainScreen] switches bottom navigation to this index (1 = Projects tab).
   int? pendingMainTabIndex;
 
@@ -310,6 +326,128 @@ class AppController extends ChangeNotifier {
       return null;
     } finally {
       createNewsLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>?> createEmployee({
+    required String name,
+    required String email,
+    required String password,
+    required String role,
+    required int departmentId,
+    String? phone,
+    required bool isActive,
+  }) async {
+    if (!AppRoles.canCreateEmployee(meData?.role)) {
+      createEmployeeError = 'You do not have permission to create employees.';
+      notifyListeners();
+      return null;
+    }
+
+    createEmployeeLoading = true;
+    createEmployeeError = null;
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+      final response = await _apiService.createEmployee(
+        token: token,
+        name: name,
+        email: email,
+        password: password,
+        role: role,
+        departmentId: departmentId,
+        phone: phone,
+        isActive: isActive,
+      );
+      await loadUsers();
+      await loadEmployees(refresh: true);
+      return response;
+    } catch (e) {
+      createEmployeeError = e.toString().replaceFirst('Exception: ', '');
+      return null;
+    } finally {
+      createEmployeeLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>?> updateEmployee({
+    required int employeeId,
+    required String name,
+    required String role,
+    required int departmentId,
+    String? phone,
+    required bool isActive,
+  }) async {
+    if (!AppRoles.canCreateEmployee(meData?.role)) {
+      updateEmployeeError = 'You do not have permission to update employees.';
+      notifyListeners();
+      return null;
+    }
+
+    updateEmployeeLoading = true;
+    updateEmployeeError = null;
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+      final response = await _apiService.updateEmployee(
+        token: token,
+        employeeId: employeeId,
+        name: name,
+        role: role,
+        departmentId: departmentId,
+        phone: phone,
+        isActive: isActive,
+      );
+      await loadUsers();
+      await loadEmployees(refresh: true);
+      return response;
+    } catch (e) {
+      updateEmployeeError = e.toString().replaceFirst('Exception: ', '');
+      return null;
+    } finally {
+      updateEmployeeLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>?> deleteEmployee({required int employeeId}) async {
+    if (!AppRoles.canCreateEmployee(meData?.role)) {
+      deleteEmployeeError = 'You do not have permission to delete employees.';
+      notifyListeners();
+      return null;
+    }
+
+    deleteEmployeeLoading = true;
+    deleteEmployeeError = null;
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+      final response = await _apiService.deleteEmployee(
+        token: token,
+        employeeId: employeeId,
+      );
+      await loadUsers();
+      await loadEmployees(refresh: true);
+      return response;
+    } catch (e) {
+      deleteEmployeeError = e.toString().replaceFirst('Exception: ', '');
+      return null;
+    } finally {
+      deleteEmployeeLoading = false;
       notifyListeners();
     }
   }
@@ -546,13 +684,18 @@ class AppController extends ChangeNotifier {
       if (token == null || token.isEmpty) {
         throw Exception('Token not found. Please login again.');
       }
-      var userId = meData?.id.toString() ?? '';
-      if (userId.isEmpty) {
-        meData = await _apiService.me(token: token);
+
+      final useSimpleJsonBody = AppRoles.usesSimpleLeaveApply(meData?.role);
+      String? userId;
+      if (!useSimpleJsonBody) {
         userId = meData?.id.toString() ?? '';
-      }
-      if (userId.isEmpty) {
-        throw Exception('User id not found. Please login again.');
+        if (userId.isEmpty) {
+          meData = await _apiService.me(token: token);
+          userId = meData?.id.toString() ?? '';
+        }
+        if (userId.isEmpty) {
+          throw Exception('User id not found. Please login again.');
+        }
       }
 
       return await _apiService.applyLeave(
@@ -562,7 +705,8 @@ class AppController extends ChangeNotifier {
         startDate: startDate,
         endDate: endDate,
         reason: reason,
-        attachmentPath: attachmentPath,
+        attachmentPath: useSimpleJsonBody ? null : attachmentPath,
+        useSimpleJsonBody: useSimpleJsonBody,
       );
     } catch (e) {
       applyLeaveError = e.toString().replaceFirst('Exception: ', '');
@@ -820,6 +964,63 @@ class AppController extends ChangeNotifier {
       usersError = e.toString().replaceFirst('Exception: ', '');
     } finally {
       usersLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadEmployees({bool refresh = false}) async {
+    if (employeesLoading) return;
+    employeesLoading = true;
+    if (refresh) {
+      employeesError = null;
+      employeesCurrentPage = 1;
+      employeesLastPage = 1;
+      employeesTotal = 0;
+      employeesHasMore = false;
+    }
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+      final page = await _apiService.employees(token: token, page: 1, perPage: 20);
+      employees = page.items;
+      employeesCurrentPage = page.currentPage;
+      employeesLastPage = page.lastPage;
+      employeesTotal = page.total;
+      employeesHasMore = page.hasMore;
+    } catch (e) {
+      employeesError = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      employeesLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadMoreEmployees() async {
+    if (employeesLoadingMore || employeesLoading || !employeesHasMore) return;
+    employeesLoadingMore = true;
+    employeesError = null;
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+      final nextPage = employeesCurrentPage + 1;
+      final page = await _apiService.employees(token: token, page: nextPage, perPage: 20);
+      employees = <AppUserItem>[...employees, ...page.items];
+      employeesCurrentPage = page.currentPage;
+      employeesLastPage = page.lastPage;
+      employeesTotal = page.total;
+      employeesHasMore = page.hasMore;
+    } catch (e) {
+      employeesError = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      employeesLoadingMore = false;
       notifyListeners();
     }
   }

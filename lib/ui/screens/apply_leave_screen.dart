@@ -6,6 +6,7 @@ import 'package:leavego_app/models/leave_type_response.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
+import 'package:leavego_app/utils/app_roles.dart';
 
 class ApplyLeaveScreen extends StatefulWidget {
   const ApplyLeaveScreen({super.key});
@@ -173,7 +174,9 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
       isValid = false;
     }
     final selectedType = _selectedLeaveType;
-    if (selectedType != null &&
+    final skipAttachment = AppRoles.usesSimpleLeaveApply(_appController.meData?.role);
+    if (!skipAttachment &&
+        selectedType != null &&
         selectedType.requiresAttachment &&
         (_attachmentPath == null || _attachmentPath!.trim().isEmpty)) {
       attachmentError.value = 'Attachment is required for ${selectedType.name}';
@@ -187,7 +190,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
       startDate: _startDateController.text.trim(),
       endDate: _endDateController.text.trim(),
       reason: _reasonController.text.trim(),
-      attachmentPath: _attachmentPath,
+      attachmentPath: skipAttachment ? null : _attachmentPath,
     );
     if (!mounted) return;
     if (response != null) {
@@ -344,49 +347,51 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Obx(() {
-                    final selectedType = _selectedLeaveType;
-                    final isRequired = selectedType?.requiresAttachment == true;
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isRequired ? 'Attachment (required)' : 'Attachment (optional)',
-                          style: theme.textTheme.labelMedium,
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                _attachmentPath == null
-                                    ? 'No attachment selected'
-                                    : _attachmentPath!.split(RegExp(r'[\\/]')).last,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodySmall,
+                  if (!AppRoles.usesSimpleLeaveApply(_appController.meData?.role))
+                    Obx(() {
+                      final selectedType = _selectedLeaveType;
+                      final isRequired = selectedType?.requiresAttachment == true;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isRequired ? 'Attachment (required)' : 'Attachment (optional)',
+                            style: theme.textTheme.labelMedium,
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _attachmentPath == null
+                                      ? 'No attachment selected'
+                                      : _attachmentPath!.split(RegExp(r'[\\/]')).last,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodySmall,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              OutlinedButton(
+                                onPressed: _pickAttachment,
+                                child: const Text('Choose File'),
+                              ),
+                            ],
+                          ),
+                          if (attachmentError.value.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              attachmentError.value,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.error,
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            OutlinedButton(
-                              onPressed: _pickAttachment,
-                              child: const Text('Choose File'),
-                            ),
                           ],
-                        ),
-                        if (attachmentError.value.isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            attachmentError.value,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.error,
-                            ),
-                          ),
+                          const SizedBox(height: 12),
                         ],
-                      ],
-                    );
-                  }),
-                  const SizedBox(height: 20),
+                      );
+                    }),
+                  const SizedBox(height: 8),
                   Container(
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(colors: [AppTheme.navy, AppTheme.lightNavy]),

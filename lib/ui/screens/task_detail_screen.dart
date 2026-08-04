@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/task_detail_response.dart';
-import 'package:leavego_app/ui/screens/create_supporting_task_screen.dart';
 import 'package:leavego_app/ui/screens/edit_task_screen.dart';
-import 'package:leavego_app/ui/screens/supporting_tasks_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
@@ -25,13 +23,13 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   static const _statusOptions = <String>[
     'assigned',
-    'accepted',
+    // 'accepted',
     'in_progress',
-    'blocked',
+    // 'blocked',
     'completed',
     'rejected',
     'cancelled',
-    'overdue',
+    // 'overdue',
   ];
 
   @override
@@ -227,6 +225,37 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     }
   }
 
+  String _formatDateTime(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return '-';
+    try {
+      final normalized = raw.contains(' ') ? raw.replaceFirst(' ', 'T') : raw;
+      final date = DateTime.parse(normalized).toLocal();
+      const months = <String>[
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      final day = date.day.toString().padLeft(2, '0');
+      final month = months[date.month - 1];
+      final year = date.year;
+      final hour12 = date.hour == 0 ? 12 : (date.hour > 12 ? date.hour - 12 : date.hour);
+      final minute = date.minute.toString().padLeft(2, '0');
+      final period = date.hour >= 12 ? 'PM' : 'AM';
+      return '$day $month $year, ${hour12.toString().padLeft(2, '0')}:$minute $period';
+    } catch (_) {
+      return raw;
+    }
+  }
+
   String _toLabel(String raw) {
     if (raw.trim().isEmpty) return '-';
     return raw
@@ -314,37 +343,37 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             return ListView(
               physics: const ClampingScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                children: [
-                  Row(
-                    children: [
-                      const AppBackButton(),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          'Task Detail',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            color: Colors.black,
-                            fontWeight: FontWeight.w800,
-                          ),
+              children: [
+                Row(
+                  children: [
+                    const AppBackButton(),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        'Task Detail',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          color: Colors.black,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                      if (canEditTask)
-                        IconButton(
-                          onPressed: () async {
-                            final updated = await Navigator.of(context).push<bool>(
-                              MaterialPageRoute(builder: (_) => EditTaskScreen(task: task)),
-                            );
-                            if (updated == true) {
-                              _reloadDetail();
-                            }
-                          },
-                          icon: const Icon(Icons.edit_outlined, color: Colors.black),
-                          tooltip: 'Edit task',
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Container(
+                    ),
+                    if (canEditTask)
+                      IconButton(
+                        onPressed: () async {
+                          final updated = await Navigator.of(context).push<bool>(
+                            MaterialPageRoute(builder: (_) => EditTaskScreen(task: task)),
+                          );
+                          if (updated == true) {
+                            _reloadDetail();
+                          }
+                        },
+                        icon: const Icon(Icons.edit_outlined, color: Colors.black),
+                        tooltip: 'Edit task',
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Container(
                   padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
@@ -509,13 +538,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   title: 'Timeline',
                   child: Column(
                     children: [
-                      _DetailRow(label: 'Start Date', value: _formatDate(task.startDate)),
+                      _DetailRow(label: 'Start Date', value: _formatDateTime(task.startDate)),
                       const Divider(height: 18),
-                      _DetailRow(label: 'Due Date', value: _formatDate(task.dueDate)),
+                      _DetailRow(label: 'Due Date', value: _formatDateTime(task.dueDate)),
                       const Divider(height: 18),
-                      _DetailRow(label: 'Completion Date', value: _formatDate(task.completionDate)),
+                      _DetailRow(
+                        label: 'Completion Date',
+                        value: _formatDateTime(task.completionDate),
+                      ),
                       const Divider(height: 18),
-                      _DetailRow(label: 'Created At', value: _formatDate(task.createdAt)),
+                      _DetailRow(label: 'Created At', value: _formatDateTime(task.createdAt)),
                     ],
                   ),
                 ),

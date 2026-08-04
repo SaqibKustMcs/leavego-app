@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 
 /// Shared back control used across the app (`Icons.arrow_back_ios_new_rounded`).
 class AppBackButton extends StatelessWidget {
-  const AppBackButton({
-    super.key,
-    this.color = Colors.black,
-    this.onPressed,
-  });
+  const AppBackButton({super.key, this.color = Colors.black, this.onPressed});
 
   final Color color;
   final VoidCallback? onPressed;

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
+import 'package:leavego_app/ui/screens/create_employee_screen.dart';
 import 'package:leavego_app/ui/screens/create_news_screen.dart';
+import 'package:leavego_app/ui/screens/manage_users_screen.dart';
 import 'package:leavego_app/ui/screens/news_screen.dart';
 import 'package:leavego_app/ui/screens/login_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
@@ -56,7 +58,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final email = me?.email ?? '-';
     final role = me?.role ?? '-';
     final lowerRole = role.trim().toLowerCase();
+    final roleLabel = AppRoles.displayName(role);
     final canCreateNews = AppRoles.canCreateNews(lowerRole);
+    final canCreateEmployee = AppRoles.canCreateEmployee(lowerRole);
     final departmentId = me?.department ?? '-';
     final initials = _initials(name);
     final isActive = me?.isActive == true;
@@ -174,7 +178,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       _InfoRow(icon: Icons.mail_outline_rounded, title: 'Email', value: email),
                       const Divider(height: 18),
-                      _InfoRow(icon: Icons.badge_outlined, title: 'Role', value: role),
+                      _InfoRow(icon: Icons.badge_outlined, title: 'Role', value: roleLabel),
                       const Divider(height: 18),
                       _InfoRow(
                         icon: Icons.apartment_rounded,
@@ -253,6 +257,68 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                 ),
+                if (canCreateEmployee) ...[
+                  const SizedBox(height: 12),
+                  _SectionCard(
+                    title: 'Users',
+                    child: Column(
+                      children: [
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8EEFC),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.group_outlined, color: AppTheme.navy),
+                          ),
+                          title: const Text(
+                            'Manage Users',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          subtitle: const Text('View and edit employee accounts'),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const ManageUsersScreen()),
+                            );
+                          },
+                        ),
+                        const Divider(height: 18),
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8EEFC),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.person_add_alt_1_outlined, color: AppTheme.navy),
+                          ),
+                          title: const Text(
+                            'Create User',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          subtitle: const Text('Add a new employee account'),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: () async {
+                            final created = await Navigator.of(context).push<bool>(
+                              MaterialPageRoute(builder: (_) => const CreateEmployeeScreen()),
+                            );
+                            if (created == true && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('User created successfully')),
+                              );
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
 
                 Container(
                   padding: const EdgeInsets.all(12),

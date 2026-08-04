@@ -113,26 +113,42 @@ class ApiService {
 
   Future<ApplyLeaveResponse> applyLeave({
     required String token,
-    required String userId,
     required String leaveTypeId,
     required String startDate,
     required String endDate,
     required String reason,
+    String? userId,
     String? attachmentPath,
+    bool useSimpleJsonBody = false,
   }) async {
-    final result = await _dataService.postMultipart(
-      url: '$baseUrl/leaves',
-      fields: <String, String>{
-        'user_id': userId,
-        'leave_type_id': leaveTypeId,
-        'start_date': startDate,
-        'end_date': endDate,
-        'reason': reason,
-      },
-      filePath: attachmentPath,
-      fileFieldName: 'attachment',
-      headers: <String, String>{'Authorization': 'Bearer $token'},
-    );
+    final Map<String, dynamic> result;
+    if (useSimpleJsonBody) {
+      // OPM / CEO: JSON body only (approval goes to CEO for OPM).
+      result = await _dataService.post(
+        url: '$baseUrl/leaves',
+        body: <String, dynamic>{
+          'leave_type_id': int.tryParse(leaveTypeId) ?? leaveTypeId,
+          'start_date': startDate,
+          'end_date': endDate,
+          'reason': reason,
+        },
+        headers: <String, String>{'Authorization': 'Bearer $token'},
+      );
+    } else {
+      result = await _dataService.postMultipart(
+        url: '$baseUrl/leaves',
+        fields: <String, String>{
+          if (userId != null && userId.isNotEmpty) 'user_id': userId,
+          'leave_type_id': leaveTypeId,
+          'start_date': startDate,
+          'end_date': endDate,
+          'reason': reason,
+        },
+        filePath: attachmentPath,
+        fileFieldName: 'attachment',
+        headers: <String, String>{'Authorization': 'Bearer $token'},
+      );
+    }
 
     final statusCode = result['statusCode'] as int? ?? 500;
     final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
@@ -531,6 +547,135 @@ class ApiService {
       throw Exception(_extractMessage(payload) ?? 'Failed to load users');
     }
     return response.data;
+  }
+
+  Future<EmployeesPageData> employees({
+    required String token,
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    final result = await _dataService.get(
+      url: '$baseUrl/employees?page=$page&per_page=$perPage',
+      headers: <String, String>{'Authorization': 'Bearer $token'},
+    );
+
+    final statusCode = result['statusCode'] as int? ?? 500;
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+
+    if (statusCode < 200 || statusCode >= 300) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to load employees');
+    }
+
+    final response = EmployeesResponse.fromJson(payload);
+    if (!response.success) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to load employees');
+    }
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> createEmployee({
+    required String token,
+    required String name,
+    required String email,
+    required String password,
+    required String role,
+    required int departmentId,
+    String? phone,
+    required bool isActive,
+  }) async {
+    final body = <String, dynamic>{
+      'name': name,
+      'email': email,
+      'password': password,
+      'role': role,
+      'department_id': departmentId,
+      'is_active': isActive,
+    };
+    final trimmedPhone = phone?.trim();
+    if (trimmedPhone != null && trimmedPhone.isNotEmpty) {
+      body['phone'] = trimmedPhone;
+    }
+
+    final result = await _dataService.post(
+      url: '$baseUrl/employees',
+      body: body,
+      headers: <String, String>{'Authorization': 'Bearer $token'},
+    );
+
+    final statusCode = result['statusCode'] as int? ?? 500;
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+
+    if (statusCode < 200 || statusCode >= 300) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to create employee');
+    }
+
+    if (payload['success'] == false) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to create employee');
+    }
+    return payload;
+  }
+
+  Future<Map<String, dynamic>> updateEmployee({
+    required String token,
+    required int employeeId,
+    required String name,
+    required String role,
+    required int departmentId,
+    String? phone,
+    required bool isActive,
+  }) async {
+    final body = <String, dynamic>{
+      'name': name,
+      'role': role,
+      'department_id': departmentId,
+      'is_active': isActive,
+    };
+    final trimmedPhone = phone?.trim();
+    if (trimmedPhone != null && trimmedPhone.isNotEmpty) {
+      body['phone'] = trimmedPhone;
+    } else {
+      body['phone'] = null;
+    }
+
+    final result = await _dataService.put(
+      url: '$baseUrl/employees/$employeeId',
+      body: body,
+      headers: <String, String>{'Authorization': 'Bearer $token'},
+    );
+
+    final statusCode = result['statusCode'] as int? ?? 500;
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+
+    if (statusCode < 200 || statusCode >= 300) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to update employee');
+    }
+
+    if (payload['success'] == false) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to update employee');
+    }
+    return payload;
+  }
+
+  Future<Map<String, dynamic>> deleteEmployee({
+    required String token,
+    required int employeeId,
+  }) async {
+    final result = await _dataService.delete(
+      url: '$baseUrl/employees/$employeeId',
+      headers: <String, String>{'Authorization': 'Bearer $token'},
+    );
+
+    final statusCode = result['statusCode'] as int? ?? 500;
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+
+    if (statusCode < 200 || statusCode >= 300) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to delete employee');
+    }
+
+    if (payload['success'] == false) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to delete employee');
+    }
+    return payload;
   }
 
   Future<List<DepartmentItem>> departments({required String token}) async {

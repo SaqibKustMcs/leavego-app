@@ -6,6 +6,7 @@ import 'package:leavego_app/ui/screens/apply_leave_screen.dart';
 import 'package:leavego_app/ui/screens/leave_detail_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_back_button.dart';
+import 'package:leavego_app/ui/widgets/app_gradient_fab.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
 import 'package:leavego_app/utils/app_roles.dart';
 
@@ -20,8 +21,8 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen>
     with SingleTickerProviderStateMixin {
   late final AppController _appController;
   late final TabController _tabController;
-  static const int _tabMyRequests = 0;
-  static const int _tabPending = 1;
+  static const int _tabPending = 0;
+  static const int _tabMyRequests = 1;
   bool _bootstrapped = false;
 
   Future<void> _onRefresh() async {
@@ -52,14 +53,8 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen>
     if (_bootstrapped) return;
     _bootstrapped = true;
 
-    final isCeoOrHr = AppRoles.isCeoOrHrLike(_appController.meData?.role);
-
-    // Default: show "My Requests" first for CEO/HR.
-    if (isCeoOrHr) {
-      await _appController.loadMyLeaves();
-    } else {
-      await _appController.loadRequestsByRole();
-    }
+    // Default tab is Pending for CEO/HR/OPM; others also load role requests.
+    await _appController.loadRequestsByRole();
   }
 
   void _onUpdate() {
@@ -101,10 +96,7 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen>
               Row(
                 children: [
                   if (Navigator.of(context).canPop())
-                    const Padding(
-                      padding: EdgeInsets.only(right: 4),
-                      child: AppBackButton(),
-                    ),
+                    const Padding(padding: EdgeInsets.only(right: 0), child: AppBackButton()),
                   Text(
                     title,
                     style: theme.textTheme.titleLarge?.copyWith(
@@ -155,8 +147,8 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen>
                       if (mounted) setState(() {});
                     },
                     tabs: const [
-                      Tab(text: 'My Requests'),
                       Tab(text: 'Pending'),
+                      Tab(text: 'My Requests'),
                     ],
                   ),
                 ),
@@ -233,21 +225,12 @@ class _MyLeaveRequestsScreenState extends State<MyLeaveRequestsScreen>
           ),
         ),
       ),
-      floatingActionButton: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [AppTheme.navy, AppTheme.lightNavy]),
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: FloatingActionButton.extended(
-          backgroundColor: Colors.transparent,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          onPressed: () {
-            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ApplyLeaveScreen()));
-          },
-          icon: const Icon(Icons.add),
-          label: const Text('Apply Leave'),
-        ),
+      floatingActionButton: AppGradientFab(
+        label: 'Apply Leave',
+        icon: Icons.add,
+        onPressed: () {
+          Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ApplyLeaveScreen()));
+        },
       ),
     );
   }
