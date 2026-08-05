@@ -89,185 +89,192 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FC),
-      body: RefreshIndicator(
-        onRefresh: _onRefresh,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Notifications',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black,
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _onRefresh,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Notifications',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Stay updated on leave actions',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: const Color(0xFF5F6D84),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+
+                  if (_appController.unreadCount != 0)
+                    FilledButton.icon(
+                      onPressed: _appController.notificationsReadAllLoading ? null : _readAll,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppTheme.navy,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      icon: _appController.notificationsReadAllLoading
+                          ? const AppButtonLoader(size: 18)
+                          : const Icon(Icons.done_all_rounded, size: 18),
+                      label: Text(
+                        _appController.notificationsReadAllLoading ? 'Processing' : 'Read all',
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              if (_appController.notificationsLoading)
+                const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: AppLoader())
+              else if (_appController.notificationsError != null)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.errorContainer.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _appController.notificationsError!,
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+                  ),
+                )
+              else if (notifications.isEmpty)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Text('No notifications found.'),
+                )
+              else
+                ...notifications.map((item) {
+                  final isUnread = !item.isRead;
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(
+                      color: isUnread ? const Color(0xFFF7FAFF) : Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: isUnread ? Colors.red : Colors.transparent,
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 12,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      onTap: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final notification = item;
+
+                        // 1) Mark notification as read on the server first.
+                        final message = await _appController.readNotification(
+                          notificationId: notification.id,
+                        );
+                        if (!mounted) return;
+                        if (message == null &&
+                            _appController.notificationReadError != null &&
+                            !notification.isRead) {
+                          messenger.showSnackBar(
+                            SnackBar(content: Text(_appController.notificationReadError!)),
+                          );
+                        }
+
+                        // 2) Then open the related screen (task / leave / news).
+                        if (!mounted) return;
+                        await NotificationNavigationService.openFromInAppNotification(notification);
+                      },
+                      leading: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: isUnread ? const Color(0xFFDCE7FF) : const Color(0xFFE8EEFC),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.notifications_rounded,
+                          color: isUnread ? AppTheme.navy : AppTheme.navy.withValues(alpha: 0.8),
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Stay updated on leave actions',
-                        style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF5F6D84)),
+                      title: Text(
+                        item.title,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: isUnread ? AppTheme.navy : null,
+                        ),
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-
-                if (_appController.unreadCount != 0)
-                  FilledButton.icon(
-                    onPressed: _appController.notificationsReadAllLoading ? null : _readAll,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppTheme.navy,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
-                    ),
-                    icon: _appController.notificationsReadAllLoading
-                        ? const AppButtonLoader(size: 18)
-                        : const Icon(Icons.done_all_rounded, size: 18),
-                    label: Text(
-                      _appController.notificationsReadAllLoading ? 'Processing' : 'Read all',
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            if (_appController.notificationsLoading)
-              const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: AppLoader())
-            else if (_appController.notificationsError != null)
-              Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.errorContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  _appController.notificationsError!,
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
-                ),
-              )
-            else if (notifications.isEmpty)
-              Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Text('No notifications found.'),
-              )
-            else
-              ...notifications.map((item) {
-                final isUnread = !item.isRead;
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  decoration: BoxDecoration(
-                    color: isUnread ? const Color(0xFFF7FAFF) : Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: isUnread ? Colors.red : Colors.transparent, width: 1),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 12,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    onTap: () async {
-                      final messenger = ScaffoldMessenger.of(context);
-                      final notification = item;
-
-                      // 1) Mark notification as read on the server first.
-                      final message = await _appController.readNotification(
-                        notificationId: notification.id,
-                      );
-                      if (!mounted) return;
-                      if (message == null &&
-                          _appController.notificationReadError != null &&
-                          !notification.isRead) {
-                        messenger.showSnackBar(
-                          SnackBar(content: Text(_appController.notificationReadError!)),
-                        );
-                      }
-
-                      // 2) Then open the related screen (task / leave / news).
-                      if (!mounted) return;
-                      await NotificationNavigationService.openFromInAppNotification(notification);
-                    },
-                    leading: Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: isUnread ? const Color(0xFFDCE7FF) : const Color(0xFFE8EEFC),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.notifications_rounded,
-                        color: isUnread ? AppTheme.navy : AppTheme.navy.withValues(alpha: 0.8),
-                      ),
-                    ),
-                    title: Text(
-                      item.title,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: isUnread ? AppTheme.navy : null,
-                      ),
-                    ),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(item.message),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              if (isUnread)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFDCE7FF),
-                                    borderRadius: BorderRadius.circular(999),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(item.message),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                if (isUnread)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFDCE7FF),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: const Text(
+                                      'Unread',
+                                      style: TextStyle(
+                                        color: AppTheme.navy,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
                                   ),
-                                  child: const Text(
-                                    'Unread',
-                                    style: TextStyle(
-                                      color: AppTheme.navy,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
+                                if (isUnread) const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _formatDateTime(item.createdAt),
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: const Color(0xFF6A778B),
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                 ),
-                              if (isUnread) const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _formatDateTime(item.createdAt),
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: const Color(0xFF6A778B),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                );
-              }),
-          ],
+                  );
+                }),
+            ],
+          ),
         ),
       ),
     );

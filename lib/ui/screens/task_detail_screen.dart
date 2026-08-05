@@ -341,6 +341,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 (task.assignedTo ?? '').toString() == currentUserId;
 
             return ListView(
+              addAutomaticKeepAlives: true,
               physics: const ClampingScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
               children: [

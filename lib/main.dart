@@ -10,10 +10,12 @@ import 'package:leavego_app/data/api_service.dart';
 import 'package:leavego_app/data/data_service.dart';
 import 'package:leavego_app/firebase_options.dart';
 import 'package:leavego_app/services/app_http_overrides.dart';
+import 'package:leavego_app/services/connectivity_service.dart';
 import 'package:leavego_app/services/notification_navigation_service.dart';
 import 'package:leavego_app/services/push_notification_service.dart';
 import 'package:leavego_app/ui/screens/splash_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/connectivity_banner.dart';
 
 /// Handles FCM messages received while the app is in the background/terminated.
 @pragma('vm:entry-point')
@@ -46,6 +48,7 @@ Future<void> main() async {
   Get.put(DataService(), permanent: true);
   Get.put(ApiService(Get.find<DataService>()), permanent: true);
   Get.put(AppController(Get.find<ApiService>()), permanent: true);
+  await Get.putAsync(() => ConnectivityService().init(), permanent: true);
   runApp(const LeaveProApp());
 }
 
@@ -61,10 +64,13 @@ class LeaveProApp extends StatelessWidget {
       home: const SplashScreen(),
       debugShowCheckedModeBanner: false,
       builder: (context, child) {
-        return GestureDetector(
+        // Dismiss keyboard on empty-area taps and button taps alike.
+        return Listener(
           behavior: HitTestBehavior.translucent,
-          onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-          child: child,
+          onPointerDown: (_) {
+            FocusManager.instance.primaryFocus?.unfocus();
+          },
+          child: ConnectivityBanner(child: child),
         );
       },
     );

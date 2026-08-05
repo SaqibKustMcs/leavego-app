@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
+import 'package:leavego_app/services/connectivity_service.dart';
 import 'package:leavego_app/ui/screens/main_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
@@ -39,6 +40,14 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _onSubmit() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (Get.isRegistered<ConnectivityService>() &&
+        !Get.find<ConnectivityService>().isOnline.value) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(ConnectivityService.offlineMessage)),
+      );
+      return;
+    }
     if (_formKey.currentState?.validate() != true) return;
     final result = await _appController.login(
       email: _emailController.text.trim(),

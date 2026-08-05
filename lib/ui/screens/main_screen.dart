@@ -24,6 +24,16 @@ class _MainScreenState extends State<MainScreen> {
   late final AppController _appController;
   bool _notificationPermissionRequested = false;
 
+  static const int _notificationsIndex = 2;
+
+  /// Kept alive across tab switches via [IndexedStack].
+  static const List<Widget> _screens = <Widget>[
+    HomeScreen(),
+    ProjectsScreen(),
+    NotificationScreen(),
+    ProfileScreen(),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -117,20 +127,13 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    const screens = <Widget>[
-      HomeScreen(),
-      ProjectsScreen(),
-      NotificationScreen(),
-      ProfileScreen(),
-    ];
-
-    const notificationsIndex = 2;
-    if (_currentIndex >= screens.length) _currentIndex = 0;
-
+    final index = _currentIndex.clamp(0, _screens.length - 1);
     final unread = _appController.unreadCount;
+
     return Scaffold(
-      body: SafeArea(
-        child: IndexedStack(index: _currentIndex, children: screens),
+      body: IndexedStack(
+        index: index,
+        children: _screens,
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -144,15 +147,15 @@ class _MainScreenState extends State<MainScreen> {
           ],
         ),
         child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) async {
-            setState(() => _currentIndex = index);
-            // Always fetch fresh data when user opens these tabs.
-            if (index == 1) {
+          currentIndex: index,
+          onTap: (tappedIndex) async {
+            setState(() => _currentIndex = tappedIndex);
+            // Refresh data when opening these tabs (screens stay mounted).
+            if (tappedIndex == 1) {
               await _appController.loadProjects(refresh: true);
               return;
             }
-            if (index == notificationsIndex) {
+            if (tappedIndex == _notificationsIndex) {
               await Future.wait([
                 _appController.loadUnreadCount(),
                 _appController.loadNotifications(),
@@ -168,11 +171,6 @@ class _MainScreenState extends State<MainScreen> {
               activeIcon: Icon(TablerIcons.apps_filled),
               label: 'Home',
             ),
-            // const BottomNavigationBarItem(
-            //   icon: Icon(TablerIcons.circle_check),
-            //   activeIcon: Icon(TablerIcons.circle_check_filled),
-            //   label: 'Requests',
-            // ),
             const BottomNavigationBarItem(
               icon: Icon(TablerIcons.folder),
               activeIcon: Icon(TablerIcons.folder_filled),

@@ -70,197 +70,135 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: const Color(0xFFF2F5FC),
       body: Stack(
         children: [
-          RefreshIndicator(
-            onRefresh: _onRefresh,
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppTheme.navy, AppTheme.lightNavy],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.navy.withValues(alpha: 0.24),
-                        blurRadius: 20,
-                        offset: const Offset(0, 12),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 28,
-                            backgroundColor: Colors.white.withValues(alpha: 0.18),
-                            child: Text(
-                              initials,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.4,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  email,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: Colors.white.withValues(alpha: 0.86),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      // const SizedBox(height: 14),
-                      // Wrap(
-                      //   spacing: 8,
-                      //   runSpacing: 8,
-                      //   children: [
-                      //     // _ChipBadge(icon: Icons.badge_outlined, label: role.toUpperCase()),
-                      //     // _ChipBadge(
-                      //     //   icon: isActive
-                      //     //       ? Icons.verified_rounded
-                      //     //       : Icons.pause_circle_filled_rounded,
-                      //     //   label: statusLabel,
-                      //     // ),
-                      //   ],
-                      // ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (_appController.meLoading)
-                  const Padding(padding: EdgeInsets.only(top: 6), child: _ProfileSkeletonCard()),
-                if (_appController.meError != null)
+          SafeArea(
+            child: RefreshIndicator(
+              onRefresh: _onRefresh,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
+                children: [
                   Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.errorContainer.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      _appController.meError!,
-                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.error),
-                    ),
-                  ),
-                _SectionCard(
-                  title: 'Account',
-                  child: Column(
-                    children: [
-                      _InfoRow(icon: Icons.mail_outline_rounded, title: 'Email', value: email),
-                      const Divider(height: 18),
-                      _InfoRow(icon: Icons.badge_outlined, title: 'Role', value: roleLabel),
-                      const Divider(height: 18),
-                      _InfoRow(
-                        icon: Icons.apartment_rounded,
-                        title: 'Department',
-                        value: departmentId,
+                      gradient: const LinearGradient(
+                        colors: [AppTheme.navy, AppTheme.lightNavy],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      const Divider(height: 18),
-                      _InfoRow(
-                        icon: Icons.verified_user_outlined,
-                        title: 'Status',
-                        value: statusLabel,
-                        valueColor: isActive ? const Color(0xFF1B8A5A) : const Color(0xFF9B2C2C),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _SectionCard(
-                  title: 'News',
-                  child: Column(
-                    children: [
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8EEFC),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.article_outlined, color: AppTheme.navy),
-                        ),
-                        title: const Text(
-                          'Company News',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        subtitle: const Text('View latest announcements'),
-                        trailing: const Icon(Icons.chevron_right_rounded),
-                        onTap: () {
-                          Navigator.of(
-                            context,
-                          ).push(MaterialPageRoute(builder: (_) => const NewsScreen()));
-                        },
-                      ),
-                      if (canCreateNews) ...[
-                        const Divider(height: 18),
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8EEFC),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(Icons.campaign_outlined, color: AppTheme.navy),
-                          ),
-                          title: const Text(
-                            'Create News',
-                            style: TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          subtitle: const Text('Publish announcements for a target audience'),
-                          trailing: const Icon(Icons.chevron_right_rounded),
-                          onTap: () async {
-                            final created = await Navigator.of(context).push<bool>(
-                              MaterialPageRoute(builder: (_) => const CreateNewsScreen()),
-                            );
-                            if (created == true && context.mounted) {
-                              ScaffoldMessenger.of(
-                                context,
-                              ).showSnackBar(const SnackBar(content: Text('News published')));
-                            }
-                          },
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.navy.withValues(alpha: 0.24),
+                          blurRadius: 20,
+                          offset: const Offset(0, 12),
                         ),
                       ],
-                    ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 28,
+                              backgroundColor: Colors.white.withValues(alpha: 0.18),
+                              child: Text(
+                                initials,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    email,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: Colors.white.withValues(alpha: 0.86),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        // const SizedBox(height: 14),
+                        // Wrap(
+                        //   spacing: 8,
+                        //   runSpacing: 8,
+                        //   children: [
+                        //     // _ChipBadge(icon: Icons.badge_outlined, label: role.toUpperCase()),
+                        //     // _ChipBadge(
+                        //     //   icon: isActive
+                        //     //       ? Icons.verified_rounded
+                        //     //       : Icons.pause_circle_filled_rounded,
+                        //     //   label: statusLabel,
+                        //     // ),
+                        //   ],
+                        // ),
+                      ],
+                    ),
                   ),
-                ),
-                if (canCreateEmployee) ...[
+                  const SizedBox(height: 12),
+                  if (_appController.meLoading)
+                    const Padding(padding: EdgeInsets.only(top: 6), child: _ProfileSkeletonCard()),
+                  if (_appController.meError != null)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.errorContainer.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _appController.meError!,
+                        style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.error),
+                      ),
+                    ),
+                  _SectionCard(
+                    title: 'Account',
+                    child: Column(
+                      children: [
+                        _InfoRow(icon: Icons.mail_outline_rounded, title: 'Email', value: email),
+                        const Divider(height: 18),
+                        _InfoRow(icon: Icons.badge_outlined, title: 'Role', value: roleLabel),
+                        const Divider(height: 18),
+                        _InfoRow(
+                          icon: Icons.apartment_rounded,
+                          title: 'Department',
+                          value: departmentId,
+                        ),
+                        const Divider(height: 18),
+                        _InfoRow(
+                          icon: Icons.verified_user_outlined,
+                          title: 'Status',
+                          value: statusLabel,
+                          valueColor: isActive ? const Color(0xFF1B8A5A) : const Color(0xFF9B2C2C),
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   _SectionCard(
-                    title: 'Users',
+                    title: 'News',
                     child: Column(
                       children: [
                         ListTile(
@@ -272,103 +210,170 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               color: const Color(0xFFE8EEFC),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(Icons.group_outlined, color: AppTheme.navy),
+                            child: const Icon(Icons.article_outlined, color: AppTheme.navy),
                           ),
                           title: const Text(
-                            'Manage Users',
+                            'Company News',
                             style: TextStyle(fontWeight: FontWeight.w700),
                           ),
-                          subtitle: const Text('View and edit employee accounts'),
+                          subtitle: const Text('View latest announcements'),
                           trailing: const Icon(Icons.chevron_right_rounded),
                           onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const ManageUsersScreen()),
-                            );
+                            Navigator.of(
+                              context,
+                            ).push(MaterialPageRoute(builder: (_) => const NewsScreen()));
                           },
                         ),
-                        const Divider(height: 18),
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8EEFC),
-                              borderRadius: BorderRadius.circular(12),
+                        if (canCreateNews) ...[
+                          const Divider(height: 18),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE8EEFC),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(Icons.campaign_outlined, color: AppTheme.navy),
                             ),
-                            child: const Icon(Icons.person_add_alt_1_outlined, color: AppTheme.navy),
-                          ),
-                          title: const Text(
-                            'Create User',
-                            style: TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          subtitle: const Text('Add a new employee account'),
-                          trailing: const Icon(Icons.chevron_right_rounded),
-                          onTap: () async {
-                            final created = await Navigator.of(context).push<bool>(
-                              MaterialPageRoute(builder: (_) => const CreateEmployeeScreen()),
-                            );
-                            if (created == true && context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('User created successfully')),
+                            title: const Text(
+                              'Create News',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            subtitle: const Text('Publish announcements for a target audience'),
+                            trailing: const Icon(Icons.chevron_right_rounded),
+                            onTap: () async {
+                              final created = await Navigator.of(context).push<bool>(
+                                MaterialPageRoute(builder: (_) => const CreateNewsScreen()),
                               );
-                            }
-                          },
-                        ),
+                              if (created == true && context.mounted) {
+                                ScaffoldMessenger.of(
+                                  context,
+                                ).showSnackBar(const SnackBar(content: Text('News published')));
+                              }
+                            },
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                ],
-
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    // color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.06),
-                        blurRadius: 16,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _appController.logoutLoading
-                          ? null
-                          : () async {
-                              final result = await _appController.logout();
-                              if (!context.mounted) return;
-                              if (result == null && _appController.logoutError != null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(_appController.logoutError!)),
-                                );
-                                return;
-                              }
-                              Navigator.of(context).pushAndRemoveUntil(
-                                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                                (_) => false,
-                              );
+                  if (canCreateEmployee) ...[
+                    const SizedBox(height: 12),
+                    _SectionCard(
+                      title: 'Users',
+                      child: Column(
+                        children: [
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE8EEFC),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(Icons.group_outlined, color: AppTheme.navy),
+                            ),
+                            title: const Text(
+                              'Manage Users',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            subtitle: const Text('View and edit employee accounts'),
+                            trailing: const Icon(Icons.chevron_right_rounded),
+                            onTap: () {
+                              Navigator.of(
+                                context,
+                              ).push(MaterialPageRoute(builder: (_) => const ManageUsersScreen()));
                             },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: theme.colorScheme.error,
-                        side: BorderSide(color: theme.colorScheme.error),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          const Divider(height: 18),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE8EEFC),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.person_add_alt_1_outlined,
+                                color: AppTheme.navy,
+                              ),
+                            ),
+                            title: const Text(
+                              'Create User',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            subtitle: const Text('Add a new employee account'),
+                            trailing: const Icon(Icons.chevron_right_rounded),
+                            onTap: () async {
+                              final created = await Navigator.of(context).push<bool>(
+                                MaterialPageRoute(builder: (_) => const CreateEmployeeScreen()),
+                              );
+                              if (created == true && context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('User created successfully')),
+                                );
+                              }
+                            },
+                          ),
+                        ],
                       ),
-                      icon: _appController.logoutLoading
-                          ? AppButtonLoader(color: theme.colorScheme.error, size: 18)
-                          : const Icon(Icons.logout_rounded, size: 18),
-                      label: Text(
-                        _appController.logoutLoading ? 'Signing out…' : 'Log out',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ],
+
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      // color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.06),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _appController.logoutLoading
+                            ? null
+                            : () async {
+                                final result = await _appController.logout();
+                                if (!context.mounted) return;
+                                if (result == null && _appController.logoutError != null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(_appController.logoutError!)),
+                                  );
+                                  return;
+                                }
+                                Navigator.of(context).pushAndRemoveUntil(
+                                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                                  (_) => false,
+                                );
+                              },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: theme.colorScheme.error,
+                          side: BorderSide(color: theme.colorScheme.error),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        icon: _appController.logoutLoading
+                            ? AppButtonLoader(color: theme.colorScheme.error, size: 18)
+                            : const Icon(Icons.logout_rounded, size: 18),
+                        label: Text(
+                          _appController.logoutLoading ? 'Signing out…' : 'Log out',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
