@@ -51,18 +51,17 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCqPjksEX_PsYxb0aM5qS1_7DnP8bO6oVE',
-    appId: '1:681929113120:android:e4984be5175df731438645',
+    appId: '1:681929113120:android:e54d9f71c2c3ad7a438645',
     messagingSenderId: '681929113120',
     projectId: 'devbay-b3096',
     storageBucket: 'devbay-b3096.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyCm6bJEj0z3gE5-SXl0piPgvJZmIwzTuUE',
-    appId: '1:681929113120:ios:f1276bbf6ea3f54a438645',
+    appId: '1:681929113120:ios:2263e8b8f6a60db6438645',
     messagingSenderId: '681929113120',
     projectId: 'devbay-b3096',
     storageBucket: 'devbay-b3096.firebasestorage.app',
-    iosBundleId: 'com.app.devbay',
+    iosBundleId: 'com.devbay.taskbulls',
   );
 }

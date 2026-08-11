@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/news_response.dart';
 import 'package:leavego_app/ui/screens/edit_news_screen.dart';
+import 'package:leavego_app/ui/screens/news_detail_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
@@ -118,7 +119,13 @@ class _NewsScreenState extends State<NewsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FC),
       appBar: AppBar(
-        title: const Text('Company News'),
+        title: Text(
+          'Company News',
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         leading: const AppBackButton(),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.black,
@@ -173,6 +180,9 @@ class _NewsScreenState extends State<NewsScreen> {
                       }
                     },
                     onDelete: _appController.deleteNewsLoading ? null : () => _confirmDelete(item),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => NewsDetailScreen(news: item)),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -208,6 +218,7 @@ class _NewsCard extends StatelessWidget {
     required this.canDelete,
     required this.onEdit,
     required this.onDelete,
+    required this.onTap,
   });
 
   final NewsItem item;
@@ -216,6 +227,7 @@ class _NewsCard extends StatelessWidget {
   final bool canDelete;
   final VoidCallback onEdit;
   final VoidCallback? onDelete;
+  final VoidCallback onTap;
 
   String _audienceLabel(String raw) {
     final v = raw.trim();
@@ -229,7 +241,7 @@ class _NewsCard extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -241,89 +253,85 @@ class _NewsCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  item.title.isEmpty ? '-' : item.title,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.navy,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              if (canEdit || canDelete)
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (canEdit)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                        child: InkWell(
-                          onTap: onEdit,
-                          child: Icon(Icons.edit_outlined, color: AppTheme.navy),
+                    Expanded(
+                      child: Text(
+                        item.title.isEmpty ? '-' : item.title,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.navy,
                         ),
                       ),
-                    if (canDelete)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                        child: InkWell(
-                          onTap: onDelete,
-                          child: Icon(Icons.delete_outlined, color: Colors.red),
-                        ),
+                    ),
+                    const SizedBox(width: 10),
+                    if (canEdit || canDelete)
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (canEdit)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                              child: InkWell(
+                                onTap: onEdit,
+                                child: Icon(Icons.edit_outlined, color: AppTheme.navy),
+                              ),
+                            ),
+                          if (canDelete)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                              child: InkWell(
+                                onTap: onDelete,
+                                child: Icon(Icons.delete_outlined, color: Colors.red),
+                              ),
+                            ),
+                        ],
                       ),
                   ],
                 ),
-              // Container(
-              //   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              //   decoration: BoxDecoration(
-              //     color: const Color(0xFFDCE7FF),
-              //     borderRadius: BorderRadius.circular(999),
-              //   ),
-              //   child: Text(
-              //     _audienceLabel(item.targetAudience),
-              //     style: const TextStyle(
-              //       color: AppTheme.navy,
-              //       fontWeight: FontWeight.w800,
-              //       fontSize: 11,
-              //     ),
-              //   ),
-              // ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            item.content.isEmpty ? '-' : item.content,
-            style: theme.textTheme.bodyMedium?.copyWith(height: 1.4),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'By ${item.postedByName}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF6A778B),
-                    fontWeight: FontWeight.w600,
-                  ),
+                const SizedBox(height: 8),
+                Text(
+                  item.content.isEmpty ? '-' : item.content,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(height: 1.4),
                 ),
-              ),
-              Text(
-                formatDate(date),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: const Color(0xFF6A778B),
-                  fontWeight: FontWeight.w600,
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'By ${item.postedByName}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: const Color(0xFF6A778B),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      formatDate(date),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: const Color(0xFF6A778B),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }

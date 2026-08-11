@@ -73,4 +73,10 @@ class AppRoles {
     final r = normalize(role);
     return r == 'operations_manager' || r == 'ceo';
   }
+
+  /// View leave report: CEO, HR, operations_manager.
+  static bool canViewLeaveReport(String? role) {
+    final r = normalize(role);
+    return r == 'ceo' || r == 'hr' || r == 'operations_manager';
+  }
 }

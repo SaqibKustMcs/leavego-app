@@ -137,17 +137,23 @@ class _CreateProjectTaskScreenState extends State<CreateProjectTaskScreen> {
     }
   }
 
-  /// Converts display value to API format `yyyy-MM-ddTHH:mm:ss`.
-  String _toApiDateTime(String raw) {
+  /// Converts display value to API date format `yyyy-MM-dd`.
+  String _toApiDate(String raw) {
     final parsed = _tryParseDate(raw);
-    if (parsed == null) return raw;
+    if (parsed == null) return raw.split(' ').first;
     final y = parsed.year.toString().padLeft(4, '0');
     final m = parsed.month.toString().padLeft(2, '0');
     final d = parsed.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+
+  /// Converts display value to API time format `HH:mm`.
+  String _toApiTime(String raw) {
+    final parsed = _tryParseDate(raw);
+    if (parsed == null) return '09:00';
     final h = parsed.hour.toString().padLeft(2, '0');
     final min = parsed.minute.toString().padLeft(2, '0');
-    final s = parsed.second.toString().padLeft(2, '0');
-    return '$y-$m-${d}T$h:$min:$s';
+    return '$h:$min';
   }
 
   String _toLabel(String raw) {
@@ -181,8 +187,10 @@ class _CreateProjectTaskScreenState extends State<CreateProjectTaskScreen> {
       description: _descriptionController.text.trim(),
       priority: _selectedPriority!,
       assignedTo: _selectedAssignedTo!,
-      startDate: _toApiDateTime(_startDateController.text.trim()),
-      dueDate: _toApiDateTime(_dueDateController.text.trim()),
+      startDate: _toApiDate(_startDateController.text.trim()),
+      startTime: _toApiTime(_startDateController.text.trim()),
+      dueDate: _toApiDate(_dueDateController.text.trim()),
+      dueTime: _toApiTime(_dueDateController.text.trim()),
       estimatedHours: estimatedHours,
     );
 

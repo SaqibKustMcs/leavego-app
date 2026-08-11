@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-    namespace = "com.app.devbay"
+    namespace = "com.devbay.taskbulls"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -24,8 +24,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.app.devbay"
+        applicationId = "com.devbay.taskbulls"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // Android 7.0+; keep explicit so older devices are supported consistently.

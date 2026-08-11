@@ -59,7 +59,13 @@ class PushNotificationService {
     );
 
     FirebaseMessaging.onMessage.listen((message) {
-      _showLocalNotification(message);
+      // iOS already presents the incoming alert itself in the foreground (see
+      // setForegroundNotificationPresentationOptions above), so a local
+      // notification would show the same message a second time. Android does
+      // not auto-present, so it still needs one.
+      if (!Platform.isIOS) {
+        _showLocalNotification(message);
+      }
       onMessage?.call(message);
     });
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
@@ -127,7 +133,9 @@ class PushNotificationService {
     final notification = message.notification;
     if (notification == null) return;
 
-    final payload = jsonEncode(message.data);
+    final payload = jsonEncode(
+      NotificationNavigationService.payloadFromRemoteMessage(message),
+    );
 
     _localNotifications.show(
       id: notification.hashCode,

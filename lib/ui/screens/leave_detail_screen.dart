@@ -238,9 +238,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                       ),
                       Text(
                         'Request information',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: const Color(0xFF6A778B),
-                        ),
+                        style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF6A778B)),
                       ),
                     ],
                   ),
@@ -282,8 +280,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                 final status = leave.status.trim().toLowerCase();
                 final ceoStatus = leave.ceoStatus.trim().toLowerCase();
 
-                final isHrActionAllowed =
-                    AppRoles.isHrLikeApprover(role) && hrStatus == 'pending';
+                final isHrActionAllowed = AppRoles.isHrLikeApprover(role) && hrStatus == 'pending';
                 final isCeoActionAllowed =
                     role == 'ceo' &&
                     status == 'pending_ceo' &&
@@ -335,7 +332,7 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                                       // const SizedBox(width: 8),
                                       Expanded(
                                         child: _StatusTile(
-                                          label: 'HR',
+                                          label: 'HR / OPM',
                                           value: _capitalize(leave.hrStatus),
                                         ),
                                       ),

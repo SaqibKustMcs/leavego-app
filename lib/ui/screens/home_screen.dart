@@ -11,8 +11,11 @@ import 'package:leavego_app/services/push_notification_service.dart';
 import 'package:leavego_app/ui/screens/create_news_screen.dart';
 import 'package:leavego_app/ui/screens/my_leave_requests_screen.dart';
 import 'package:leavego_app/ui/screens/my_today_tasks_screen.dart';
+import 'package:leavego_app/ui/screens/news_detail_screen.dart';
 import 'package:leavego_app/ui/screens/news_screen.dart';
+import 'package:leavego_app/ui/screens/leave_report_screen.dart';
 import 'package:leavego_app/ui/screens/task_detail_screen.dart';
+import 'package:leavego_app/utils/task_datetime_format.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
 import 'package:leavego_app/utils/app_roles.dart';
@@ -131,9 +134,13 @@ class _HomeScreenState extends State<HomeScreen> {
               _HomeHeader(
                 name: _appController.meData?.name ?? '',
                 canCreateNews: AppRoles.canCreateNews(_appController.meData?.role),
+                canViewLeaveReport: AppRoles.canViewLeaveReport(_appController.meData?.role),
                 onCreateNewsTap: () => Navigator.of(
                   context,
                 ).push(MaterialPageRoute(builder: (_) => const CreateNewsScreen())),
+                onLeaveReportTap: () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const LeaveReportScreen())),
               ),
               const SizedBox(height: 14),
               if (newsLoading && newsItems.isEmpty)
@@ -147,6 +154,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   onSeeAll: () => Navigator.of(
                     context,
                   ).push(MaterialPageRoute(builder: (_) => const NewsScreen())),
+                  onItemTap: (item) => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => NewsDetailScreen(news: item)),
+                  ),
                 ),
                 const SizedBox(height: 14),
               ],
@@ -502,9 +512,10 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _NewsCarousel extends StatefulWidget {
-  const _NewsCarousel({required this.items, required this.onSeeAll});
+  const _NewsCarousel({required this.items, required this.onSeeAll, required this.onItemTap});
 
   final List<NewsItem> items;
+  final void Function(NewsItem item) onItemTap;
   final VoidCallback onSeeAll;
 
   @override
@@ -623,7 +634,7 @@ class _NewsCarouselState extends State<_NewsCarousel> {
                 child: _NewsCarouselCard(
                   item: item,
                   dateLabel: _formatDate(item.publishedAt ?? item.createdAt),
-                  onTap: widget.onSeeAll,
+                  onTap: () => widget.onItemTap(item),
                 ),
               );
             },
@@ -788,12 +799,16 @@ class _HomeHeader extends StatelessWidget {
   const _HomeHeader({
     required this.name,
     required this.canCreateNews,
+    required this.canViewLeaveReport,
     required this.onCreateNewsTap,
+    required this.onLeaveReportTap,
   });
 
   final String name;
   final bool canCreateNews;
+  final bool canViewLeaveReport;
   final VoidCallback onCreateNewsTap;
+  final VoidCallback onLeaveReportTap;
 
   String get _greeting {
     final hour = DateTime.now().hour;
@@ -875,6 +890,28 @@ class _HomeHeader extends StatelessWidget {
               ],
             ),
           ),
+          if (canViewLeaveReport) ...[
+            const SizedBox(width: 8),
+            Material(
+              color: Colors.white.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                onTap: onLeaveReportTap,
+                borderRadius: BorderRadius.circular(12),
+                child: Tooltip(
+                  message: 'Leave Report',
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+                    ),
+                    child: const Icon(Icons.assessment_outlined, color: Colors.white, size: 22),
+                  ),
+                ),
+              ),
+            ),
+          ],
           // if (canCreateNews)
           //   TextButton.icon(
           //     style: TextButton.styleFrom(
@@ -1040,7 +1077,10 @@ class _HomeTodayTaskCard extends StatelessWidget {
                   const Icon(Icons.event_outlined, size: 16, color: Color(0xFF6A778B)),
                   const SizedBox(width: 6),
                   Text(
-                    _formatDate(task.dueDate),
+                    TaskDateTimeFormat.formatDateTime(
+                      date: task.dueDate,
+                      time: task.dueTime,
+                    ),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: const Color(0xFF1E293B),
                       fontWeight: FontWeight.w600,

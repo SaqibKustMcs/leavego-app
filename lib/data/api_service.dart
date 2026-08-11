@@ -4,6 +4,7 @@ import 'package:leavego_app/models/dashboard_response.dart';
 import 'package:leavego_app/models/leave_type_response.dart';
 import 'package:leavego_app/models/login_response.dart';
 import 'package:leavego_app/models/leave_detail_response.dart';
+import 'package:leavego_app/models/leave_report_response.dart';
 import 'package:leavego_app/models/logout_response.dart';
 import 'package:leavego_app/models/my_leaves_response.dart';
 import 'package:leavego_app/models/me_response.dart';
@@ -302,6 +303,56 @@ class ApiService {
     final response = MyLeavesResponse.fromJson(payload);
     if (!response.success) {
       throw Exception('Failed to load leaves');
+    }
+    return response.data;
+  }
+
+  Future<LeaveReportPageData> leaveReport({
+    required String token,
+    String? employeeId,
+    String? departmentId,
+    String? leaveTypeId,
+    String? status,
+    String? from,
+    String? to,
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    final query = <String>['page=$page', 'per_page=$perPage'];
+    if (employeeId != null && employeeId.trim().isNotEmpty) {
+      query.add('employee_id=${Uri.encodeQueryComponent(employeeId.trim())}');
+    }
+    if (departmentId != null && departmentId.trim().isNotEmpty) {
+      query.add('department_id=${Uri.encodeQueryComponent(departmentId.trim())}');
+    }
+    if (leaveTypeId != null && leaveTypeId.trim().isNotEmpty) {
+      query.add('leave_type_id=${Uri.encodeQueryComponent(leaveTypeId.trim())}');
+    }
+    if (status != null && status.trim().isNotEmpty) {
+      query.add('status=${Uri.encodeQueryComponent(status.trim())}');
+    }
+    if (from != null && from.trim().isNotEmpty) {
+      query.add('from=${Uri.encodeQueryComponent(from.trim())}');
+    }
+    if (to != null && to.trim().isNotEmpty) {
+      query.add('to=${Uri.encodeQueryComponent(to.trim())}');
+    }
+
+    final result = await _dataService.get(
+      url: '$baseUrl/leaves/report?${query.join('&')}',
+      headers: <String, String>{'Authorization': 'Bearer $token'},
+    );
+
+    final statusCode = result['statusCode'] as int? ?? 500;
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+
+    if (statusCode < 200 || statusCode >= 300) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to load leave report');
+    }
+
+    final response = LeaveReportResponse.fromJson(payload);
+    if (!response.success) {
+      throw Exception('Failed to load leave report');
     }
     return response.data;
   }
@@ -707,7 +758,9 @@ class ApiService {
     required String assignedTo,
     required String departmentId,
     required String startDate,
+    required String startTime,
     required String dueDate,
+    required String dueTime,
     required int estimatedHours,
   }) async {
     final result = await _dataService.post(
@@ -720,7 +773,9 @@ class ApiService {
         'assigned_to': assignedTo,
         'department_id': departmentId,
         'start_date': startDate,
+        'start_time': startTime,
         'due_date': dueDate,
+        'due_time': dueTime,
         'estimated_hours': estimatedHours,
       },
       headers: <String, String>{'Authorization': 'Bearer $token'},
@@ -748,7 +803,9 @@ class ApiService {
     required String priority,
     required String assignedTo,
     required String startDate,
+    required String startTime,
     required String dueDate,
+    required String dueTime,
     required int estimatedHours,
   }) async {
     final result = await _dataService.post(
@@ -761,7 +818,9 @@ class ApiService {
         'assigned_to': assignedTo,
         'department_id': null,
         'start_date': startDate,
+        'start_time': startTime,
         'due_date': dueDate,
+        'due_time': dueTime,
         'estimated_hours': estimatedHours,
       },
       headers: <String, String>{'Authorization': 'Bearer $token'},

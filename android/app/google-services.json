@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:681929113120:android:e4984be5175df731438645",
+        "mobilesdk_app_id": "1:681929113120:android:e54d9f71c2c3ad7a438645",
         "android_client_info": {
-          "package_name": "com.app.devbay"
+          "package_name": "com.devbay.taskbulls"
         }
       },
       "oauth_client": [],

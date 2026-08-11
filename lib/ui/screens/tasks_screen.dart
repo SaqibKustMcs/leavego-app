@@ -19,7 +19,9 @@ class _TasksScreenState extends State<TasksScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _startDateController = TextEditingController();
+  final _startTimeController = TextEditingController();
   final _dueDateController = TextEditingController();
+  final _dueTimeController = TextEditingController();
   final _estimatedHoursController = TextEditingController();
 
   String? _selectedTaskType;
@@ -34,7 +36,9 @@ class _TasksScreenState extends State<TasksScreen> {
   final assignedToError = ''.obs;
   final departmentError = ''.obs;
   final startDateError = ''.obs;
+  final startTimeError = ''.obs;
   final dueDateError = ''.obs;
+  final dueTimeError = ''.obs;
   final estimatedHoursError = ''.obs;
 
   static const _taskTypes = <String>[
@@ -69,7 +73,9 @@ class _TasksScreenState extends State<TasksScreen> {
     _titleController.dispose();
     _descriptionController.dispose();
     _startDateController.dispose();
+    _startTimeController.dispose();
     _dueDateController.dispose();
+    _dueTimeController.dispose();
     _estimatedHoursController.dispose();
     super.dispose();
   }
@@ -90,8 +96,47 @@ class _TasksScreenState extends State<TasksScreen> {
     assignedToError.value = '';
     departmentError.value = '';
     startDateError.value = '';
+    startTimeError.value = '';
     dueDateError.value = '';
+    dueTimeError.value = '';
     estimatedHoursError.value = '';
+  }
+
+  DateTime? _combineDateTime(String dateRaw, String timeRaw) {
+    final date = _tryParseDate(dateRaw);
+    if (date == null) return null;
+    final timeParts = timeRaw.trim().split(':');
+    if (timeParts.length != 2) return date;
+    final hour = int.tryParse(timeParts[0]);
+    final minute = int.tryParse(timeParts[1]);
+    if (hour == null || minute == null) return date;
+    return DateTime(date.year, date.month, date.day, hour, minute);
+  }
+
+  Future<void> _pickTime({required TextEditingController controller}) async {
+    final parts = controller.text.trim().split(':');
+    var initial = TimeOfDay.now();
+    if (parts.length == 2) {
+      final hour = int.tryParse(parts[0]);
+      final minute = int.tryParse(parts[1]);
+      if (hour != null && minute != null) {
+        initial = TimeOfDay(hour: hour, minute: minute);
+      }
+    }
+
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initial,
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+    );
+    if (picked == null) return;
+    controller.text =
+        '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
   }
 
   DateTime? _tryParseDate(String raw) {
@@ -172,8 +217,16 @@ class _TasksScreenState extends State<TasksScreen> {
       startDateError.value = 'Please select start date';
       isValid = false;
     }
+    if (_startTimeController.text.trim().isEmpty) {
+      startTimeError.value = 'Please select start time';
+      isValid = false;
+    }
     if (_dueDateController.text.trim().isEmpty) {
       dueDateError.value = 'Please select end date';
+      isValid = false;
+    }
+    if (_dueTimeController.text.trim().isEmpty) {
+      dueTimeError.value = 'Please select due time';
       isValid = false;
     }
 
@@ -187,10 +240,16 @@ class _TasksScreenState extends State<TasksScreen> {
       isValid = false;
     }
 
-    final startDate = _tryParseDate(_startDateController.text.trim());
-    final dueDate = _tryParseDate(_dueDateController.text.trim());
-    if (startDate != null && dueDate != null && dueDate.isBefore(startDate)) {
-      dueDateError.value = 'Due date must be same as or after start date';
+    final startDateTime = _combineDateTime(
+      _startDateController.text.trim(),
+      _startTimeController.text.trim(),
+    );
+    final dueDateTime = _combineDateTime(
+      _dueDateController.text.trim(),
+      _dueTimeController.text.trim(),
+    );
+    if (startDateTime != null && dueDateTime != null && dueDateTime.isBefore(startDateTime)) {
+      dueDateError.value = 'Due date & time must be same as or after start date & time';
       isValid = false;
     }
 
@@ -204,7 +263,9 @@ class _TasksScreenState extends State<TasksScreen> {
       assignedTo: _selectedAssignedTo!,
       departmentId: _selectedDepartmentId!,
       startDate: _startDateController.text.trim(),
+      startTime: _startTimeController.text.trim(),
       dueDate: _dueDateController.text.trim(),
+      dueTime: _dueTimeController.text.trim(),
       estimatedHours: estimatedHours ?? 1,
     );
 
@@ -221,7 +282,9 @@ class _TasksScreenState extends State<TasksScreen> {
       _titleController.clear();
       _descriptionController.clear();
       _startDateController.clear();
+      _startTimeController.clear();
       _dueDateController.clear();
+      _dueTimeController.clear();
       _estimatedHoursController.clear();
       setState(() {
         _selectedTaskType = null;
@@ -334,7 +397,9 @@ class _TasksScreenState extends State<TasksScreen> {
                   titleController: _titleController,
                   descriptionController: _descriptionController,
                   startDateController: _startDateController,
+                  startTimeController: _startTimeController,
                   dueDateController: _dueDateController,
+                  dueTimeController: _dueTimeController,
                   estimatedHoursController: _estimatedHoursController,
                   selectedTaskType: _selectedTaskType,
                   selectedPriority: _selectedPriority,
@@ -351,7 +416,9 @@ class _TasksScreenState extends State<TasksScreen> {
                   assignedToError: assignedToError,
                   departmentError: departmentError,
                   startDateError: startDateError,
+                  startTimeError: startTimeError,
                   dueDateError: dueDateError,
+                  dueTimeError: dueTimeError,
                   estimatedHoursError: estimatedHoursError,
                   createTaskLoading: _appController.createTaskLoading,
                   onTaskTypeChanged: (value) {
@@ -386,6 +453,14 @@ class _TasksScreenState extends State<TasksScreen> {
                     final start = _tryParseDate(_startDateController.text);
                     await _pickDate(controller: _dueDateController, firstDate: start);
                   },
+                  onPickStartTime: () async {
+                    startTimeError.value = '';
+                    await _pickTime(controller: _startTimeController);
+                  },
+                  onPickDueTime: () async {
+                    dueTimeError.value = '';
+                    await _pickTime(controller: _dueTimeController);
+                  },
                   onSubmit: _submit,
                 ),
               ] else
@@ -410,7 +485,9 @@ class _TaskCreateCard extends StatelessWidget {
     required this.titleController,
     required this.descriptionController,
     required this.startDateController,
+    required this.startTimeController,
     required this.dueDateController,
+    required this.dueTimeController,
     required this.estimatedHoursController,
     required this.selectedTaskType,
     required this.selectedPriority,
@@ -427,7 +504,9 @@ class _TaskCreateCard extends StatelessWidget {
     required this.assignedToError,
     required this.departmentError,
     required this.startDateError,
+    required this.startTimeError,
     required this.dueDateError,
+    required this.dueTimeError,
     required this.estimatedHoursError,
     required this.createTaskLoading,
     required this.onTaskTypeChanged,
@@ -436,6 +515,8 @@ class _TaskCreateCard extends StatelessWidget {
     required this.onDepartmentChanged,
     required this.onPickStartDate,
     required this.onPickDueDate,
+    required this.onPickStartTime,
+    required this.onPickDueTime,
     required this.onSubmit,
   });
 
@@ -447,7 +528,9 @@ class _TaskCreateCard extends StatelessWidget {
   final TextEditingController titleController;
   final TextEditingController descriptionController;
   final TextEditingController startDateController;
+  final TextEditingController startTimeController;
   final TextEditingController dueDateController;
+  final TextEditingController dueTimeController;
   final TextEditingController estimatedHoursController;
   final String? selectedTaskType;
   final String? selectedPriority;
@@ -464,7 +547,9 @@ class _TaskCreateCard extends StatelessWidget {
   final RxString assignedToError;
   final RxString departmentError;
   final RxString startDateError;
+  final RxString startTimeError;
   final RxString dueDateError;
+  final RxString dueTimeError;
   final RxString estimatedHoursError;
   final bool createTaskLoading;
   final ValueChanged<String?> onTaskTypeChanged;
@@ -473,6 +558,8 @@ class _TaskCreateCard extends StatelessWidget {
   final ValueChanged<String?> onDepartmentChanged;
   final Future<void> Function() onPickStartDate;
   final Future<void> Function() onPickDueDate;
+  final Future<void> Function() onPickStartTime;
+  final Future<void> Function() onPickDueTime;
   final Future<void> Function() onSubmit;
 
   @override
@@ -637,6 +724,20 @@ class _TaskCreateCard extends StatelessWidget {
           const SizedBox(height: 12),
           Obx(
             () => TextField(
+              controller: startTimeController,
+              readOnly: true,
+              onTap: onPickStartTime,
+              decoration: InputDecoration(
+                labelText: 'Start Time',
+                hintText: 'HH:mm',
+                suffixIcon: const Icon(Icons.access_time_outlined),
+                errorText: startTimeError.value.isEmpty ? null : startTimeError.value,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Obx(
+            () => TextField(
               controller: dueDateController,
               readOnly: true,
               onTap: onPickDueDate,
@@ -645,6 +746,20 @@ class _TaskCreateCard extends StatelessWidget {
                 hintText: 'YYYY-MM-DD',
                 suffixIcon: const Icon(Icons.calendar_today_outlined),
                 errorText: dueDateError.value.isEmpty ? null : dueDateError.value,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Obx(
+            () => TextField(
+              controller: dueTimeController,
+              readOnly: true,
+              onTap: onPickDueTime,
+              decoration: InputDecoration(
+                labelText: 'Due Time',
+                hintText: 'HH:mm',
+                suffixIcon: const Icon(Icons.access_time_outlined),
+                errorText: dueTimeError.value.isEmpty ? null : dueTimeError.value,
               ),
             ),
           ),

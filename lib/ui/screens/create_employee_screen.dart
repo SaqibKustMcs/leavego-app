@@ -31,11 +31,11 @@ class _CreateEmployeeScreenState extends State<CreateEmployeeScreen> {
 
   static const _roles = <String>[
     'employee',
-    'developer',
-    'hod',
+    // 'developer',
+    // 'hod',
     'hr',
     'operations_manager',
-    'admin',
+    // 'admin',
     'ceo',
   ];
 
@@ -87,9 +87,8 @@ class _CreateEmployeeScreenState extends State<CreateEmployeeScreen> {
     return raw
         .split('_')
         .map(
-          (part) => part.isEmpty
-              ? part
-              : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
+          (part) =>
+              part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
         )
         .join(' ');
   }
@@ -99,9 +98,9 @@ class _CreateEmployeeScreenState extends State<CreateEmployeeScreen> {
 
     final departmentId = _selectedDepartmentId;
     if (departmentId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a department')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select a department')));
       return;
     }
 
@@ -112,9 +111,7 @@ class _CreateEmployeeScreenState extends State<CreateEmployeeScreen> {
         name: _nameController.text.trim(),
         role: _selectedRole,
         departmentId: departmentId,
-        phone: _phoneController.text.trim().isEmpty
-            ? null
-            : _phoneController.text.trim(),
+        phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
         isActive: _isActive,
       );
     } else {
@@ -124,17 +121,16 @@ class _CreateEmployeeScreenState extends State<CreateEmployeeScreen> {
         password: _passwordController.text,
         role: _selectedRole,
         departmentId: departmentId,
-        phone: _phoneController.text.trim().isEmpty
-            ? null
-            : _phoneController.text.trim(),
+        phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
         isActive: _isActive,
       );
     }
 
     if (!mounted) return;
     if (response != null) {
-      final fallback =
-          _isEditing ? 'Employee updated successfully' : 'Employee created successfully';
+      final fallback = _isEditing
+          ? 'Employee updated successfully'
+          : 'Employee created successfully';
       final message = (response['message'] ?? fallback).toString();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
       Navigator.of(context).pop(true);
@@ -156,13 +152,20 @@ class _CreateEmployeeScreenState extends State<CreateEmployeeScreen> {
     final submitting = _isEditing
         ? _appController.updateEmployeeLoading
         : _appController.createEmployeeLoading;
-    final selectedDepartmentId =
-        departments.any((d) => d.id == _selectedDepartmentId) ? _selectedDepartmentId : null;
+    final selectedDepartmentId = departments.any((d) => d.id == _selectedDepartmentId)
+        ? _selectedDepartmentId
+        : null;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FC),
       appBar: AppBar(
-        title: Text(_isEditing ? 'Edit User' : 'Create User'),
+        title: Text(
+          _isEditing ? 'Edit User' : 'Create User',
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         leading: const AppBackButton(),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.black,
@@ -260,12 +263,7 @@ class _CreateEmployeeScreenState extends State<CreateEmployeeScreen> {
                 value: _selectedRole,
                 decoration: const InputDecoration(labelText: 'Role'),
                 items: _roles
-                    .map(
-                      (role) => DropdownMenuItem(
-                        value: role,
-                        child: Text(_toLabel(role)),
-                      ),
-                    )
+                    .map((role) => DropdownMenuItem(value: role, child: Text(_toLabel(role))))
                     .toList(),
                 onChanged: (value) {
                   if (value == null) return;
@@ -274,19 +272,14 @@ class _CreateEmployeeScreenState extends State<CreateEmployeeScreen> {
               ),
               const SizedBox(height: 12),
               if (departmentsLoading)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: AppLoader(),
-                )
+                const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: AppLoader())
               else if (departmentsError != null)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       departmentsError,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.error,
-                      ),
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
                     ),
                     TextButton(
                       onPressed: _appController.loadDepartments,
@@ -300,10 +293,8 @@ class _CreateEmployeeScreenState extends State<CreateEmployeeScreen> {
                   decoration: const InputDecoration(labelText: 'Department'),
                   items: departments
                       .map(
-                        (department) => DropdownMenuItem(
-                          value: department.id,
-                          child: Text(department.name),
-                        ),
+                        (department) =>
+                            DropdownMenuItem(value: department.id, child: Text(department.name)),
                       )
                       .toList(),
                   onChanged: (value) {
@@ -317,15 +308,10 @@ class _CreateEmployeeScreenState extends State<CreateEmployeeScreen> {
               const SizedBox(height: 8),
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
-                title: const Text(
-                  'Active',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
+                title: const Text('Active', style: TextStyle(fontWeight: FontWeight.w700)),
                 subtitle: Text(
                   _isActive ? 'User can sign in' : 'User is inactive',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF6A778B),
-                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF6A778B)),
                 ),
                 value: _isActive,
                 activeThumbColor: AppTheme.navy,
@@ -334,9 +320,7 @@ class _CreateEmployeeScreenState extends State<CreateEmployeeScreen> {
               const SizedBox(height: 20),
               DecoratedBox(
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppTheme.navy, AppTheme.lightNavy],
-                  ),
+                  gradient: const LinearGradient(colors: [AppTheme.navy, AppTheme.lightNavy]),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: FilledButton(

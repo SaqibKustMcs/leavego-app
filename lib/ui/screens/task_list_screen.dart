@@ -5,6 +5,7 @@ import 'package:leavego_app/models/tasks_response.dart';
 import 'package:leavego_app/ui/screens/task_detail_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
+import 'package:leavego_app/utils/task_datetime_format.dart';
 
 class TaskListScreen extends StatefulWidget {
   const TaskListScreen({super.key});
@@ -378,8 +379,9 @@ class _TaskListCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 _TaskMetaRow(
                   icon: Icons.event_outlined,
-                  label: 'Dates',
-                  value: '${formatDate(task.startDate)} -> ${formatDate(task.dueDate)}',
+                  label: 'Schedule',
+                  value:
+                      '${TaskDateTimeFormat.formatDateTime(date: task.startDate, time: task.startTime)} -> ${TaskDateTimeFormat.formatDateTime(date: task.dueDate, time: task.dueTime)}',
                 ),
                 const SizedBox(height: 8),
                 _TaskMetaRow(

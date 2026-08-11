@@ -6,6 +6,7 @@ import 'package:leavego_app/ui/screens/edit_task_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
+import 'package:leavego_app/utils/task_datetime_format.dart';
 
 class TaskDetailScreen extends StatefulWidget {
   const TaskDetailScreen({super.key, required this.taskId});
@@ -539,9 +540,21 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   title: 'Timeline',
                   child: Column(
                     children: [
-                      _DetailRow(label: 'Start Date', value: _formatDateTime(task.startDate)),
+                      _DetailRow(
+                        label: 'Start Date & Time',
+                        value: TaskDateTimeFormat.formatDateTime(
+                          date: task.startDate,
+                          time: task.startTime,
+                        ),
+                      ),
                       const Divider(height: 18),
-                      _DetailRow(label: 'Due Date', value: _formatDateTime(task.dueDate)),
+                      _DetailRow(
+                        label: 'Due Date & Time',
+                        value: TaskDateTimeFormat.formatDateTime(
+                          date: task.dueDate,
+                          time: task.dueTime,
+                        ),
+                      ),
                       const Divider(height: 18),
                       _DetailRow(
                         label: 'Completion Date',

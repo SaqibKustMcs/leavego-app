@@ -11,6 +11,7 @@ import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_gradient_fab.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
 import 'package:leavego_app/utils/app_roles.dart';
+import 'package:leavego_app/utils/task_datetime_format.dart';
 
 class ProjectTasksScreen extends StatefulWidget {
   const ProjectTasksScreen({super.key, required this.project});
@@ -27,8 +28,14 @@ class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
 
   static const _filters = <Map<String, String>>[
     {'id': 'all', 'label': 'All'},
-    // {'id': 'my_tasks', 'label': 'My Tasks'},
+    {'id': 'my_tasks', 'label': 'My Tasks'},
     {'id': 'assigned', 'label': 'Assigned'},
+    {'id': 'in_progress', 'label': 'In Progress'},
+    // {'id': 'qa', 'label': 'QA'},
+    {'id': 'completed', 'label': 'Completed'},
+    {'id': 'overdue', 'label': 'Overdue'},
+    {'id': 'rejected', 'label': 'Rejected'},
+    {'id': 'cancelled', 'label': 'Cancelled'},
   ];
 
   @override
@@ -131,12 +138,12 @@ class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
 
   String _emptyMessageForFilter() {
     switch (_selectedFilter) {
+      case 'all':
+        return 'No tasks found for this project.';
       case 'my_tasks':
         return 'No tasks assigned to you in this project.';
-      case 'assigned':
-        return 'No assigned tasks found for this project.';
       default:
-        return 'No tasks found for this project.';
+        return 'No ${_toLabel(_selectedFilter).toLowerCase()} tasks found for this project.';
     }
   }
 
@@ -185,15 +192,14 @@ class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
                       onPressed: () async {
                         final navigator = Navigator.of(context);
                         final updated = await navigator.push<bool>(
-                          MaterialPageRoute(
-                            builder: (_) => CreateProjectScreen(project: project),
-                          ),
+                          MaterialPageRoute(builder: (_) => CreateProjectScreen(project: project)),
                         );
                         if (updated == true && mounted) {
                           await _appController.loadProjects(refresh: true);
                           if (!mounted) return;
-                          final matches = _appController.projects
-                              .where((item) => item.id == project.id);
+                          final matches = _appController.projects.where(
+                            (item) => item.id == project.id,
+                          );
                           if (matches.isNotEmpty) {
                             navigator.pushReplacement(
                               MaterialPageRoute(
@@ -409,8 +415,8 @@ class _TaskListCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 _TaskMetaRow(
                   icon: Icons.event_outlined,
-                  label: 'Due date',
-                  value: formatDate(task.dueDate),
+                  label: 'Due date & time',
+                  value: TaskDateTimeFormat.formatDateTime(date: task.dueDate, time: task.dueTime),
                 ),
               ],
             ),

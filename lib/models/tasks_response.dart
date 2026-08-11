@@ -124,7 +124,9 @@ class TaskItem {
     required this.assignedTo,
     required this.parentTaskId,
     required this.startDate,
+    required this.startTime,
     required this.dueDate,
+    required this.dueTime,
     required this.estimatedHours,
     required this.completionDate,
     required this.isSupportingTask,
@@ -148,7 +150,9 @@ class TaskItem {
   final String? assignedTo;
   final int? parentTaskId;
   final String? startDate;
+  final String? startTime;
   final String? dueDate;
+  final String? dueTime;
   final int estimatedHours;
   final String? completionDate;
   final bool isSupportingTask;
@@ -173,7 +177,9 @@ class TaskItem {
       assignedTo: json['assigned_to']?.toString(),
       parentTaskId: _toNullableInt(json['parent_task_id']),
       startDate: json['start_date']?.toString(),
+      startTime: json['start_time']?.toString(),
       dueDate: json['due_date']?.toString(),
+      dueTime: json['due_time']?.toString(),
       estimatedHours: _toInt(json['estimated_hours']),
       completionDate: json['completion_date']?.toString(),
       isSupportingTask: json['is_supporting_task'] == true,

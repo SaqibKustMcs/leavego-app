@@ -54,10 +54,7 @@ class _CreateNewsScreenState extends State<CreateNewsScreen> {
     }
     if (!ok) return;
 
-    final response = await _appController.createNews(
-      title: title,
-      content: content,
-    );
+    final response = await _appController.createNews(title: title, content: content);
 
     if (!mounted) return;
 
@@ -84,7 +81,13 @@ class _CreateNewsScreenState extends State<CreateNewsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FC),
       appBar: AppBar(
-        title: const Text('Create News'),
+        title: Text(
+          'Create News',
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         leading: const AppBackButton(),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.black,
@@ -147,8 +150,7 @@ class _CreateNewsScreenState extends State<CreateNewsScreen> {
                       decoration: InputDecoration(
                         labelText: 'Content',
                         hintText: 'Write your announcement...',
-                        errorText:
-                            contentError.value.isEmpty ? null : contentError.value,
+                        errorText: contentError.value.isEmpty ? null : contentError.value,
                       ),
                     ),
                   ),

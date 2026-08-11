@@ -58,7 +58,7 @@ class LeaveProApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'TeamFlow',
+      title: 'TaskBulls',
       theme: AppTheme.light(),
       navigatorKey: NotificationNavigationService.navigatorKey,
       home: const SplashScreen(),

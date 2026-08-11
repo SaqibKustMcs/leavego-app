@@ -5,6 +5,7 @@ import 'package:leavego_app/models/dashboard_response.dart';
 import 'package:leavego_app/models/leave_type_response.dart';
 import 'package:leavego_app/models/login_response.dart';
 import 'package:leavego_app/models/leave_detail_response.dart';
+import 'package:leavego_app/models/leave_report_response.dart';
 import 'package:leavego_app/models/logout_response.dart';
 import 'package:leavego_app/models/my_leaves_response.dart';
 import 'package:leavego_app/models/me_response.dart';
@@ -44,6 +45,20 @@ class AppController extends ChangeNotifier {
   bool myLeavesLoading = false;
   String? myLeavesError;
   List<MyLeaveItem> myLeaves = <MyLeaveItem>[];
+  bool leaveReportLoading = false;
+  bool leaveReportLoadingMore = false;
+  String? leaveReportError;
+  List<LeaveReportItem> leaveReportItems = <LeaveReportItem>[];
+  int leaveReportCurrentPage = 1;
+  int leaveReportLastPage = 1;
+  int leaveReportTotal = 0;
+  bool leaveReportHasMore = false;
+  String? _leaveReportEmployeeId;
+  String? _leaveReportDepartmentId;
+  String? _leaveReportLeaveTypeId;
+  String? _leaveReportStatus;
+  String? _leaveReportFrom;
+  String? _leaveReportTo;
   bool approvalActionLoading = false;
   String? approvalActionError;
   bool logoutLoading = false;
@@ -767,6 +782,103 @@ class AppController extends ChangeNotifier {
     }
   }
 
+  Future<void> loadLeaveReport({
+    bool refresh = true,
+    String? employeeId,
+    String? departmentId,
+    String? leaveTypeId,
+    String? status,
+    String? from,
+    String? to,
+  }) async {
+    if (!AppRoles.canViewLeaveReport(meData?.role)) {
+      leaveReportError = 'You do not have permission to view leave reports.';
+      notifyListeners();
+      return;
+    }
+    if (leaveReportLoading) return;
+
+    leaveReportLoading = true;
+    leaveReportError = null;
+    if (refresh) {
+      leaveReportItems = <LeaveReportItem>[];
+      leaveReportCurrentPage = 1;
+      leaveReportLastPage = 1;
+      leaveReportTotal = 0;
+      leaveReportHasMore = false;
+    }
+
+    _leaveReportEmployeeId = employeeId;
+    _leaveReportDepartmentId = departmentId;
+    _leaveReportLeaveTypeId = leaveTypeId;
+    _leaveReportStatus = status;
+    _leaveReportFrom = from;
+    _leaveReportTo = to;
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+      final page = await _apiService.leaveReport(
+        token: token,
+        employeeId: employeeId,
+        departmentId: departmentId,
+        leaveTypeId: leaveTypeId,
+        status: status,
+        from: from,
+        to: to,
+        page: 1,
+      );
+      leaveReportItems = page.items;
+      leaveReportCurrentPage = page.currentPage;
+      leaveReportLastPage = page.lastPage;
+      leaveReportTotal = page.total;
+      leaveReportHasMore = page.hasMore;
+    } catch (e) {
+      leaveReportError = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      leaveReportLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadMoreLeaveReport() async {
+    if (leaveReportLoadingMore || leaveReportLoading || !leaveReportHasMore) return;
+    leaveReportLoadingMore = true;
+    leaveReportError = null;
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+      final nextPage = leaveReportCurrentPage + 1;
+      final page = await _apiService.leaveReport(
+        token: token,
+        employeeId: _leaveReportEmployeeId,
+        departmentId: _leaveReportDepartmentId,
+        leaveTypeId: _leaveReportLeaveTypeId,
+        status: _leaveReportStatus,
+        from: _leaveReportFrom,
+        to: _leaveReportTo,
+        page: nextPage,
+      );
+      leaveReportItems = <LeaveReportItem>[...leaveReportItems, ...page.items];
+      leaveReportCurrentPage = page.currentPage;
+      leaveReportLastPage = page.lastPage;
+      leaveReportTotal = page.total;
+      leaveReportHasMore = page.hasMore;
+    } catch (e) {
+      leaveReportError = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      leaveReportLoadingMore = false;
+      notifyListeners();
+    }
+  }
+
   Future<LeaveDetailData?> loadLeaveDetail({required String leaveId}) async {
     try {
       final token = await _token();
@@ -1052,7 +1164,9 @@ class AppController extends ChangeNotifier {
     required String assignedTo,
     required String departmentId,
     required String startDate,
+    required String startTime,
     required String dueDate,
+    required String dueTime,
     required int estimatedHours,
   }) async {
     createTaskLoading = true;
@@ -1073,7 +1187,9 @@ class AppController extends ChangeNotifier {
         assignedTo: assignedTo,
         departmentId: departmentId,
         startDate: startDate,
+        startTime: startTime,
         dueDate: dueDate,
+        dueTime: dueTime,
         estimatedHours: estimatedHours,
       );
       await loadTasks(refresh: true);
@@ -1094,7 +1210,9 @@ class AppController extends ChangeNotifier {
     required String priority,
     required String assignedTo,
     required String startDate,
+    required String startTime,
     required String dueDate,
+    required String dueTime,
     required int estimatedHours,
   }) async {
     createTaskLoading = true;
@@ -1114,7 +1232,9 @@ class AppController extends ChangeNotifier {
         priority: priority,
         assignedTo: assignedTo,
         startDate: startDate,
+        startTime: startTime,
         dueDate: dueDate,
+        dueTime: dueTime,
         estimatedHours: estimatedHours,
       );
       await loadProjectTasks(projectId: projectId, refresh: true);
@@ -1669,13 +1789,14 @@ class AppController extends ChangeNotifier {
         projectTasksMyTasksOnly = true;
         projectTasksStatusFilter = null;
         break;
-      case 'assigned':
-        projectTasksMyTasksOnly = false;
-        projectTasksStatusFilter = 'assigned';
-        break;
-      default:
+      case 'all':
         projectTasksMyTasksOnly = false;
         projectTasksStatusFilter = null;
+        break;
+      default:
+        // Any other value is passed through as a `status` query param.
+        projectTasksMyTasksOnly = false;
+        projectTasksStatusFilter = filter;
         break;
     }
     await loadProjectTasks(projectId: projectId, refresh: true);

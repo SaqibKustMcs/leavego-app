@@ -6,6 +6,7 @@ import 'package:leavego_app/ui/screens/task_detail_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
+import 'package:leavego_app/utils/task_datetime_format.dart';
 
 class MyTodayTasksScreen extends StatefulWidget {
   const MyTodayTasksScreen({super.key});
@@ -176,7 +177,7 @@ class _MyTodayTasksScreenState extends State<MyTodayTasksScreen> {
                 'Assigned pending, due, and overdue project tasks.',
                 style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF6A778B)),
               ),
-              const SizedBox(height: 12),
+              // const SizedBox(height: 12),
               // SingleChildScrollView(
               //   scrollDirection: Axis.horizontal,
               //   child: Row(
@@ -409,8 +410,8 @@ class _TaskListCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 _TaskMetaRow(
                   icon: Icons.event_outlined,
-                  label: 'Due date',
-                  value: formatDate(task.dueDate),
+                  label: 'Due date & time',
+                  value: TaskDateTimeFormat.formatDateTime(date: task.dueDate, time: task.dueTime),
                 ),
               ],
             ),

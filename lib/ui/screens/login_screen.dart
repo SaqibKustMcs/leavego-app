@@ -154,7 +154,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Sign in to continue managing leaves with a modern HR workflow.',
+                              'Sign in to access leaves, tasks, and team updates based on your role.',
                               style: theme.textTheme.bodyLarge?.copyWith(
                                 color: Colors.white.withValues(alpha: 0.87),
                                 height: 1.35,

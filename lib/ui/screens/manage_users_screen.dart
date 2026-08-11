@@ -48,9 +48,8 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
     return raw
         .split('_')
         .map(
-          (part) => part.isEmpty
-              ? part
-              : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
+          (part) =>
+              part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
         )
         .join(' ');
   }
@@ -65,9 +64,9 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
   }
 
   Future<void> _openEdit(AppUserItem user) async {
-    final updated = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => CreateEmployeeScreen(employee: user)),
-    );
+    final updated = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => CreateEmployeeScreen(employee: user)));
     if (updated == true) {
       await _appController.loadEmployees(refresh: true);
     }
@@ -119,7 +118,13 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FC),
       appBar: AppBar(
-        title: const Text('Manage Users'),
+        title: Text(
+          'Manage Users',
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         leading: const AppBackButton(),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.black,
@@ -128,9 +133,9 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
           IconButton(
             tooltip: 'Create user',
             onPressed: () async {
-              final created = await Navigator.of(context).push<bool>(
-                MaterialPageRoute(builder: (_) => const CreateEmployeeScreen()),
-              );
+              final created = await Navigator.of(
+                context,
+              ).push<bool>(MaterialPageRoute(builder: (_) => const CreateEmployeeScreen()));
               if (created == true) {
                 await _appController.loadEmployees(refresh: true);
               }
@@ -175,10 +180,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
               ),
               const SizedBox(height: 14),
               if (loading && users.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 28),
-                  child: AppLoader(),
-                )
+                const Padding(padding: EdgeInsets.symmetric(vertical: 28), child: AppLoader())
               else if (error != null && users.isEmpty)
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -191,9 +193,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                     children: [
                       Text(
                         error,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.error,
-                        ),
+                        style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
                       ),
                       TextButton(
                         onPressed: () => _appController.loadEmployees(refresh: true),
@@ -213,10 +213,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                 )
               else ...[
                 if (loading)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 10),
-                    child: AppLoader(size: 22),
-                  ),
+                  const Padding(padding: EdgeInsets.only(bottom: 10), child: AppLoader(size: 22)),
                 ...users.map(
                   (user) => _UserCard(
                     user: user,
@@ -242,9 +239,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                     padding: const EdgeInsets.only(top: 10),
                     child: Text(
                       _appController.employeesError!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.error,
-                      ),
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
                     ),
                   ),
               ],
@@ -308,9 +303,7 @@ class _UserCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   user.email.isEmpty ? '-' : user.email,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF6A778B),
-                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF6A778B)),
                 ),
                 const SizedBox(height: 8),
                 Wrap(
@@ -321,12 +314,8 @@ class _UserCard extends StatelessWidget {
                     _Pill(label: departmentLabel),
                     _Pill(
                       label: user.isActive ? 'Active' : 'Inactive',
-                      background: user.isActive
-                          ? const Color(0xFFDFF5E2)
-                          : const Color(0xFFFDECEC),
-                      foreground: user.isActive
-                          ? const Color(0xFF1B5E20)
-                          : const Color(0xFF9B2C2C),
+                      background: user.isActive ? const Color(0xFFDFF5E2) : const Color(0xFFFDECEC),
+                      foreground: user.isActive ? const Color(0xFF1B5E20) : const Color(0xFF9B2C2C),
                     ),
                   ],
                 ),
@@ -364,17 +353,10 @@ class _Pill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
+      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(999)),
       child: Text(
         label,
-        style: TextStyle(
-          color: foreground,
-          fontWeight: FontWeight.w700,
-          fontSize: 11,
-        ),
+        style: TextStyle(color: foreground, fontWeight: FontWeight.w700, fontSize: 11),
       ),
     );
   }
