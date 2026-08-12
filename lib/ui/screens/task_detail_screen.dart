@@ -22,15 +22,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   late Future<TaskDetailData?> _future;
   String? _selectedStatus;
 
-  static const _statusOptions = <String>[
-    'assigned',
-    // 'accepted',
+  /// The task creator may also call the task off.
+  static const _creatorStatusOptions = <String>[
     'in_progress',
-    // 'blocked',
     'completed',
-    'rejected',
     'cancelled',
-    // 'overdue',
+  ];
+
+  static const _assigneeStatusOptions = <String>[
+    'in_progress',
+    'completed',
   ];
 
   @override
@@ -336,10 +337,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             final task = detail.task;
             _selectedStatus ??= task.status;
             final currentUserId = _appController.meData?.id.toString();
-            final canCreateSupportingTask =
-                currentUserId != null &&
-                currentUserId.isNotEmpty &&
-                (task.assignedTo ?? '').toString() == currentUserId;
+            final hasUser = currentUserId != null && currentUserId.isNotEmpty;
+            final isCreator = hasUser && (task.assignedBy ?? '') == currentUserId;
+            final isAssignee = hasUser && (task.assignedTo ?? '') == currentUserId;
+            final canCreateSupportingTask = isAssignee;
+
+            // Only the creator or the assignee may move a task along.
+            final statusOptions = isCreator
+                ? _creatorStatusOptions
+                : (isAssignee ? _assigneeStatusOptions : const <String>[]);
 
             return ListView(
               addAutomaticKeepAlives: true,
@@ -472,50 +478,56 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 //   ),
                 // ),
                 // const SizedBox(height: 12),
-                _DetailSection(
-                  title: 'Update Status',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      DropdownButtonFormField<String>(
-                        value: _statusOptions.contains(_selectedStatus) ? _selectedStatus : null,
-                        items: _statusOptions
-                            .map(
-                              (status) => DropdownMenuItem<String>(
-                                value: status,
-                                child: Text(_toLabel(status)),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          setState(() => _selectedStatus = value);
-                        },
-                        decoration: const InputDecoration(labelText: 'Task Status'),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [AppTheme.navy, AppTheme.lightNavy],
-                          ),
-                          borderRadius: BorderRadius.circular(14),
+                if (statusOptions.isNotEmpty) ...[
+                  _DetailSection(
+                    title: 'Update Status',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        DropdownButtonFormField<String>(
+                          value: statusOptions.contains(_selectedStatus) ? _selectedStatus : null,
+                          items: statusOptions
+                              .map(
+                                (status) => DropdownMenuItem<String>(
+                                  value: status,
+                                  child: Text(_toLabel(status)),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            setState(() => _selectedStatus = value);
+                          },
+                          decoration: const InputDecoration(labelText: 'Task Status'),
                         ),
-                        child: FilledButton(
-                          onPressed: _appController.updateTaskStatusLoading ? null : _updateStatus,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            minimumSize: const Size(double.infinity, 48),
+                        const SizedBox(height: 12),
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [AppTheme.navy, AppTheme.lightNavy],
+                            ),
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                          child: _appController.updateTaskStatusLoading
-                              ? const AppButtonLoader(size: 22)
-                              : const Text('Update Status'),
+                          child: FilledButton(
+                            onPressed:
+                                _appController.updateTaskStatusLoading ||
+                                    !statusOptions.contains(_selectedStatus)
+                                ? null
+                                : _updateStatus,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              minimumSize: const Size(double.infinity, 48),
+                            ),
+                            child: _appController.updateTaskStatusLoading
+                                ? const AppButtonLoader(size: 22)
+                                : const Text('Update Status'),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
+                  const SizedBox(height: 12),
+                ],
                 _DetailSection(
                   title: 'Task Info',
                   child: Column(

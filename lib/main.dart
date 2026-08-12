@@ -70,7 +70,14 @@ class LeaveProApp extends StatelessWidget {
           onPointerDown: (_) {
             FocusManager.instance.primaryFocus?.unfocus();
           },
-          child: ConnectivityBanner(child: child),
+          // Screen-size driven scaling only, so the device font size setting
+          // can never break a layout.
+          child: MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: TextScaler.linear(AppTheme.textScale(context)),
+            ),
+            child: ConnectivityBanner(child: child),
+          ),
         );
       },
     );

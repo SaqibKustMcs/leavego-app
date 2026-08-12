@@ -10,6 +10,13 @@ class AppTheme {
   static const Color cardBackground = Colors.white;
   static const String fontFamily = 'Inter';
 
+  /// Text scale for the whole app: nudged up on wider screens, never driven by
+  /// the OS font size setting. 390 is the logical width the UI was designed at.
+  static double textScale(BuildContext context) {
+    final shortestSide = MediaQuery.sizeOf(context).shortestSide;
+    return (shortestSide / 390).clamp(1.0, 1.1);
+  }
+
   static ThemeData light() {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: navy,
