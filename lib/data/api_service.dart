@@ -172,11 +172,7 @@ class ApiService {
   }) async {
     final result = await _dataService.postMultipart(
       url: '$baseUrl/news',
-      fields: <String, String>{
-        'title': title,
-        'content': content,
-        'target_audience': 'all',
-      },
+      fields: <String, String>{'title': title, 'content': content, 'target_audience': 'all'},
       filePath: null,
       fileFieldName: 'image',
       headers: <String, String>{
@@ -234,11 +230,7 @@ class ApiService {
   }) async {
     final result = await _dataService.put(
       url: '$baseUrl/news/$newsId',
-      body: <String, dynamic>{
-        'title': title,
-        'content': content,
-        'status': status,
-      },
+      body: <String, dynamic>{'title': title, 'content': content, 'status': status},
       headers: <String, String>{
         'Authorization': 'Bearer $token',
         'Accept': 'application/json',
@@ -260,10 +252,7 @@ class ApiService {
     return response;
   }
 
-  Future<NewsActionResponse> deleteNews({
-    required String token,
-    required String newsId,
-  }) async {
+  Future<NewsActionResponse> deleteNews({required String token, required String newsId}) async {
     final result = await _dataService.delete(
       url: '$baseUrl/news/$newsId',
       headers: <String, String>{
@@ -548,11 +537,7 @@ class ApiService {
     try {
       final result = await _dataService.post(
         url: '$baseUrl/device-tokens/fcm',
-        body: <String, dynamic>{
-          'token': fcmToken,
-          'platform': platform,
-          'device_name': deviceName,
-        },
+        body: <String, dynamic>{'token': fcmToken, 'platform': platform, 'device_name': deviceName},
         headers: <String, String>{'Authorization': 'Bearer $token'},
       );
       final statusCode = result['statusCode'] as int? ?? 500;
@@ -563,10 +548,7 @@ class ApiService {
   }
 
   /// Removes an FCM device token from the backend on logout. Best-effort.
-  Future<bool> unregisterFcmDeviceToken({
-    required String token,
-    required String fcmToken,
-  }) async {
+  Future<bool> unregisterFcmDeviceToken({required String token, required String fcmToken}) async {
     try {
       final result = await _dataService.delete(
         url: '$baseUrl/device-tokens/fcm',
@@ -835,7 +817,9 @@ class ApiService {
 
     final response = CreateTaskResponse.fromJson(payload);
     if (!response.success) {
-      throw Exception(response.message.isNotEmpty ? response.message : 'Failed to create project task');
+      throw Exception(
+        response.message.isNotEmpty ? response.message : 'Failed to create project task',
+      );
     }
     return response;
   }
@@ -1314,6 +1298,31 @@ class ApiService {
       throw Exception(response.message.isNotEmpty ? response.message : 'Failed to logout');
     }
     return response;
+  }
+
+  Future<bool> changePassword({
+    required String token,
+    required String currentPassword,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    try {
+      final result = await _dataService.put(
+        url: '$baseUrl/auth/change-password',
+        body: <String, dynamic>{
+          'current_password': currentPassword,
+          'new_password': newPassword,
+          'confirm_password': confirmPassword,
+        },
+        headers: <String, String>{'Authorization': 'Bearer $token'},
+      );
+
+      final statusCode = result['statusCode'] as int? ?? 500;
+
+      return statusCode >= 200 && statusCode < 300;
+    } catch (_) {
+      return false;
+    }
   }
 
   String? _extractMessage(Map<String, dynamic> payload) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
+import 'package:leavego_app/ui/screens/change_password_screen.dart';
 import 'package:leavego_app/ui/screens/create_employee_screen.dart';
 import 'package:leavego_app/ui/screens/create_news_screen.dart';
 import 'package:leavego_app/ui/screens/manage_users_screen.dart';
@@ -255,6 +256,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             },
                           ),
                         ],
+                      ],
+                    ),
+                  ),
+                  _SectionCard(
+                    title: 'Security',
+                    child: Column(
+                      children: [
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8EEFC),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.article_outlined, color: AppTheme.navy),
+                          ),
+                          title: const Text(
+                            'Change Password',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          // subtitle: const Text('View latest announcements'),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: () {
+                            Navigator.of(
+                              context,
+                            ).push(MaterialPageRoute(builder: (_) => const ChangePasswordScreen()));
+                          },
+                        ),
                       ],
                     ),
                   ),

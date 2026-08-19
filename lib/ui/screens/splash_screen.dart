@@ -58,15 +58,19 @@ class _SplashScreenState extends State<SplashScreen> {
               padding: const EdgeInsets.all(10),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.asset('assets/images/Teamflow.png', fit: BoxFit.cover),
+                child: Image.asset('assets/images/taskbulls_icon_01x.png', fit: BoxFit.cover),
               ),
             ),
 
-            // const SizedBox(height: 8),
-            // Text(
-            //   'Employee Leave Management',
-            //   style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70),
-            // ),
+            const SizedBox(height: 8),
+            Text(
+              'TaskBulls',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: Color(0xff489FF7),
+                fontWeight: FontWeight.w700,
+                fontSize: 28,
+              ),
+            ),
           ],
         ),
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:get/get.dart';
 import 'package:leavego_app/data/api_service.dart';
 import 'package:leavego_app/models/apply_leave_response.dart';
 import 'package:leavego_app/models/dashboard_response.dart';
@@ -243,6 +244,43 @@ class AppController extends ChangeNotifier {
   String? lastFcmToken;
 
   /// Sends the FCM device token to the backend (best-effort, never throws).
+  bool changePasswordLoading = false;
+  String? changePasswordError;
+
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    changePasswordLoading = true;
+    changePasswordError = null;
+    notifyListeners();
+
+    try {
+      final token = await _token();
+
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+
+      final response = await _apiService.changePassword(
+        token: token,
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+        confirmPassword: confirmPassword,
+      );
+
+      return response;
+    } catch (e) {
+      changePasswordError = e.toString().replaceFirst('Exception: ', '');
+
+      return false;
+    } finally {
+      changePasswordLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> registerFcmToken(
     String fcmToken, {
     required String platform,
@@ -271,10 +309,7 @@ class AppController extends ChangeNotifier {
     try {
       final token = await _token();
       if (token == null || token.isEmpty) return;
-      await _apiService.unregisterFcmDeviceToken(
-        token: token,
-        fcmToken: tokenToRemove,
-      );
+      await _apiService.unregisterFcmDeviceToken(token: token, fcmToken: tokenToRemove);
     } catch (_) {
       // Ignore: push unregistration should not block logout.
     } finally {
@@ -451,10 +486,7 @@ class AppController extends ChangeNotifier {
       if (token == null || token.isEmpty) {
         throw Exception('Token not found. Please login again.');
       }
-      final response = await _apiService.deleteEmployee(
-        token: token,
-        employeeId: employeeId,
-      );
+      final response = await _apiService.deleteEmployee(token: token, employeeId: employeeId);
       await loadUsers();
       await loadEmployees(refresh: true);
       return response;
@@ -1546,10 +1578,7 @@ class AppController extends ChangeNotifier {
     await loadMyTodayTasks(refresh: true);
   }
 
-  Future<void> loadMyTodayTasks({
-    bool refresh = false,
-    bool applyPriorityFilter = true,
-  }) async {
+  Future<void> loadMyTodayTasks({bool refresh = false, bool applyPriorityFilter = true}) async {
     if (refresh) {
       myTodayTasksCurrentPage = 1;
       myTodayTasksLastPage = 1;
@@ -1768,10 +1797,7 @@ class AppController extends ChangeNotifier {
       if (token == null || token.isEmpty) {
         throw Exception('Token not found. Please login again.');
       }
-      projectMembers = await _apiService.projectMembers(
-        token: token,
-        projectId: projectId,
-      );
+      projectMembers = await _apiService.projectMembers(token: token, projectId: projectId);
     } catch (e) {
       projectMembersError = e.toString().replaceFirst('Exception: ', '');
     } finally {
@@ -1780,10 +1806,7 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  Future<void> setProjectTasksFilter({
-    required int projectId,
-    required String filter,
-  }) async {
+  Future<void> setProjectTasksFilter({required int projectId, required String filter}) async {
     switch (filter) {
       case 'my_tasks':
         projectTasksMyTasksOnly = true;

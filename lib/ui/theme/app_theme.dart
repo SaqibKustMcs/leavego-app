@@ -4,8 +4,10 @@ import 'package:flutter/services.dart';
 class AppTheme {
   // static const Color navy = Color(0xFF093747);
   // static const Color lightNavy = Color(0xFF1B5569);
-  static const Color navy = Color(0xFF2EB0A2);
-  static const Color lightNavy = Color(0xFF1B5569);
+  // static const Color navy = Color(0xFF2EB0A2);
+  // static const Color lightNavy = Color(0xFF1B5569);
+  static const Color navy = Color(0xFF489FF7);
+  static const Color lightNavy = Color(0xFF4166FA);
   static const Color appBackground = Color(0xFFF4F6FA);
   static const Color cardBackground = Colors.white;
   static const String fontFamily = 'Inter';
@@ -83,10 +85,7 @@ class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: navy,
           foregroundColor: Colors.white,
-          textStyle: const TextStyle(
-            fontFamily: fontFamily,
-            fontWeight: FontWeight.w600,
-          ),
+          textStyle: const TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w600),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         ),
