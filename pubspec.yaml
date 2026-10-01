@@ -16,7 +16,8 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+100005
+version: 1.0.1+100010
+
 
 environment:
   sdk: ^3.10.0
@@ -39,12 +40,12 @@ dependencies:
   get: ^4.7.3
   file_picker: ^10.3.10
   url_launcher: ^6.3.2
-  tabler_icons: ^2.5.0+1
   firebase_core: ^4.11.0
   flutter_spinkit: ^5.2.2
   firebase_messaging: ^16.4.1
   flutter_local_notifications: ^22.0.1
   connectivity_plus: ^7.3.1
+  flutter_secure_storage: ^10.3.1
 
 dev_dependencies:
   flutter_test:
@@ -57,7 +58,6 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
-  flutter_native_splash: ^2.4.6
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -69,17 +69,6 @@ flutter_launcher_icons:
   image_path: "assets/images/taskbulls_icon_01x.png"
   min_sdk_android: 21
 
-#flutter_native_splash:
-#  color: "#0D2149"
-#  image: assets/images/taskbulls_icon_01x.png
-#  android: true
-#  ios: true
-#  android_12:
-#    color: "#0D2149"
-#    image: assets/images/taskbulls_icon_01x.png
-#  fullscreen: true
-
-
 flutter:
 
   # The following line ensures that the Material Icons font is
@@ -88,8 +77,6 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/devbaytechnologies_logo.jpeg
-    - assets/images/Devbay logo png.png
     - assets/images/
     - assets/certs/
 

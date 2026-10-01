@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:leavego_app/controllers/app_controller.dart';
+import 'package:leavego_app/services/session_storage.dart';
 import 'package:leavego_app/ui/screens/login_screen.dart';
 import 'package:leavego_app/ui/screens/main_screen.dart';
 import 'package:leavego_app/ui/screens/onboarding_screen.dart';
@@ -23,8 +23,11 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _navigateNext() async {
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
+
+    // Wipes Keychain leftovers after an iOS uninstall/reinstall.
+    await SessionStorage.init();
+    final token = await SessionStorage.readToken();
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString(AppController.tokenStorageKey);
     final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
 
     if (!mounted) return;

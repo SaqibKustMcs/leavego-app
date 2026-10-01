@@ -10,7 +10,6 @@ import 'package:leavego_app/ui/screens/projects_screen.dart';
 import 'package:leavego_app/ui/screens/notification_screen.dart';
 import 'package:leavego_app/ui/screens/profile_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
-import 'package:tabler_icons/tabler_icons.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -167,23 +166,23 @@ class _MainScreenState extends State<MainScreen> {
           type: BottomNavigationBarType.fixed,
           items: [
             const BottomNavigationBarItem(
-              icon: Icon(TablerIcons.apps),
-              activeIcon: Icon(TablerIcons.apps_filled),
+              icon: Icon(Icons.grid_view_outlined),
+              activeIcon: Icon(Icons.grid_view_rounded),
               label: 'Home',
             ),
             const BottomNavigationBarItem(
-              icon: Icon(TablerIcons.folder),
-              activeIcon: Icon(TablerIcons.folder_filled),
+              icon: Icon(Icons.folder_outlined),
+              activeIcon: Icon(Icons.folder),
               label: 'Projects',
             ),
             BottomNavigationBarItem(
-              icon: _badgeIcon(icon: TablerIcons.bell, count: unread, active: false),
-              activeIcon: _badgeIcon(icon: TablerIcons.bell_filled, count: unread, active: true),
+              icon: _badgeIcon(icon: Icons.notifications_outlined, count: unread, active: false),
+              activeIcon: _badgeIcon(icon: Icons.notifications, count: unread, active: true),
               label: 'Notifications',
             ),
             const BottomNavigationBarItem(
-              icon: Icon(TablerIcons.badge),
-              activeIcon: Icon(TablerIcons.badge_filled),
+              icon: Icon(Icons.badge_outlined),
+              activeIcon: Icon(Icons.badge),
               label: 'Profile',
             ),
           ],

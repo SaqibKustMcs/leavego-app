@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:get/get.dart';
 import 'package:leavego_app/data/api_service.dart';
 import 'package:leavego_app/models/apply_leave_response.dart';
 import 'package:leavego_app/models/dashboard_response.dart';
@@ -22,12 +21,12 @@ import 'package:leavego_app/models/news_action_response.dart';
 import 'package:leavego_app/models/news_response.dart';
 import 'package:leavego_app/models/projects_response.dart';
 import 'package:leavego_app/utils/app_roles.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:leavego_app/services/session_storage.dart';
 
 class AppController extends ChangeNotifier {
   AppController(this._apiService);
 
-  static const String tokenStorageKey = 'auth_token';
+  static const String tokenStorageKey = SessionStorage.tokenKey;
   final ApiService _apiService;
 
   bool isLoading = false;
@@ -327,8 +326,7 @@ class AppController extends ChangeNotifier {
     try {
       final response = await _apiService.login(email: email, password: password);
       final token = response.data.token;
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(tokenStorageKey, token);
+      await SessionStorage.writeToken(token);
       meData = MeData(
         id: response.data.user.id,
         name: response.data.user.name,
@@ -348,10 +346,7 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  Future<String?> _token() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(tokenStorageKey);
-  }
+  Future<String?> _token() => SessionStorage.readToken();
 
   Future<NewsActionResponse?> createNews({required String title, required String content}) async {
     if (!AppRoles.canCreateNews(meData?.role)) {
@@ -675,8 +670,7 @@ class AppController extends ChangeNotifier {
         await _apiService.logout(token: token);
       }
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(tokenStorageKey);
+      await SessionStorage.clearToken();
       dashboardData = null;
       meData = null;
       leaveTypes = <LeaveTypeItem>[];

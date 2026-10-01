@@ -13,6 +13,7 @@ import 'package:leavego_app/services/app_http_overrides.dart';
 import 'package:leavego_app/services/connectivity_service.dart';
 import 'package:leavego_app/services/notification_navigation_service.dart';
 import 'package:leavego_app/services/push_notification_service.dart';
+import 'package:leavego_app/services/session_storage.dart';
 import 'package:leavego_app/ui/screens/splash_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/connectivity_banner.dart';
@@ -37,6 +38,9 @@ Future<void> main() async {
     // Older devices without Play Services should still be able to use the API.
     debugPrint('Firebase init skipped/failed: $e\n$st');
   }
+
+  // Detect iOS reinstall and clear any Keychain auth token left behind.
+  await SessionStorage.init();
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(

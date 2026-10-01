@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' show Color;
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -37,7 +38,7 @@ class PushNotificationService {
     if (_initialized) return;
     _initialized = true;
 
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidInit = AndroidInitializationSettings('@drawable/ic_stat_notification');
     const darwinInit = DarwinInitializationSettings(
       requestAlertPermission: false,
       requestBadgePermission: false,
@@ -121,9 +122,7 @@ class PushNotificationService {
       final decoded = jsonDecode(payload);
       if (decoded is! Map) return;
       final data = decoded.map((key, value) => MapEntry(key.toString(), value));
-      NotificationNavigationService.openFromPayload(
-        rawData: Map<String, dynamic>.from(data),
-      );
+      NotificationNavigationService.openFromPayload(rawData: Map<String, dynamic>.from(data));
     } catch (e) {
       debugPrint('Failed to handle local notification tap: $e');
     }
@@ -133,9 +132,7 @@ class PushNotificationService {
     final notification = message.notification;
     if (notification == null) return;
 
-    final payload = jsonEncode(
-      NotificationNavigationService.payloadFromRemoteMessage(message),
-    );
+    final payload = jsonEncode(NotificationNavigationService.payloadFromRemoteMessage(message));
 
     _localNotifications.show(
       id: notification.hashCode,
@@ -149,7 +146,9 @@ class PushNotificationService {
           channelDescription: _channel.description,
           importance: Importance.high,
           priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
+          icon: '@drawable/ic_stat_notification',
+          color: const Color(0xFF489FF7),
+          largeIcon: const DrawableResourceAndroidBitmap('ic_notification'),
         ),
         iOS: const DarwinNotificationDetails(),
       ),

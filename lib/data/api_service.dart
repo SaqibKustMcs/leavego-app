@@ -23,7 +23,9 @@ import 'package:leavego_app/models/projects_response.dart';
 class ApiService {
   ApiService(this._dataService);
 
-  static const String baseUrl = 'https://office.friendselectronics.com/api/v1';
+  // static const String baseUrl = 'https://office.friendselectronics.com/api/v1';
+  static const String baseUrl = 'https://taskbulls.devbay.ai/api/v1';
+
   final DataService _dataService;
 
   Future<LoginResponse> login({required String email, required String password}) async {
