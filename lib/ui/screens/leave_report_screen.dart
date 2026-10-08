@@ -261,7 +261,7 @@ class _LeaveReportScreenState extends State<LeaveReportScreen> {
     final chips = _buildFilterChips();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F5FC),
+      backgroundColor: AppTheme.appBackground,
       appBar: AppBar(
         title: const Text('Leave Report'),
         leading: const AppBackButton(),

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/projects_response.dart';
+import 'package:leavego_app/ui/screens/select_project_members_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
+import 'package:leavego_app/ui/widgets/share_with_row.dart';
 
 class CreateProjectScreen extends StatefulWidget {
   const CreateProjectScreen({super.key, this.project});
@@ -16,6 +18,14 @@ class CreateProjectScreen extends StatefulWidget {
 }
 
 class _CreateProjectScreenState extends State<CreateProjectScreen> {
+  static const Color _primary = Color(0xFF173559);
+  static const Color _fieldBorder = Color(0xFFEEF4F2);
+  static const Color _muted = Color(0xFF6A778B);
+  static const double _fieldHeight = 54;
+  static const double _fieldRadius = 8;
+  static const double _fieldBorderWidth = 0.5;
+  static const String _calendarIcon = 'assets/images/calendar-range.png';
+
   late final AppController _appController;
   final _formKey = GlobalKey<FormState>();
 
@@ -84,10 +94,45 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
     super.dispose();
   }
 
-  Future<void> _pickDate({
-    required TextEditingController controller,
-    DateTime? firstDate,
-  }) async {
+  InputDecoration _fieldDecoration({String? hint, String? label, Widget? suffixIcon}) {
+    final borderRadius = BorderRadius.circular(_fieldRadius);
+    const border = BorderSide(color: _fieldBorder, width: _fieldBorderWidth);
+    const focusedBorder = BorderSide(color: _primary, width: 1);
+
+    return InputDecoration(
+      hintText: hint,
+      labelText: label,
+      hintStyle: const TextStyle(color: Color(0xFF6E6E6E), fontWeight: FontWeight.w400),
+      labelStyle: const TextStyle(
+        color: Color(0xFF6E6E6E),
+        fontWeight: FontWeight.w500,
+        fontSize: 14,
+      ),
+      floatingLabelStyle: const TextStyle(color: Color(0xFF6E6E6E), fontWeight: FontWeight.w500),
+      filled: true,
+      fillColor: Colors.white,
+      isDense: true,
+      suffixIcon: suffixIcon,
+      border: OutlineInputBorder(borderRadius: borderRadius, borderSide: border),
+      enabledBorder: OutlineInputBorder(borderRadius: borderRadius, borderSide: border),
+      focusedBorder: OutlineInputBorder(borderRadius: borderRadius, borderSide: focusedBorder),
+      disabledBorder: OutlineInputBorder(borderRadius: borderRadius, borderSide: border),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+    );
+  }
+
+  Widget _singleLineField({required Widget child}) {
+    return SizedBox(height: _fieldHeight, child: child);
+  }
+
+  Widget _calendarSuffix({required VoidCallback onPressed}) {
+    return IconButton(
+      onPressed: onPressed,
+      icon: Image.asset(_calendarIcon, width: 22, height: 22, fit: BoxFit.contain),
+    );
+  }
+
+  Future<void> _pickDate({required TextEditingController controller, DateTime? firstDate}) async {
     final now = DateTime.now();
     final current = _tryParseDate(controller.text) ?? now;
     final picked = await showDatePicker(
@@ -117,14 +162,13 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
     return raw
         .split('_')
         .map(
-          (part) => part.isEmpty
-              ? part
-              : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
+          (part) =>
+              part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
         )
         .join(' ');
   }
 
-  Future<void> _openMembersSheet() async {
+  Future<void> _openMembersPicker() async {
     if (_appController.usersLoading) return;
     if (_appController.usersError != null) {
       await _appController.loadUsers();
@@ -132,16 +176,8 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
     }
 
     final selected = Set<int>.from(_selectedMemberIds);
-    final result = await showModalBottomSheet<Set<int>>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return _MembersBottomSheet(
-          initiallySelected: selected,
-          toLabel: _toLabel,
-        );
-      },
+    final result = await Navigator.of(context).push<Set<int>>(
+      MaterialPageRoute(builder: (_) => SelectProjectMembersScreen(initiallySelected: selected)),
     );
 
     if (result == null || !mounted) return;
@@ -156,27 +192,29 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
     if (_formKey.currentState?.validate() != true) return;
 
     if (_selectedMemberIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one member')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select at least one member')));
       return;
     }
 
     final startDate = _tryParseDate(_startDateController.text.trim());
     final dueDate = _tryParseDate(_dueDateController.text.trim());
     if (startDate != null && dueDate != null && dueDate.isBefore(startDate)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Due date must be same as or after start date')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('End date must be same as or after start date')));
       return;
     }
+
+    final description = _descriptionController.text.trim();
 
     final Map<String, dynamic>? response;
     if (_isEditing) {
       response = await _appController.updateProject(
         projectId: widget.project!.id,
         name: _nameController.text.trim(),
-        description: _descriptionController.text.trim(),
+        description: description,
         status: _selectedStatus,
         startDate: _startDateController.text.trim(),
         dueDate: _dueDateController.text.trim(),
@@ -185,7 +223,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
     } else {
       response = await _appController.createProject(
         name: _nameController.text.trim(),
-        description: _descriptionController.text.trim(),
+        description: description,
         status: _selectedStatus,
         startDate: _startDateController.text.trim(),
         dueDate: _dueDateController.text.trim(),
@@ -217,142 +255,144 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
     final submitting = _isEditing
         ? _appController.updateProjectLoading
         : _appController.createProjectLoading;
+    final selectedUsers = users.where((u) => _selectedMemberIds.contains(u.id)).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F5FC),
+      backgroundColor: AppTheme.appBackground,
       appBar: AppBar(
-        title: Text(_isEditing ? 'Edit Project' : 'Create Project'),
-        leading: const AppBackButton(),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.black,
+        backgroundColor: AppTheme.appBackground,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: const AppBackButton(color: _primary),
+        title: Text(
+          _isEditing ? 'Edit Project' : 'Create Project',
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+          ),
+        ),
       ),
       body: SafeArea(
         child: Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
             children: [
               Text(
                 _isEditing ? 'Update Project' : 'New Project',
                 style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: Colors.black,
+                  fontWeight: FontWeight.w500,
+                  color: _primary,
+                  fontSize: 20,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                _isEditing
-                    ? 'Update project details and team members'
-                    : 'Create a project and assign team members',
-                style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF6A778B)),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Project Name'),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter project name';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _descriptionController,
-                minLines: 3,
-                maxLines: 5,
-                decoration: const InputDecoration(labelText: 'Description'),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter description';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _selectedStatus,
-                items: _statuses
-                    .map(
-                      (status) => DropdownMenuItem<String>(
-                        value: status,
-                        child: Text(_toLabel(status)),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  if (value == null) return;
-                  setState(() => _selectedStatus = value);
-                },
-                decoration: const InputDecoration(labelText: 'Status'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _startDateController,
-                readOnly: true,
-                decoration: InputDecoration(
-                  labelText: 'Start Date',
-                  hintText: 'Select start date',
-                  suffixIcon: IconButton(
-                    onPressed: () => _pickDate(controller: _startDateController),
-                    icon: const Icon(Icons.calendar_today_outlined),
-                  ),
+              const SizedBox(height: 20),
+              _singleLineField(
+                child: TextFormField(
+                  controller: _nameController,
+                  style: const TextStyle(fontSize: 16, height: 1.2),
+                  decoration: _fieldDecoration(hint: 'Project Name'),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter project name';
+                    }
+                    return null;
+                  },
                 ),
-                onTap: () => _pickDate(controller: _startDateController),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please select start date';
-                  }
-                  return null;
-                },
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _dueDateController,
-                readOnly: true,
-                decoration: InputDecoration(
-                  labelText: 'Due Date',
-                  hintText: 'Select due date',
-                  suffixIcon: IconButton(
-                    onPressed: () => _pickDate(
-                      controller: _dueDateController,
-                      firstDate: _tryParseDate(_startDateController.text.trim()),
+              const SizedBox(height: 20),
+              _singleLineField(
+                child: TextFormField(
+                  controller: _startDateController,
+                  readOnly: true,
+                  style: const TextStyle(fontSize: 16, height: 1.2),
+                  decoration: _fieldDecoration(
+                    hint: 'Start Date',
+                    suffixIcon: _calendarSuffix(
+                      onPressed: () => _pickDate(controller: _startDateController),
                     ),
-                    icon: const Icon(Icons.calendar_today_outlined),
                   ),
+                  onTap: () => _pickDate(controller: _startDateController),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please select start date';
+                    }
+                    return null;
+                  },
                 ),
-                onTap: () => _pickDate(
-                  controller: _dueDateController,
-                  firstDate: _tryParseDate(_startDateController.text.trim()),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please select due date';
-                  }
-                  return null;
-                },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
+              _singleLineField(
+                child: TextFormField(
+                  controller: _dueDateController,
+                  readOnly: true,
+                  style: const TextStyle(fontSize: 16, height: 1.2),
+                  decoration: _fieldDecoration(
+                    hint: 'End Date',
+                    suffixIcon: _calendarSuffix(
+                      onPressed: () => _pickDate(
+                        controller: _dueDateController,
+                        firstDate: _tryParseDate(_startDateController.text.trim()),
+                      ),
+                    ),
+                  ),
+                  onTap: () => _pickDate(
+                    controller: _dueDateController,
+                    firstDate: _tryParseDate(_startDateController.text.trim()),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please select end date';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              const SizedBox(height: 20),
+              _singleLineField(
+                child: DropdownButtonFormField<String>(
+                  initialValue: _selectedStatus,
+                  isExpanded: true,
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded, color: _primary),
+                  decoration: _fieldDecoration(label: 'Status'),
+                  items: _statuses
+                      .map(
+                        (status) => DropdownMenuItem<String>(
+                          value: status,
+                          child: Text(
+                            _toLabel(status),
+                            style: const TextStyle(fontSize: 16, color: Color(0xFF6E6E6E)),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _selectedStatus = value);
+                  },
+                ),
+              ),
+              const SizedBox(height: 28),
               Text(
                 'Members',
                 style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: AppTheme.navy,
+                  fontWeight: FontWeight.w700,
+                  color: _primary,
+                  fontSize: 16,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                'Select users to add to this project',
-                style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF6A778B)),
+                'Select users to add',
+                style: theme.textTheme.bodySmall?.copyWith(color: _muted, fontSize: 13),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               if (usersError != null)
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 10),
+                  margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFEBEE),
                     borderRadius: BorderRadius.circular(12),
@@ -367,241 +407,42 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
                           ),
                         ),
                       ),
-                      TextButton(
-                        onPressed: _appController.loadUsers,
-                        child: const Text('Retry'),
-                      ),
+                      TextButton(onPressed: _appController.loadUsers, child: const Text('Retry')),
                     ],
                   ),
                 ),
-              InkWell(
-                onTap: usersLoading || users.isEmpty ? null : _openMembersSheet,
-                borderRadius: BorderRadius.circular(14),
-                child: InputDecorator(
-                  decoration: InputDecoration(
-                    labelText: 'Select Members',
-                    suffixIcon: usersLoading
-                        ? const Padding(
-                            padding: EdgeInsets.all(12),
-                            child: SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          )
-                        : const Icon(Icons.keyboard_arrow_up_rounded),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  child: Text(
-                    _selectedMemberIds.isEmpty
-                        ? (users.isEmpty ? 'No users available' : 'Tap to select members')
-                        : '${_selectedMemberIds.length} member(s) selected',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: _selectedMemberIds.isEmpty
-                          ? const Color(0xFF6A778B)
-                          : const Color(0xFF1E293B),
-                      fontWeight: _selectedMemberIds.isEmpty ? FontWeight.w500 : FontWeight.w700,
-                    ),
-                  ),
-                ),
+              ShareWithRow(
+                usersLoading: usersLoading,
+                usersAvailable: users.isNotEmpty,
+                selectedUsers: selectedUsers,
+                onTap: usersLoading || users.isEmpty ? null : _openMembersPicker,
               ),
-              if (_selectedMemberIds.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: users
-                      .where((user) => _selectedMemberIds.contains(user.id))
-                      .map(
-                        (user) => Chip(
-                          label: Text(user.name),
-                          backgroundColor: AppTheme.navy.withValues(alpha: 0.08),
-                          deleteIconColor: AppTheme.navy,
-                          onDeleted: () {
-                            setState(() => _selectedMemberIds.remove(user.id));
-                          },
-                        ),
-                      )
-                      .toList(),
-                ),
-              ],
-              const SizedBox(height: 20),
-              Container(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppTheme.navy, AppTheme.lightNavy],
-                  ),
-                  borderRadius: BorderRadius.circular(14),
-                ),
+              const SizedBox(height: 32),
+              SizedBox(
+                height: 54,
+                width: double.infinity,
                 child: FilledButton(
-                  onPressed: submitting || usersLoading || users.isEmpty
-                      ? null
-                      : _submit,
+                  onPressed: submitting || usersLoading || users.isEmpty ? null : _submit,
                   style: FilledButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                    minimumSize: const Size(double.infinity, 48),
+                    backgroundColor: _primary,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: _primary.withValues(alpha: 0.45),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(_fieldRadius),
+                    ),
+                    elevation: 0,
                   ),
                   child: submitting
                       ? const AppButtonLoader(size: 22)
-                      : Text(_isEditing ? 'Update Project' : 'Create Project'),
+                      : Text(
+                          _isEditing ? 'Update Project' : 'Create Project',
+                          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 16),
+                        ),
                 ),
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _MembersBottomSheet extends StatefulWidget {
-  const _MembersBottomSheet({
-    required this.initiallySelected,
-    required this.toLabel,
-  });
-
-  final Set<int> initiallySelected;
-  final String Function(String) toLabel;
-
-  @override
-  State<_MembersBottomSheet> createState() => _MembersBottomSheetState();
-}
-
-class _MembersBottomSheetState extends State<_MembersBottomSheet> {
-  late final AppController _appController;
-  late final Set<int> _selected;
-
-  @override
-  void initState() {
-    super.initState();
-    _appController = Get.find<AppController>();
-    _selected = Set<int>.from(widget.initiallySelected);
-    _appController.addListener(_onUpdate);
-  }
-
-  void _onUpdate() {
-    if (mounted) setState(() {});
-  }
-
-  @override
-  void dispose() {
-    _appController.removeListener(_onUpdate);
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final users = _appController.users.where((user) => user.isActive).toList();
-    final media = MediaQuery.of(context);
-
-    return Container(
-      height: media.size.height * 0.72,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 10),
-          Container(
-            width: 42,
-            height: 4,
-            decoration: BoxDecoration(
-              color: const Color(0xFFD7DEEA),
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Select Members',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.navy,
-                        ),
-                      ),
-                      Text(
-                        '${_selected.length} selected',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: const Color(0xFF6A778B),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(_selected),
-                  child: const Text(
-                    'Done',
-                    style: TextStyle(fontWeight: FontWeight.w700, color: AppTheme.navy),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: _appController.usersLoading
-                ? const Center(child: AppLoader(size: 28))
-                : users.isEmpty
-                    ? const Center(child: Text('No users available'))
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
-                        itemCount: users.length,
-                        separatorBuilder: (context, index) => const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final user = users[index];
-                          final selected = _selected.contains(user.id);
-                          return CheckboxListTile(
-                            value: selected,
-                            onChanged: (checked) {
-                              setState(() {
-                                if (checked == true) {
-                                  _selected.add(user.id);
-                                } else {
-                                  _selected.remove(user.id);
-                                }
-                              });
-                            },
-                            title: Text(
-                              user.name,
-                              style: const TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                            subtitle: Text('${user.email} · ${widget.toLabel(user.role)}'),
-                            controlAffinity: ListTileControlAffinity.leading,
-                            activeColor: AppTheme.navy,
-                          );
-                        },
-                      ),
-          ),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: FilledButton(
-                onPressed: () => Navigator.of(context).pop(_selected),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppTheme.navy,
-                  minimumSize: const Size(double.infinity, 48),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                child: Text(
-                  _selected.isEmpty
-                      ? 'Confirm Selection'
-                      : 'Confirm ${_selected.length} Member(s)',
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

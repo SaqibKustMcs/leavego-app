@@ -5,7 +5,7 @@ import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/notifications_response.dart';
 import 'package:leavego_app/ui/screens/leave_detail_screen.dart';
 import 'package:leavego_app/ui/screens/my_leave_requests_screen.dart';
-import 'package:leavego_app/ui/screens/my_today_tasks_screen.dart';
+import 'package:leavego_app/ui/screens/today_glance_screen.dart';
 import 'package:leavego_app/ui/screens/news_detail_screen.dart';
 import 'package:leavego_app/ui/screens/news_screen.dart';
 import 'package:leavego_app/ui/screens/task_detail_screen.dart';
@@ -107,7 +107,7 @@ class NotificationNavigationService {
       case NotificationDestination.news:
         await _push(_newsScreenFor(route.id));
       case NotificationDestination.taskList:
-        await _push(const MyTodayTasksScreen());
+        await _push(const TodayGlanceScreen());
       case NotificationDestination.leaveList:
         await _push(const MyLeaveRequestsScreen());
       case NotificationDestination.projectsTab:

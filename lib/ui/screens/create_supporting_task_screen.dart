@@ -116,7 +116,7 @@ class _CreateSupportingTaskScreenState extends State<CreateSupportingTaskScreen>
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F5FC),
+      backgroundColor: AppTheme.appBackground,
       appBar: AppBar(
         title: const Text('Create Supporting Task'),
         leading: const AppBackButton(),

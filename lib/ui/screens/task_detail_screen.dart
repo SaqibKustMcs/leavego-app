@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/task_detail_response.dart';
 import 'package:leavego_app/ui/screens/edit_task_screen.dart';
+import 'package:leavego_app/ui/screens/task_activity_log_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
+import 'package:leavego_app/ui/widgets/app_scroll_collapse_fab.dart';
 import 'package:leavego_app/utils/task_datetime_format.dart';
 
 class TaskDetailScreen extends StatefulWidget {
@@ -18,36 +21,90 @@ class TaskDetailScreen extends StatefulWidget {
 }
 
 class _TaskDetailScreenState extends State<TaskDetailScreen> {
+  static const String _iconAssignedTo = 'assets/images/task_assigned_to.webp';
+  static const String _iconAssignedBy = 'assets/images/assigend_by.webp';
+  static const String _iconStartDate = 'assets/images/start_date_task.webp';
+  static const String _iconDueDate = 'assets/images/due_date_task.webp';
+  static const String _iconDownload = 'assets/images/bx-download.webp';
+  static const String _iconGallery = 'assets/images/images-galary.webp';
+  static const String _iconPriorityFlag = 'assets/images/priority_flag.webp';
+  static const Color _primary = Color(0xFF173559);
+
   late final AppController _appController;
+  late final ScrollCollapseFabController _fabScrollController;
   late Future<TaskDetailData?> _future;
   String? _selectedStatus;
 
   /// The task creator may also call the task off.
-  static const _creatorStatusOptions = <String>[
-    'in_progress',
-    'completed',
-    'cancelled',
-  ];
+  static const _creatorStatusOptions = <String>['in_progress', 'completed', 'cancelled'];
 
-  static const _assigneeStatusOptions = <String>[
-    'in_progress',
-    'completed',
-  ];
+  static const _assigneeStatusOptions = <String>['in_progress', 'completed'];
 
   @override
   void initState() {
     super.initState();
+    _fabScrollController = ScrollCollapseFabController();
     _appController = Get.find<AppController>();
     if (_appController.meData == null) {
       _appController.loadMe();
     }
     _future = _appController.loadTaskDetail(taskId: widget.taskId);
+    _appController.addListener(_onControllerUpdate);
+  }
+
+  void _onControllerUpdate() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _appController.removeListener(_onControllerUpdate);
+    _fabScrollController.dispose();
+    super.dispose();
   }
 
   void _reloadDetail() {
     setState(() {
       _future = _appController.loadTaskDetail(taskId: widget.taskId);
     });
+  }
+
+  String? _toAbsoluteUrl(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
+    final value = raw.trim();
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      return value;
+    }
+    const origin = 'https://taskbulls.devbay.ai';
+    if (value.startsWith('/')) return '$origin$value';
+    return '$origin/$value';
+  }
+
+  Future<void> _openAttachment(String? rawUrl) async {
+    final url = _toAbsoluteUrl(rawUrl);
+    if (url == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Attachment URL not found')));
+      return;
+    }
+
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Invalid attachment URL')));
+      return;
+    }
+
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not open attachment')));
+    }
   }
 
   Future<void> _updateStatus() async {
@@ -85,7 +142,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: Color(0xffFCFFFF),
+      shape: const RoundedRectangleBorder(
+        side: BorderSide(width: 0.5, color: Color(0xffEEEEEE)),
+
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
@@ -130,71 +192,97 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             }
 
             return Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 16,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-              ),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Add Comment',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.navy,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Share a quick progress update or note for this task.',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: const Color(0xFF6A778B)),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: controller,
-                      maxLines: 4,
-                      decoration: InputDecoration(
-                        labelText: 'Comment',
-                        hintText: 'Write your comment...',
-                        errorText: errorText.isEmpty ? null : errorText,
-                      ),
-                      onChanged: (_) {
-                        if (errorText.isNotEmpty) {
-                          setModalState(() => errorText = '');
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 10),
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 4,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(colors: [AppTheme.navy, AppTheme.lightNavy]),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: FilledButton(
-                        onPressed: isSubmitting ? null : submit,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          minimumSize: const Size(double.infinity, 48),
-                        ),
-                        child: isSubmitting
-                            ? const AppButtonLoader(size: 22)
-                            : const Text('Post Comment'),
+                        color: const Color(0xFFD7DEEA),
+                        borderRadius: BorderRadius.circular(999),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Add Comment',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: _primary,
+                            fontSize: 18,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Share a quick progress update or note for this task.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: const Color(0xFF747D7A),
+                            fontWeight: FontWeight.w500,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: controller,
+                          maxLines: 4,
+                          decoration: InputDecoration(
+                            hintText: 'Comment',
+                            errorText: errorText.isEmpty ? null : errorText,
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Color(0xFFEEF4F2), width: 0.5),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Color(0xFFEEF4F2), width: 0.5),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: _primary, width: 1),
+                            ),
+                          ),
+                          onChanged: (_) {
+                            if (errorText.isNotEmpty) {
+                              setModalState(() => errorText = '');
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          height: 54,
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: isSubmitting ? null : submit,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: _primary,
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor: _primary.withValues(alpha: 0.45),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              elevation: 0,
+                            ),
+                            child: isSubmitting
+                                ? const AppButtonLoader(size: 22)
+                                : const Text(
+                                    'Post Comment',
+                                    style: TextStyle(fontWeight: FontWeight.w500, fontSize: 16),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             );
           },
@@ -227,37 +315,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     }
   }
 
-  String _formatDateTime(String? raw) {
-    if (raw == null || raw.trim().isEmpty) return '-';
-    try {
-      final normalized = raw.contains(' ') ? raw.replaceFirst(' ', 'T') : raw;
-      final date = DateTime.parse(normalized).toLocal();
-      const months = <String>[
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec',
-      ];
-      final day = date.day.toString().padLeft(2, '0');
-      final month = months[date.month - 1];
-      final year = date.year;
-      final hour12 = date.hour == 0 ? 12 : (date.hour > 12 ? date.hour - 12 : date.hour);
-      final minute = date.minute.toString().padLeft(2, '0');
-      final period = date.hour >= 12 ? 'PM' : 'AM';
-      return '$day $month $year, ${hour12.toString().padLeft(2, '0')}:$minute $period';
-    } catch (_) {
-      return raw;
-    }
-  }
-
   String _toLabel(String raw) {
     if (raw.trim().isEmpty) return '-';
     return raw
@@ -269,35 +326,100 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         .join(' ');
   }
 
+  String _priorityLabel(String priority) {
+    final value = priority.trim().toLowerCase();
+    if (value == 'medium' || value == 'low' || value == 'normal') return 'Normal';
+    return _toLabel(priority);
+  }
+
   Color _priorityColor(String priority) {
     switch (priority.trim().toLowerCase()) {
       case 'critical':
-        return const Color(0xFFB71C1C);
       case 'urgent':
-        return const Color(0xFFC62828);
       case 'high':
-        return const Color(0xFFEF6C00);
+        return const Color(0xFFFF2222);
       case 'medium':
-        return const Color(0xFF1565C0);
+      case 'low':
+      case 'normal':
+        return const Color(0xFF2B68B1);
       default:
-        return const Color(0xFF2E7D32);
+        return const Color(0xFF2B68B1);
     }
   }
 
-  Color _statusColor(String status) {
+  ({Color background, Color foreground}) _statusChipStyle(String status) {
     switch (status.trim().toLowerCase()) {
       case 'completed':
-        return const Color(0xFF1B8A5A);
-      case 'qa':
-        return const Color(0xFF00897B);
+        return (background: const Color(0xFFD9FCF0), foreground: const Color(0xFF1B5E20));
       case 'in_progress':
-        return const Color(0xFF1565C0);
+        return (background: const Color(0xFFE4F1FE), foreground: _primary);
       case 'assigned':
-        return const Color(0xFF8E24AA);
-      case 'overdue':
-        return const Color(0xFFC62828);
+        return (background: const Color(0xFFEDE7F6), foreground: _primary);
       default:
-        return AppTheme.navy;
+        return (background: const Color(0xFFEEF2F6), foreground: _primary);
+    }
+  }
+
+  String _formatChipDate(String? dateRaw) {
+    return TaskDateTimeFormat.formatDate(dateRaw);
+  }
+
+  String _formatTimelineDate(String? dateRaw, String? timeRaw) {
+    final formatted = TaskDateTimeFormat.formatDateTime(date: dateRaw, time: timeRaw);
+    if (formatted == '-') return '-';
+    final parsed = _tryParseDisplayDateTime(formatted);
+    if (parsed == null) return formatted;
+    const months = <String>[
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final day = parsed.day.toString().padLeft(2, '0');
+    final month = months[parsed.month - 1];
+    final year = parsed.year;
+    final hasTime =
+        formatted.contains(':') && (formatted.contains('AM') || formatted.contains('PM'));
+    if (hasTime) {
+      final hour12 = parsed.hour == 0 ? 12 : (parsed.hour > 12 ? parsed.hour - 12 : parsed.hour);
+      final minute = parsed.minute.toString().padLeft(2, '0');
+      final period = parsed.hour >= 12 ? 'PM' : 'AM';
+      return '$day $month, $year, ${hour12.toString().padLeft(2, '0')}:$minute $period';
+    }
+    return '$day $month, $year';
+  }
+
+  DateTime? _tryParseDisplayDateTime(String raw) {
+    final amPmMatch = RegExp(
+      r'^(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}):(\d{2})\s*(AM|PM)$',
+      caseSensitive: false,
+    ).firstMatch(raw.trim());
+    if (amPmMatch != null) {
+      final year = int.parse(amPmMatch.group(1)!);
+      final month = int.parse(amPmMatch.group(2)!);
+      final day = int.parse(amPmMatch.group(3)!);
+      var hour = int.parse(amPmMatch.group(4)!);
+      final minute = int.parse(amPmMatch.group(5)!);
+      final period = amPmMatch.group(6)!.toUpperCase();
+      if (period == 'AM') {
+        if (hour == 12) hour = 0;
+      } else if (hour != 12) {
+        hour += 12;
+      }
+      return DateTime(year, month, day, hour, minute);
+    }
+    try {
+      return DateTime.parse(raw.contains(' ') ? raw.replaceFirst(' ', 'T') : raw).toLocal();
+    } catch (_) {
+      return null;
     }
   }
 
@@ -307,9 +429,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final role = (_appController.meData?.role ?? '').trim().toLowerCase();
     final canEditTask = role == 'hod' || role == 'hr';
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F5FC),
+      backgroundColor: AppTheme.appBackground,
+      floatingActionButton: ListenableBuilder(
+        listenable: _fabScrollController,
+        builder: (context, _) => AppScrollCollapseFab(
+          label: 'Add Comment',
+          collapsed: _fabScrollController.collapsed,
+          onPressed: _showAddCommentSheet,
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: SafeArea(
-        child: FutureBuilder<TaskDetailData?>(
+        child: AppFabScrollListener(
+          controller: _fabScrollController,
+          child: FutureBuilder<TaskDetailData?>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -340,28 +473,32 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             final hasUser = currentUserId != null && currentUserId.isNotEmpty;
             final isCreator = hasUser && (task.assignedBy ?? '') == currentUserId;
             final isAssignee = hasUser && (task.assignedTo ?? '') == currentUserId;
-            final canCreateSupportingTask = isAssignee;
 
             // Only the creator or the assignee may move a task along.
             final statusOptions = isCreator
                 ? _creatorStatusOptions
                 : (isAssignee ? _assigneeStatusOptions : const <String>[]);
 
+            final statusStyle = _statusChipStyle(task.status);
+            final priorityColor = _priorityColor(task.priority);
+            final chipDate = _formatChipDate(task.completionDate ?? task.dueDate);
+
             return ListView(
               addAutomaticKeepAlives: true,
               physics: const ClampingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 96),
               children: [
                 Row(
                   children: [
-                    const AppBackButton(),
+                    const AppBackButton(color: _primary),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         'Task Detail',
-                        style: theme.textTheme.titleLarge?.copyWith(
+                        style: theme.textTheme.titleMedium?.copyWith(
                           color: Colors.black,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 18,
                         ),
                       ),
                     ),
@@ -375,59 +512,70 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                             _reloadDetail();
                           }
                         },
-                        icon: const Icon(Icons.edit_outlined, color: Colors.black),
+                        icon: const Icon(Icons.edit_outlined, color: _primary),
                         tooltip: 'Edit task',
                       ),
                   ],
                 ),
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppTheme.navy, AppTheme.lightNavy],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        task.title,
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        task.description.isEmpty ? '-' : task.description,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.88),
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _HeaderBadge(
-                            label: _toLabel(task.status),
-                            background: _statusColor(task.status),
-                          ),
-                          _HeaderBadge(
-                            label: _toLabel(task.priority),
-                            background: _priorityColor(task.priority),
-                          ),
-                        ],
-                      ),
-                    ],
+                const SizedBox(height: 16),
+                Text(
+                  task.title,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: _primary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 22,
+                    height: 1.25,
                   ),
                 ),
                 const SizedBox(height: 14),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _MetaChip(
+                      border: const Color(0xFF6E6E6E),
+
+                      label: _toLabel(task.status),
+                      background: statusStyle.background,
+                      foreground: statusStyle.foreground,
+                      leading: Icon(
+                        task.status.toLowerCase() == 'completed'
+                            ? Icons.check_circle_outline
+                            : Icons.radio_button_unchecked,
+                        size: 16,
+                        color: statusStyle.foreground,
+                      ),
+                    ),
+                    _MetaChip(
+                      label: chipDate,
+                      background: Colors.white,
+                      foreground: _primary,
+                      border: const Color(0xFF6E6E6E),
+                      leading: Image.asset(
+                        _iconDueDate,
+                        width: 16,
+                        height: 16,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    _MetaChip(
+                      label: _priorityLabel(task.priority),
+                      background: Color(0xffFEFFFF),
+                      foreground: priorityColor,
+                      border: const Color(0xFF6E6E6E),
+                      leading: ColorFiltered(
+                        colorFilter: ColorFilter.mode(priorityColor, BlendMode.srcIn),
+                        child: Image.asset(
+                          _iconPriorityFlag,
+                          width: 16,
+                          height: 16,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 // _DetailSection(
                 //   title: 'Supporting Task',
                 //   child: Column(
@@ -478,14 +626,59 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 //   ),
                 // ),
                 // const SizedBox(height: 12),
+                _InfoCard(
+                  child: Column(
+                    children: [
+                      _DetailRow(
+                        iconAsset: _iconAssignedBy,
+                        label: 'Task Assign by:',
+                        value: task.creator?.name ?? '-',
+                      ),
+                      const SizedBox(height: 14),
+                      _DetailRow(
+                        iconAsset: _iconAssignedTo,
+                        label: 'Task Assign to:',
+                        value: task.assignee?.name ?? '-',
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _InfoCard(
+                  child: Column(
+                    children: [
+                      _DetailRow(
+                        iconAsset: _iconStartDate,
+                        label: 'Start Date & Time',
+                        value: _formatTimelineDate(task.startDate, task.startTime),
+                      ),
+                      const SizedBox(height: 14),
+                      _DetailRow(
+                        iconAsset: _iconDueDate,
+                        label: 'Due Date & Time',
+                        value: _formatTimelineDate(task.dueDate, task.dueTime),
+                      ),
+                      const SizedBox(height: 14),
+                      _DetailRow(
+                        iconAsset: _iconDueDate,
+                        label: 'Completion Date',
+                        value: task.completionDate == null
+                            ? '-'
+                            : _formatTimelineDate(task.completionDate, null),
+                      ),
+                    ],
+                  ),
+                ),
                 if (statusOptions.isNotEmpty) ...[
-                  _DetailSection(
-                    title: 'Update Status',
+                  const SizedBox(height: 12),
+                  _InfoCard(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         DropdownButtonFormField<String>(
-                          value: statusOptions.contains(_selectedStatus) ? _selectedStatus : null,
+                          initialValue: statusOptions.contains(_selectedStatus)
+                              ? _selectedStatus
+                              : null,
                           items: statusOptions
                               .map(
                                 (status) => DropdownMenuItem<String>(
@@ -494,19 +687,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                 ),
                               )
                               .toList(),
-                          onChanged: (value) {
-                            setState(() => _selectedStatus = value);
-                          },
-                          decoration: const InputDecoration(labelText: 'Task Status'),
+                          onChanged: (value) => setState(() => _selectedStatus = value),
+                          decoration: const InputDecoration(labelText: 'Update status'),
                         ),
                         const SizedBox(height: 12),
-                        Container(
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [AppTheme.navy, AppTheme.lightNavy],
-                            ),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
+                        SizedBox(
+                          height: 48,
                           child: FilledButton(
                             onPressed:
                                 _appController.updateTaskStatusLoading ||
@@ -514,173 +700,192 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                 ? null
                                 : _updateStatus,
                             style: FilledButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              minimumSize: const Size(double.infinity, 48),
+                              backgroundColor: _primary,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             ),
                             child: _appController.updateTaskStatusLoading
-                                ? const AppButtonLoader(size: 22)
+                                ? const AppButtonLoader(color: Colors.white, size: 22)
                                 : const Text('Update Status'),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
                 ],
-                _DetailSection(
-                  title: 'Task Info',
-                  child: Column(
-                    children: [
-                      _DetailRow(label: 'Task ID', value: '#${task.id}'),
-                      const Divider(height: 18),
-                      _DetailRow(label: 'Assigned To', value: task.assignee?.name ?? '-'),
-                      const Divider(height: 18),
-                      _DetailRow(label: 'Created By', value: task.creator?.name ?? '-'),
-                      const Divider(height: 18),
-                      _DetailRow(label: 'Estimated Hours', value: '${task.estimatedHours}h'),
-                      const Divider(height: 18),
-                      _DetailRow(
-                        label: 'Supporting Task',
-                        value: task.isSupportingTask ? 'Yes' : 'No',
+                const SizedBox(height: 20),
+                const _SectionHeading(title: 'Attachments'),
+                const SizedBox(height: 10),
+                if (detail.attachments.isEmpty)
+                  const Text(
+                    'No attachments found.',
+                    style: TextStyle(color: Color(0xFF6A778B), fontSize: 14),
+                  )
+                else
+                  ...detail.attachments.map(
+                    (attachment) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _AttachmentCard(
+                        attachment: attachment,
+                        galleryIcon: _iconGallery,
+                        downloadIcon: _iconDownload,
+                        onDownload: () => _openAttachment(attachment.fileUrl),
                       ),
-                    ],
+                    ),
+                  ),
+                const SizedBox(height: 20),
+                const _SectionHeading(title: 'Details'),
+                const SizedBox(height: 10),
+                _InfoCard(
+                  child: Text(
+                    task.description.isEmpty ? '-' : task.description,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: const Color(0xFF6A778B),
+                      height: 1.5,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 12),
-                _DetailSection(
-                  title: 'Timeline',
-                  child: Column(
-                    children: [
-                      _DetailRow(
-                        label: 'Start Date & Time',
-                        value: TaskDateTimeFormat.formatDateTime(
-                          date: task.startDate,
-                          time: task.startTime,
-                        ),
-                      ),
-                      const Divider(height: 18),
-                      _DetailRow(
-                        label: 'Due Date & Time',
-                        value: TaskDateTimeFormat.formatDateTime(
-                          date: task.dueDate,
-                          time: task.dueTime,
-                        ),
-                      ),
-                      const Divider(height: 18),
-                      _DetailRow(
-                        label: 'Completion Date',
-                        value: _formatDateTime(task.completionDate),
-                      ),
-                      const Divider(height: 18),
-                      _DetailRow(label: 'Created At', value: _formatDateTime(task.createdAt)),
-                    ],
+                const SizedBox(height: 20),
+                const _SectionHeading(title: 'Comments'),
+                const SizedBox(height: 10),
+                if (detail.comments.isEmpty)
+                  const Text(
+                    'No comments yet.',
+                    style: TextStyle(color: Color(0xFF6A778B), fontSize: 14),
+                  )
+                else
+                  ...detail.comments.map(
+                    (comment) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _CommentCard(comment: comment, formatDate: _formatDate),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                _DetailSection(
-                  title: 'Attachments',
-                  child: detail.attachments.isEmpty
-                      ? const Text('No attachments found.')
-                      : Column(
-                          children: detail.attachments
-                              .map(
-                                (attachment) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 10),
-                                  child: _AttachmentCard(attachment: attachment),
-                                ),
-                              )
-                              .toList(),
+                const SizedBox(height: 20),
+                Material(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => TaskActivityLogScreen(taskId: widget.taskId),
                         ),
-                ),
-                const SizedBox(height: 12),
-                _DetailSection(
-                  title: 'Comments',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: _showAddCommentSheet,
-                        icon: const Icon(Icons.add_comment_outlined),
-                        label: const Text('Add Comment'),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFEEF4F2), width: 0.5),
                       ),
-                      const SizedBox(height: 12),
-                      if (detail.comments.isEmpty)
-                        const Text('No comments yet.')
-                      else
-                        ...detail.comments.map(
-                          (comment) => Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: _CommentCard(comment: comment, formatDate: _formatDate),
+                      child: Row(
+                        children: [
+                          Text(
+                            'Activity log',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: _primary,
+                              fontSize: 16,
+                            ),
                           ),
-                        ),
-                    ],
+                          const Spacer(),
+                          if (detail.activityLogs.isNotEmpty)
+                            Text(
+                              '${detail.activityLogs.length}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: const Color(0xFF6A778B),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.chevron_right_rounded, color: _primary),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                _DetailSection(
-                  title: 'Activity Log',
-                  child: detail.activityLogs.isEmpty
-                      ? const Text('No activity logs found.')
-                      : Column(
-                          children: detail.activityLogs
-                              .map(
-                                (log) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 10),
-                                  child: _ActivityLogCard(
-                                    log: log,
-                                    toLabel: _toLabel,
-                                    formatDate: _formatDate,
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                        ),
                 ),
               ],
             );
           },
+        ),
         ),
       ),
     );
   }
 }
 
-class _DetailSection extends StatelessWidget {
-  const _DetailSection({required this.title, required this.child});
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading({required this.title});
 
   final String title;
+
+  static const Color _primary = Color(0xFF173559);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: Theme.of(
+        context,
+      ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: _primary, fontSize: 16),
+    );
+  }
+}
+
+class _InfoCard extends StatelessWidget {
+  const _InfoCard({required this.child});
+
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFEEF4F2), width: 0.5),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: child,
+    );
+  }
+}
+
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({
+    required this.label,
+    required this.background,
+    required this.foreground,
+    this.leading,
+    this.border,
+  });
+
+  final String label;
+  final Color background;
+  final Color foreground;
+  final Widget? leading;
+  final Color? border;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+        border: border != null ? Border.all(color: border!, width: 0.5) : null,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
+          if (leading != null) ...[leading!, const SizedBox(width: 6)],
           Text(
-            title,
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: AppTheme.navy,
-            ),
+            label,
+            style: TextStyle(color: Color(0xff6E6E6E), fontWeight: FontWeight.w500, fontSize: 14),
           ),
-          const SizedBox(height: 12),
-          child,
         ],
       ),
     );
@@ -688,35 +893,37 @@ class _DetailSection extends StatelessWidget {
 }
 
 class _DetailRow extends StatelessWidget {
-  const _DetailRow({required this.label, required this.value});
+  const _DetailRow({required this.label, required this.value, this.iconAsset});
 
   final String label;
   final String value;
+  final String? iconAsset;
+
+  static const Color _primary = Color(0xFF173559);
+  static const Color _muted = Color(0xFF6E6E6E);
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
+        if (iconAsset != null) ...[
+          Image.asset(iconAsset!, width: 18, height: 18, fit: BoxFit.contain),
+          const SizedBox(width: 8),
+        ],
         Expanded(
+          flex: 2,
           child: Text(
             label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: const Color(0xFF6A778B),
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(color: _primary, fontWeight: FontWeight.w400, fontSize: 16),
           ),
         ),
-        const SizedBox(width: 12),
         Expanded(
+          flex: 3,
           child: Text(
             value,
             textAlign: TextAlign.end,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: const Color(0xFF1E293B),
-              fontWeight: FontWeight.w700,
-            ),
+            style: const TextStyle(color: _muted, fontWeight: FontWeight.w400, fontSize: 14),
           ),
         ),
       ],
@@ -724,61 +931,54 @@ class _DetailRow extends StatelessWidget {
   }
 }
 
-class _HeaderBadge extends StatelessWidget {
-  const _HeaderBadge({required this.label, required this.background});
-
-  final String label;
-  final Color background;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(999)),
-      child: Text(
-        label,
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
-      ),
-    );
-  }
-}
-
 class _AttachmentCard extends StatelessWidget {
-  const _AttachmentCard({required this.attachment});
+  const _AttachmentCard({
+    required this.attachment,
+    required this.galleryIcon,
+    required this.downloadIcon,
+    required this.onDownload,
+  });
 
   final TaskAttachmentItem attachment;
+  final String galleryIcon;
+  final String downloadIcon;
+  final VoidCallback onDownload;
+
+  static const Color _primary = Color(0xFF173559);
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFF),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.navy.withValues(alpha: 0.08)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFEEF4F2), width: 0.5),
       ),
       child: Row(
         children: [
-          Container(height: 30, width: 30, decoration: BoxDecoration(color: Colors.black26)),
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8EEFC),
-              borderRadius: BorderRadius.circular(12),
-            ),
-
-            child: Column(
-              children: [
-                const Icon(Icons.attach_file_rounded, color: AppTheme.navy),
-                const Icon(Icons.radio, color: AppTheme.navy),
-              ],
+          Image.asset(galleryIcon, width: 28, height: 28, fit: BoxFit.contain),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              attachment.fileName,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: _primary),
             ),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(attachment.fileName, style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(width: 12),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onDownload,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Image.asset(downloadIcon, width: 24, height: 24, fit: BoxFit.contain),
+              ),
+            ),
           ),
         ],
       ),
@@ -818,54 +1018,6 @@ class _CommentCard extends StatelessWidget {
               color: Color(0xFF6A778B),
               fontWeight: FontWeight.w600,
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActivityLogCard extends StatelessWidget {
-  const _ActivityLogCard({required this.log, required this.toLabel, required this.formatDate});
-
-  final TaskActivityLogItem log;
-  final String Function(String) toLabel;
-  final String Function(String?) formatDate;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFF),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  toLabel(log.event),
-                  style: const TextStyle(fontWeight: FontWeight.w800, color: AppTheme.navy),
-                ),
-              ),
-              Text(
-                formatDate(log.createdAt),
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF6A778B),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'By ${log.user?.name ?? 'User'}',
-            style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
           ),
         ],
       ),

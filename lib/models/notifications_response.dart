@@ -45,6 +45,12 @@ class NotificationsPageData {
   final String path;
   final List<NotificationPageLink> links;
 
+  bool get hasMore {
+    final next = nextPageUrl?.trim();
+    if (next != null && next.isNotEmpty) return true;
+    return lastPage > 0 && currentPage < lastPage;
+  }
+
   factory NotificationsPageData.fromJson(Map<String, dynamic> json) {
     final rawList = json['data'];
     final items = rawList is List

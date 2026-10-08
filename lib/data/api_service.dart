@@ -328,7 +328,7 @@ class ApiService {
     if (to != null && to.trim().isNotEmpty) {
       query.add('to=${Uri.encodeQueryComponent(to.trim())}');
     }
-
+    // url: '$baseUrl/leaves/report?${query.join('&')}',
     final result = await _dataService.get(
       url: '$baseUrl/leaves/report?${query.join('&')}',
       headers: <String, String>{'Authorization': 'Bearer $token'},
@@ -484,9 +484,13 @@ class ApiService {
     return (payload['message'] ?? 'Notification marked as read').toString();
   }
 
-  Future<NotificationsPageData> notifications({required String token}) async {
+  Future<NotificationsPageData> notifications({
+    required String token,
+    int page = 1,
+    int perPage = 10,
+  }) async {
     final result = await _dataService.get(
-      url: '$baseUrl/notifications',
+      url: '$baseUrl/notifications?page=$page&per_page=$perPage',
       headers: <String, String>{'Authorization': 'Bearer $token'},
     );
 

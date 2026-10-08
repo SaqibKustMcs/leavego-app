@@ -16,8 +16,13 @@ class CreateEmployeeScreen extends StatefulWidget {
 }
 
 class _CreateEmployeeScreenState extends State<CreateEmployeeScreen> {
+  static const Color _primary = Color(0xFF173559);
+  static const Color _fieldBorder = Color(0xFFEEF4F2);
+  static const double _fieldHeight = 54;
+  static const double _fieldRadius = 8;
+  static const double _fieldBorderWidth = 0.5;
+
   late final AppController _appController;
-  final _formKey = GlobalKey<FormState>();
 
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -29,15 +34,13 @@ class _CreateEmployeeScreenState extends State<CreateEmployeeScreen> {
   bool _isActive = true;
   bool _obscurePassword = true;
 
-  static const _roles = <String>[
-    'employee',
-    // 'developer',
-    // 'hod',
-    'hr',
-    'operations_manager',
-    // 'admin',
-    'ceo',
-  ];
+  String? _nameError;
+  String? _emailError;
+  String? _passwordError;
+  String? _departmentError;
+  String? _submitError;
+
+  static const _roles = <String>['employee', 'hr', 'operations_manager', 'ceo'];
 
   bool get _isEditing => widget.employee != null;
 
@@ -93,16 +96,88 @@ class _CreateEmployeeScreenState extends State<CreateEmployeeScreen> {
         .join(' ');
   }
 
-  Future<void> _submit() async {
-    if (_formKey.currentState?.validate() != true) return;
+  InputDecoration _fieldDecoration({String? hint, String? label, Widget? suffixIcon}) {
+    final borderRadius = BorderRadius.circular(_fieldRadius);
+    final border = BorderSide(color: _fieldBorder, width: _fieldBorderWidth);
+    final focusedBorder = BorderSide(color: _primary, width: 1);
 
-    final departmentId = _selectedDepartmentId;
-    if (departmentId == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please select a department')));
-      return;
+    return InputDecoration(
+      hintText: hint,
+      labelText: label,
+      hintStyle: const TextStyle(color: Color(0xFF6E6E6E), fontWeight: FontWeight.w400),
+
+      labelStyle: const TextStyle(
+        color: Color(0xFF6E6E6E),
+        fontWeight: FontWeight.w500,
+        fontSize: 14,
+      ),
+      floatingLabelStyle: const TextStyle(color: Color(0xff6E6E6E), fontWeight: FontWeight.w500),
+      filled: true,
+      fillColor: Color(0xffFFFFFF),
+      isDense: true,
+      suffixIcon: suffixIcon,
+      border: OutlineInputBorder(borderRadius: borderRadius, borderSide: border),
+      enabledBorder: OutlineInputBorder(borderRadius: borderRadius, borderSide: border),
+      focusedBorder: OutlineInputBorder(borderRadius: borderRadius, borderSide: focusedBorder),
+      disabledBorder: OutlineInputBorder(borderRadius: borderRadius, borderSide: border),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+    );
+  }
+
+  Widget _singleLineField({required Widget child}) {
+    return SizedBox(height: _fieldHeight, child: child);
+  }
+
+  bool _validate() {
+    setState(() {
+      _nameError = null;
+      _emailError = null;
+      _passwordError = null;
+      _departmentError = null;
+      _submitError = null;
+    });
+
+    var ok = true;
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (name.isEmpty) {
+      _nameError = 'Please enter name';
+      ok = false;
     }
+
+    if (!_isEditing) {
+      if (email.isEmpty) {
+        _emailError = 'Please enter email';
+        ok = false;
+      } else if (!email.contains('@') || !email.contains('.')) {
+        _emailError = 'Please enter a valid email';
+        ok = false;
+      }
+      if (password.isEmpty) {
+        _passwordError = 'Please enter password';
+        ok = false;
+      } else if (password.length < 6) {
+        _passwordError = 'Password must be at least 6 characters';
+        ok = false;
+      }
+    }
+
+    if (_selectedDepartmentId == null) {
+      _departmentError = 'Please select department';
+      ok = false;
+    }
+
+    setState(() {});
+    return ok;
+  }
+
+  Future<void> _submit() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (!_validate()) return;
+
+    final departmentId = _selectedDepartmentId!;
 
     final Map<String, dynamic>? response;
     if (_isEditing) {
@@ -137,10 +212,26 @@ class _CreateEmployeeScreenState extends State<CreateEmployeeScreen> {
       return;
     }
 
-    final error = _isEditing
-        ? (_appController.updateEmployeeError ?? 'Failed to update employee')
-        : (_appController.createEmployeeError ?? 'Failed to create employee');
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+    setState(() {
+      _submitError = _isEditing
+          ? (_appController.updateEmployeeError ?? 'Failed to update employee')
+          : (_appController.createEmployeeError ?? 'Failed to create employee');
+    });
+  }
+
+  Widget _errorText(String? message) {
+    if (message == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Text(
+        message,
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.error,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
   }
 
   @override
@@ -157,140 +248,148 @@ class _CreateEmployeeScreenState extends State<CreateEmployeeScreen> {
         : null;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F5FC),
+      backgroundColor: AppTheme.appBackground,
       appBar: AppBar(
+        backgroundColor: AppTheme.appBackground,
+
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: const AppBackButton(color: _primary),
         title: Text(
           _isEditing ? 'Edit User' : 'Create User',
           style: theme.textTheme.titleMedium?.copyWith(
             color: Colors.black,
             fontWeight: FontWeight.w700,
+            fontSize: 18,
           ),
         ),
-        leading: const AppBackButton(),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.black,
-        elevation: 0,
       ),
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            children: [
-              Text(
-                _isEditing ? 'Update Employee' : 'New Employee',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _isEditing
-                    ? 'Update user details and department access'
-                    : 'Create a user account and assign department access',
-                style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF6A778B)),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _singleLineField(
+              child: TextField(
                 controller: _nameController,
                 textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(labelText: 'Name'),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter name';
-                  }
-                  return null;
+                style: const TextStyle(fontSize: 16, height: 1.2),
+                decoration: _fieldDecoration(hint: 'Name'),
+                onChanged: (_) {
+                  if (_nameError != null) setState(() => _nameError = null);
                 },
               ),
-              const SizedBox(height: 12),
-              if (_isEditing)
-                TextFormField(
+            ),
+            _errorText(_nameError),
+            const SizedBox(height: 20),
+            if (_isEditing)
+              _singleLineField(
+                child: TextField(
                   controller: _emailController,
                   enabled: false,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                )
-              else
-                TextFormField(
+                  style: const TextStyle(fontSize: 16, height: 1.2),
+                  decoration: _fieldDecoration(hint: 'Email'),
+                ),
+              )
+            else
+              _singleLineField(
+                child: TextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   autocorrect: false,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                  validator: (value) {
-                    final email = value?.trim() ?? '';
-                    if (email.isEmpty) return 'Please enter email';
-                    if (!email.contains('@') || !email.contains('.')) {
-                      return 'Please enter a valid email';
-                    }
-                    return null;
+                  style: const TextStyle(fontSize: 16, height: 1.2),
+                  decoration: _fieldDecoration(hint: 'Email'),
+                  onChanged: (_) {
+                    if (_emailError != null) setState(() => _emailError = null);
                   },
                 ),
-              if (!_isEditing) ...[
-                const SizedBox(height: 12),
-                TextFormField(
+              ),
+            _errorText(_emailError),
+            if (!_isEditing) ...[
+              const SizedBox(height: 20),
+              _singleLineField(
+                child: TextField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
+                  style: const TextStyle(fontSize: 16, height: 1.2),
+                  decoration: _fieldDecoration(
+                    hint: 'Password',
                     suffixIcon: IconButton(
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                       icon: Icon(
                         _obscurePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: _primary,
+                        size: 22,
                       ),
+                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter password';
-                    }
-                    if (value.length < 6) {
-                      return 'Password must be at least 6 characters';
-                    }
-                    return null;
+                  onChanged: (_) {
+                    if (_passwordError != null) setState(() => _passwordError = null);
                   },
                 ),
-              ],
-              const SizedBox(height: 12),
-              TextFormField(
+              ),
+              _errorText(_passwordError),
+            ],
+            const SizedBox(height: 20),
+            _singleLineField(
+              child: TextField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(labelText: 'Phone (optional)'),
+                style: const TextStyle(fontSize: 16, height: 1.2),
+                decoration: _fieldDecoration(hint: 'Phone (optional)'),
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
+            ),
+            const SizedBox(height: 20),
+            _singleLineField(
+              child: DropdownButtonFormField<String>(
                 value: _selectedRole,
-                decoration: const InputDecoration(labelText: 'Role'),
+                isExpanded: true,
+                decoration: _fieldDecoration(label: 'Role'),
+                icon: const Icon(Icons.keyboard_arrow_down_rounded, color: _primary, size: 30),
                 items: _roles
-                    .map((role) => DropdownMenuItem(value: role, child: Text(_toLabel(role))))
+                    .map(
+                      (role) => DropdownMenuItem(
+                        value: role,
+                        child: Text(
+                          _toLabel(role),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: _primary,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    )
                     .toList(),
                 onChanged: (value) {
                   if (value == null) return;
                   setState(() => _selectedRole = value);
                 },
               ),
-              const SizedBox(height: 12),
-              if (departmentsLoading)
-                const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: AppLoader())
-              else if (departmentsError != null)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      departmentsError,
-                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
-                    ),
-                    TextButton(
-                      onPressed: _appController.loadDepartments,
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                )
-              else
-                DropdownButtonFormField<int>(
+            ),
+            const SizedBox(height: 20),
+            if (departmentsLoading)
+              const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: AppLoader())
+            else if (departmentsError != null)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    departmentsError,
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+                  ),
+                  TextButton(onPressed: _appController.loadDepartments, child: const Text('Retry')),
+                ],
+              )
+            else
+              _singleLineField(
+                child: DropdownButtonFormField<int>(
                   value: selectedDepartmentId,
-                  decoration: const InputDecoration(labelText: 'Department'),
+                  isExpanded: true,
+                  decoration: _fieldDecoration(label: 'Department'),
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded, color: _primary),
                   items: departments
                       .map(
                         (department) =>
@@ -298,47 +397,94 @@ class _CreateEmployeeScreenState extends State<CreateEmployeeScreen> {
                       )
                       .toList(),
                   onChanged: (value) {
-                    setState(() => _selectedDepartmentId = value);
-                  },
-                  validator: (value) {
-                    if (value == null) return 'Please select department';
-                    return null;
+                    setState(() {
+                      _selectedDepartmentId = value;
+                      _departmentError = null;
+                    });
                   },
                 ),
-              const SizedBox(height: 8),
-              SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Active', style: TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: Text(
-                  _isActive ? 'User can sign in' : 'User is inactive',
-                  style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF6A778B)),
-                ),
-                value: _isActive,
-                activeThumbColor: AppTheme.navy,
-                onChanged: (value) => setState(() => _isActive = value),
               ),
-              const SizedBox(height: 20),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [AppTheme.navy, AppTheme.lightNavy]),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: FilledButton(
-                  onPressed: submitting || departmentsLoading || departments.isEmpty
-                      ? null
-                      : _submit,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                    minimumSize: const Size(double.infinity, 48),
+            _errorText(_departmentError),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Active',
+                        style: TextStyle(
+                          color: _primary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _isActive ? 'User can sign in' : 'User is inactive',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: const Color(0xff747D7A),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
-                  child: submitting
-                      ? const AppButtonLoader(size: 22)
-                      : Text(_isEditing ? 'Update User' : 'Create User'),
+                ),
+                SizedBox(
+                  width: 40,
+                  height: 25,
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    child: Switch(
+                      value: _isActive,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      activeTrackColor: const Color(0xFF55957F),
+                      activeThumbColor: Colors.white,
+                      inactiveTrackColor: const Color(0xFFD1D5DB),
+                      inactiveThumbColor: Colors.white,
+                      trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+                      onChanged: (value) => setState(() => _isActive = value),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (_submitError != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _submitError!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: theme.colorScheme.error,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
                 ),
               ),
             ],
-          ),
+            const SizedBox(height: 30),
+            FilledButton(
+              onPressed: submitting || departmentsLoading || departments.isEmpty ? null : _submit,
+              style: FilledButton.styleFrom(
+                backgroundColor: _primary,
+                disabledBackgroundColor: _primary.withValues(alpha: 0.6),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.controlRadius),
+                ),
+                elevation: 0,
+              ),
+              child: submitting
+                  ? const AppButtonLoader(size: 22)
+                  : Text(
+                      _isEditing ? 'Update User' : 'Create User',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+            ),
+          ],
         ),
       ),
     );

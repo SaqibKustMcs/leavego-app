@@ -49,7 +49,7 @@ class NewsDetailScreen extends StatelessWidget {
     final postedBy = news.postedByName.trim();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F5FC),
+      backgroundColor: AppTheme.appBackground,
       appBar: AppBar(
         title: Text(
           'News',
@@ -72,15 +72,16 @@ class NewsDetailScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Color(0xffFFFFFF),
                   borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 12,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
+                  border: Border.all(width: 0.5, color: Color(0xffEEF4F2)),
+                  // boxShadow: [
+                  //   BoxShadow(
+                  //     color: Colors.black.withValues(alpha: 0.04),
+                  //     blurRadius: 12,
+                  //     offset: const Offset(0, 5),
+                  //   ),
+                  // ],
                 ),
                 child: Row(
                   children: [
@@ -145,15 +146,9 @@ class NewsDetailScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Color(0xffFFFFFF),
                 borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 12,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
+                border: Border.all(width: 0.5, color: Color(0xffEEF4F2)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -167,17 +162,14 @@ class NewsDetailScreen extends StatelessWidget {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
-                              Icons.calendar_today_rounded,
-                              size: 13,
-                              color: Color(0xFF6A778B),
-                            ),
+                            Image.asset("assets/images/calendar-week.webp", height: 24, width: 24),
                             const SizedBox(width: 6),
                             Text(
                               dateLabel,
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: const Color(0xFF6A778B),
-                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF4C4C4C),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ],
@@ -188,8 +180,9 @@ class NewsDetailScreen extends StatelessWidget {
                   Text(
                     news.title.isEmpty ? 'Company News' : news.title,
                     style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.navy,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xff173559),
+                      fontSize: 18,
                       height: 1.25,
                     ),
                   ),
@@ -198,7 +191,12 @@ class NewsDetailScreen extends StatelessWidget {
                   const SizedBox(height: 14),
                   Text(
                     news.content.isEmpty ? 'No details provided.' : news.content,
-                    style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xff090909),
+                      height: 1.5,
+                    ),
                   ),
                 ],
               ),

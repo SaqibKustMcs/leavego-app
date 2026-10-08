@@ -6,6 +6,7 @@ import 'package:leavego_app/models/leave_type_response.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
+import 'package:leavego_app/ui/widgets/attachment_row.dart';
 import 'package:leavego_app/utils/app_roles.dart';
 
 class ApplyLeaveScreen extends StatefulWidget {
@@ -16,6 +17,8 @@ class ApplyLeaveScreen extends StatefulWidget {
 }
 
 class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
+  static const String _calendarIcon = 'assets/images/calendar-range.png';
+
   late final AppController _appController;
   String? _selectedLeaveTypeId;
   final _startDateController = TextEditingController();
@@ -34,6 +37,56 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
     _appController = Get.find<AppController>();
     _appController.addListener(_onUpdate);
     _appController.loadLeaveTypes();
+    final today = _formatDisplayDate(DateTime.now());
+    _startDateController.text = today;
+    _endDateController.text = today;
+  }
+
+  static const _monthNames = <String>[
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
+  String _formatDisplayDate(DateTime date) {
+    final month = _monthNames[date.month - 1];
+    return '${date.day.toString().padLeft(2, '0')} $month ${date.year}';
+  }
+
+  String _formatYmd(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
+  }
+
+  DateTime? _tryParseFieldDate(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return null;
+
+    final parts = trimmed.split(RegExp(r'\s+'));
+    if (parts.length == 3) {
+      final day = int.tryParse(parts[0]);
+      final monthIndex = _monthNames.indexWhere((m) => m.toLowerCase() == parts[1].toLowerCase());
+      final year = int.tryParse(parts[2]);
+      if (day != null && monthIndex >= 0 && year != null) {
+        return DateTime(year, monthIndex + 1, day);
+      }
+    }
+
+    try {
+      return DateTime.parse(trimmed);
+    } catch (_) {
+      return null;
+    }
   }
 
   void _onUpdate() {
@@ -54,18 +107,9 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
     super.dispose();
   }
 
-  DateTime? _tryParseYmd(String raw) {
-    if (raw.trim().isEmpty) return null;
-    try {
-      return DateTime.parse(raw);
-    } catch (_) {
-      return null;
-    }
-  }
-
   bool _validateDateRange({bool showMessage = false}) {
-    final start = _tryParseYmd(_startDateController.text.trim());
-    final end = _tryParseYmd(_endDateController.text.trim());
+    final start = _tryParseFieldDate(_startDateController.text.trim());
+    final end = _tryParseFieldDate(_endDateController.text.trim());
 
     if (start == null || end == null) {
       endDateError.value = '';
@@ -86,7 +130,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
   Future<void> _pickDate({required bool isStartDate}) async {
     final today = DateTime.now();
     final todayDateOnly = DateTime(today.year, today.month, today.day);
-    final selectedStart = _tryParseYmd(_startDateController.text);
+    final selectedStart = _tryParseFieldDate(_startDateController.text);
 
     final firstAllowedDate = isStartDate
         ? todayDateOnly
@@ -94,12 +138,15 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
               ? selectedStart
               : todayDateOnly);
 
-    final initial =
-        (isStartDate
-            ? _tryParseYmd(_startDateController.text)
-            : _tryParseYmd(_endDateController.text)) ??
-        firstAllowedDate;
-
+    final existing = isStartDate
+        ? _tryParseFieldDate(_startDateController.text)
+        : _tryParseFieldDate(_endDateController.text);
+    final defaultInitial = isStartDate
+        ? todayDateOnly
+        : (selectedStart != null && !selectedStart.isBefore(todayDateOnly)
+              ? selectedStart
+              : todayDateOnly);
+    final initial = existing ?? defaultInitial;
     final safeInitial = initial.isBefore(firstAllowedDate) ? firstAllowedDate : initial;
 
     final selected = await showDatePicker(
@@ -109,18 +156,16 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
       initialDate: safeInitial,
     );
     if (selected == null) return;
-    final month = selected.month.toString().padLeft(2, '0');
-    final day = selected.day.toString().padLeft(2, '0');
-    final formatted = '${selected.year}-$month-$day';
+    final formatted = _formatDisplayDate(selected);
 
     if (isStartDate) {
       _startDateController.text = formatted;
-      final end = _tryParseYmd(_endDateController.text);
+      final end = _tryParseFieldDate(_endDateController.text);
       if (end != null && end.isBefore(selected)) {
         _endDateController.clear();
       }
     } else {
-      final start = _tryParseYmd(_startDateController.text);
+      final start = _tryParseFieldDate(_startDateController.text);
       if (start != null && selected.isBefore(start)) {
         _showSnack('End date cannot be before start date');
         return;
@@ -131,13 +176,26 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
     _validateDateRange();
   }
 
-  Future<void> _pickAttachment() async {
-    final result = await FilePicker.platform.pickFiles(allowMultiple: false);
+  Future<void> _pickAttachment({required FileType type}) async {
+    final result = await FilePicker.platform.pickFiles(type: type, allowMultiple: false);
     if (result == null || result.files.isEmpty) return;
     setState(() => _attachmentPath = result.files.single.path);
     if (attachmentError.value.isNotEmpty) {
       attachmentError.value = '';
     }
+  }
+
+  String? get _attachmentDisplayName {
+    final path = _attachmentPath;
+    if (path == null || path.trim().isEmpty) return null;
+    return path.split(RegExp(r'[\\/]')).last;
+  }
+
+  Widget _calendarSuffix({required VoidCallback onPressed}) {
+    return IconButton(
+      onPressed: onPressed,
+      icon: Image.asset(_calendarIcon, width: 22, height: 22, fit: BoxFit.contain),
+    );
   }
 
   LeaveTypeItem? get _selectedLeaveType {
@@ -185,10 +243,18 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
     if (!isValid) return;
     if (!_validateDateRange()) return;
 
+    final startParsed = _tryParseFieldDate(_startDateController.text.trim());
+    final endParsed = _tryParseFieldDate(_endDateController.text.trim());
+    if (startParsed == null || endParsed == null) {
+      if (startParsed == null) startDateError.value = 'Please select a valid start date';
+      if (endParsed == null) endDateError.value = 'Please select a valid end date';
+      return;
+    }
+
     final response = await _appController.applyLeave(
       leaveTypeId: _selectedLeaveTypeId!,
-      startDate: _startDateController.text.trim(),
-      endDate: _endDateController.text.trim(),
+      startDate: _formatYmd(startParsed),
+      endDate: _formatYmd(endParsed),
       reason: _reasonController.text.trim(),
       attachmentPath: skipAttachment ? null : _attachmentPath,
     );
@@ -211,7 +277,7 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F5FC),
+      backgroundColor: AppTheme.appBackground,
       body: SafeArea(
         child: ListView(
           physics: const ClampingScrollPhysics(),
@@ -228,14 +294,9 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
                       Text(
                         'Apply Leave',
                         style: theme.textTheme.titleLarge?.copyWith(
-                          color: Colors.black,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(
-                        'Create a new leave request',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: const Color(0xFF6A778B),
+                          color: Color(0xff000000),
+                          fontWeight: FontWeight.w500,
+                          fontSize: 18,
                         ),
                       ),
                     ],
@@ -244,173 +305,193 @@ class _ApplyLeaveScreenState extends State<ApplyLeaveScreen> {
               ],
             ),
             const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 12,
-                    offset: const Offset(0, 5),
+            Column(
+              children: [
+                if (_appController.leaveTypesLoading)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: AppLoader(size: 24),
                   ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  if (_appController.leaveTypesLoading)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: AppLoader(size: 24),
+                Obx(
+                  () => DropdownButtonFormField<String>(
+                    icon: Icon(
+                      Icons.keyboard_arrow_down_outlined,
+                      size: 25,
+                      color: Color(0xff173559),
                     ),
-                  Obx(
-                    () => DropdownButtonFormField<String>(
-                      initialValue: _selectedLeaveTypeId,
-                      items: _appController.leaveTypes
-                          .map(
-                            (type) =>
-                                DropdownMenuItem<String>(value: type.id, child: Text(type.name)),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        setState(() => _selectedLeaveTypeId = value);
-                        leaveTypeError.value = '';
-                        attachmentError.value = '';
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Leave Type',
-                        hintText: 'Select leave type',
-                        errorText: leaveTypeError.value.isEmpty ? null : leaveTypeError.value,
+                    initialValue: _selectedLeaveTypeId,
+                    items: _appController.leaveTypes
+                        .map(
+                          (type) =>
+                              DropdownMenuItem<String>(value: type.id, child: Text(type.name)),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() => _selectedLeaveTypeId = value);
+                      leaveTypeError.value = '';
+                      attachmentError.value = '';
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Leave Type',
+                      labelStyle: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xff4C4C4C),
                       ),
+                      hintText: 'Select leave type',
+                      errorText: leaveTypeError.value.isEmpty ? null : leaveTypeError.value,
                     ),
                   ),
-                  if (_appController.leaveTypesError != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      _appController.leaveTypesError!,
-                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  Obx(
-                    () => TextField(
-                      controller: _startDateController,
-                      readOnly: true,
-                      onTap: () {
-                        startDateError.value = '';
-                        _pickDate(isStartDate: true);
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Start Date',
-                        hintText: 'YYYY-MM-DD',
-                        suffixIcon: const Icon(Icons.calendar_today_outlined),
-                        errorText: startDateError.value.isEmpty ? null : startDateError.value,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Obx(
-                    () => TextField(
-                      controller: _endDateController,
-                      readOnly: true,
-                      onTap: () {
-                        endDateError.value = '';
-                        _pickDate(isStartDate: false);
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'End Date',
-                        hintText: 'YYYY-MM-DD',
-                        suffixIcon: const Icon(Icons.calendar_today_outlined),
-                        errorText: endDateError.value.isEmpty ? null : endDateError.value,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Obx(
-                    () => TextField(
-                      controller: _reasonController,
-                      maxLines: 4,
-                      onChanged: (_) {
-                        if (reasonError.value.isNotEmpty) {
-                          reasonError.value = '';
-                        }
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Reason',
-                        hintText: 'Briefly describe the reason for leave.',
-                        errorText: reasonError.value.isEmpty ? null : reasonError.value,
-                        // alignLabelWithHint: false,
-                        floatingLabelBehavior: FloatingLabelBehavior.always,
-                        hintStyle: TextStyle(color: Colors.grey),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  if (!AppRoles.usesSimpleLeaveApply(_appController.meData?.role))
-                    Obx(() {
-                      final selectedType = _selectedLeaveType;
-                      final isRequired = selectedType?.requiresAttachment == true;
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            isRequired ? 'Attachment (required)' : 'Attachment (optional)',
-                            style: theme.textTheme.labelMedium,
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  _attachmentPath == null
-                                      ? 'No attachment selected'
-                                      : _attachmentPath!.split(RegExp(r'[\\/]')).last,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodySmall,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              OutlinedButton(
-                                onPressed: _pickAttachment,
-                                child: const Text('Choose File'),
-                              ),
-                            ],
-                          ),
-                          if (attachmentError.value.isNotEmpty) ...[
-                            const SizedBox(height: 6),
-                            Text(
-                              attachmentError.value,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.error,
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 12),
-                        ],
-                      );
-                    }),
+                ),
+                if (_appController.leaveTypesError != null) ...[
                   const SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [AppTheme.navy, AppTheme.lightNavy]),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: FilledButton(
-                      onPressed: _appController.applyLeaveLoading ? null : _submit,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        minimumSize: const Size(double.infinity, 50),
-                      ),
-                      child: _appController.applyLeaveLoading
-                          ? const AppButtonLoader(size: 22)
-                          : const Text('Submit Request'),
-                    ),
+                  Text(
+                    _appController.leaveTypesError!,
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
                   ),
                 ],
-              ),
+                const SizedBox(height: 24),
+                Obx(
+                  () => TextField(
+                    controller: _startDateController,
+                    readOnly: true,
+                    onTap: () {
+                      startDateError.value = '';
+                      _pickDate(isStartDate: true);
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Start Date',
+                      hintText: 'DD Mon YYYY',
+                      labelStyle: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xff4C4C4C),
+                      ),
+                      suffixIcon: _calendarSuffix(
+                        onPressed: () {
+                          startDateError.value = '';
+                          _pickDate(isStartDate: true);
+                        },
+                      ),
+                      errorText: startDateError.value.isEmpty ? null : startDateError.value,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Obx(
+                  () => TextField(
+                    controller: _endDateController,
+                    readOnly: true,
+                    onTap: () {
+                      endDateError.value = '';
+                      _pickDate(isStartDate: false);
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'End Date',
+                      labelStyle: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xff4C4C4C),
+                      ),
+                      hintText: 'DD Mon YYYY',
+                      suffixIcon: _calendarSuffix(
+                        onPressed: () {
+                          endDateError.value = '';
+                          _pickDate(isStartDate: false);
+                        },
+                      ),
+                      errorText: endDateError.value.isEmpty ? null : endDateError.value,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Obx(
+                  () => TextField(
+                    controller: _reasonController,
+                    maxLines: 4,
+                    onChanged: (_) {
+                      if (reasonError.value.isNotEmpty) {
+                        reasonError.value = '';
+                      }
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Reason',
+                      labelStyle: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xff4C4C4C),
+                      ),
+                      hintText: 'Briefly describe the reason for leave.',
+
+                      errorText: reasonError.value.isEmpty ? null : reasonError.value,
+                      // alignLabelWithHint: false,
+                      floatingLabelBehavior: FloatingLabelBehavior.always,
+                      hintStyle: TextStyle(
+                        color: Color(0xff999999),
+                        fontWeight: FontWeight.w400,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                if (!AppRoles.usesSimpleLeaveApply(_appController.meData?.role))
+                  Obx(() {
+                    final selectedType = _selectedLeaveType;
+                    final isRequired = selectedType?.requiresAttachment == true;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        AttachmentRow(
+                          attachmentName: _attachmentDisplayName,
+                          onDocument: () => _pickAttachment(type: FileType.any),
+                          onGallery: () => _pickAttachment(type: FileType.image),
+                          onCamera: () => _pickAttachment(type: FileType.image),
+                        ),
+                        if (isRequired) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Required for ${selectedType?.name ?? 'this leave type'}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: const Color(0xFF6A778B),
+                            ),
+                          ),
+                        ],
+                        if (attachmentError.value.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            attachmentError.value,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.error,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 24),
+                      ],
+                    );
+                  }),
+                const SizedBox(height: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [Color(0xff173559), Color(0xff173559)]),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: FilledButton(
+                    onPressed: _appController.applyLeaveLoading ? null : _submit,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      minimumSize: const Size(double.infinity, 50),
+                    ),
+                    child: _appController.applyLeaveLoading
+                        ? const AppButtonLoader(size: 22)
+                        : const Text(
+                            'Submit Request',
+                            style: TextStyle(fontWeight: FontWeight.w500, fontSize: 16),
+                          ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

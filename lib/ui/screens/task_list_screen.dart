@@ -125,7 +125,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
     final tasks = _appController.tasks;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F5FC),
+      backgroundColor: AppTheme.appBackground,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _onRefresh,

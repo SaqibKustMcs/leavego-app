@@ -157,7 +157,7 @@ class _MyTodayTasksScreenState extends State<MyTodayTasksScreen> {
     final selectedIndex = _indexForPriority(_appController.myTodayTasksPriorityFilter);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F5FC),
+      backgroundColor: AppTheme.appBackground,
       appBar: AppBar(
         title: const Text('My Today Tasks'),
         leading: const AppBackButton(),

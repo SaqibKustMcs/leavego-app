@@ -6,10 +6,11 @@ import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/services/notification_navigation_service.dart';
 import 'package:leavego_app/services/push_notification_service.dart';
 import 'package:leavego_app/ui/screens/home_screen.dart';
+import 'package:leavego_app/ui/screens/my_leave_requests_screen.dart';
 import 'package:leavego_app/ui/screens/projects_screen.dart';
 import 'package:leavego_app/ui/screens/notification_screen.dart';
-import 'package:leavego_app/ui/screens/profile_screen.dart';
-import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_bottom_nav_bar.dart';
+import 'package:leavego_app/utils/app_roles.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -23,14 +24,16 @@ class _MainScreenState extends State<MainScreen> {
   late final AppController _appController;
   bool _notificationPermissionRequested = false;
 
-  static const int _notificationsIndex = 2;
+  static const int _projectsIndex = 1;
+  static const int _leaveIndex = 2;
+  static const int _notificationsIndex = 3;
 
   /// Kept alive across tab switches via [IndexedStack].
   static const List<Widget> _screens = <Widget>[
     HomeScreen(),
     ProjectsScreen(),
+    MyLeaveRequestsScreen(),
     NotificationScreen(),
-    ProfileScreen(),
   ];
 
   @override
@@ -53,7 +56,6 @@ class _MainScreenState extends State<MainScreen> {
     if (_notificationPermissionRequested || !mounted) return;
     _notificationPermissionRequested = true;
 
-    // Let the main shell paint first so the dialog appears over bottom nav.
     await Future<void>.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
 
@@ -77,7 +79,7 @@ class _MainScreenState extends State<MainScreen> {
     if (pending != null && mounted) {
       _appController.clearPendingMainTabIndex();
       setState(() {
-        _currentIndex = pending.clamp(0, 3);
+        _currentIndex = pending.clamp(0, _screens.length - 1);
       });
       return;
     }
@@ -90,42 +92,34 @@ class _MainScreenState extends State<MainScreen> {
     super.dispose();
   }
 
-  Widget _badgeIcon({required IconData icon, required int count, required bool active}) {
-    final effectiveCount = count > 99 ? 99 : count;
-    final show = effectiveCount > 0;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Icon(icon),
-        if (show)
-          Positioned(
-            right: -6,
-            top: -4,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-              decoration: BoxDecoration(
-                color: active ? AppTheme.navy : const Color(0xFFE53935),
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: Colors.white, width: 1.5),
-              ),
-              child: Text(
-                '$effectiveCount',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  height: 1.0,
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
+  Future<void> _onTabSelected(int tappedIndex) async {
+    setState(() => _currentIndex = tappedIndex);
+
+    if (tappedIndex == _projectsIndex) {
+      await _appController.loadProjects(refresh: true);
+      return;
+    }
+
+    if (tappedIndex == _leaveIndex) {
+      await Future.wait([
+        _appController.loadDashboard(),
+        _appController.loadLeaveTypes(),
+        _appController.loadMyLeaves(),
+        _appController.loadRequestsByRole(),
+      ]);
+      return;
+    }
+
+    if (tappedIndex == _notificationsIndex) {
+      await Future.wait([
+        _appController.loadUnreadCount(),
+        _appController.loadNotifications(refresh: true),
+      ]);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final index = _currentIndex.clamp(0, _screens.length - 1);
     final unread = _appController.unreadCount;
 
@@ -134,61 +128,10 @@ class _MainScreenState extends State<MainScreen> {
         index: index,
         children: _screens,
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          boxShadow: [
-            BoxShadow(
-              color: theme.shadowColor.withValues(alpha: 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: index,
-          onTap: (tappedIndex) async {
-            setState(() => _currentIndex = tappedIndex);
-            // Refresh data when opening these tabs (screens stay mounted).
-            if (tappedIndex == 1) {
-              await _appController.loadProjects(refresh: true);
-              return;
-            }
-            if (tappedIndex == _notificationsIndex) {
-              await Future.wait([
-                _appController.loadUnreadCount(),
-                _appController.loadNotifications(),
-              ]);
-              return;
-            }
-          },
-          elevation: 0,
-          type: BottomNavigationBarType.fixed,
-          items: [
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.grid_view_outlined),
-              activeIcon: Icon(Icons.grid_view_rounded),
-              label: 'Home',
-            ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.folder_outlined),
-              activeIcon: Icon(Icons.folder),
-              label: 'Projects',
-            ),
-            BottomNavigationBarItem(
-              icon: _badgeIcon(icon: Icons.notifications_outlined, count: unread, active: false),
-              activeIcon: _badgeIcon(icon: Icons.notifications, count: unread, active: true),
-              label: 'Notifications',
-            ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.badge_outlined),
-              activeIcon: Icon(Icons.badge),
-              label: 'Profile',
-            ),
-          ],
-          selectedItemColor: AppTheme.navy,
-          unselectedItemColor: Colors.grey.shade600,
-        ),
+      bottomNavigationBar: AppBottomNavBar(
+        currentIndex: index,
+        notificationBadgeCount: unread,
+        onTap: (tappedIndex) => _onTabSelected(tappedIndex),
       ),
     );
   }

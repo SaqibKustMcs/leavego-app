@@ -6,9 +6,12 @@ class AppTheme {
   // static const Color lightNavy = Color(0xFF1B5569);
   // static const Color navy = Color(0xFF2EB0A2);
   // static const Color lightNavy = Color(0xFF1B5569);
-  static const Color navy = Color(0xFF489FF7);
-  static const Color lightNavy = Color(0xFF4166FA);
-  static const Color appBackground = Color(0xFFF4F6FA);
+  static const Color navy = Color(0xFF173559);
+  static const Color lightNavy = Color(0xFF3757D8);
+  static const double controlRadius = 4;
+  static const Color appBackground = Color(0xFFFCFFFF);
+  /// Splash and onboarding only (not main app screens).
+  static const Color authFlowBackground = Color(0xFFF4F6FA);
   static const Color cardBackground = Colors.white;
   static const String fontFamily = 'Inter';
 
@@ -42,7 +45,7 @@ class AppTheme {
       colorScheme: colorScheme,
       scaffoldBackgroundColor: appBackground,
       appBarTheme: AppBarTheme(
-        backgroundColor: Colors.white,
+        backgroundColor: appBackground,
         foregroundColor: Colors.black,
         centerTitle: false,
         elevation: 0,
@@ -69,15 +72,15 @@ class AppTheme {
         fillColor: Colors.white,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(controlRadius),
           borderSide: BorderSide(color: Colors.grey.shade300),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(controlRadius),
           borderSide: BorderSide(color: Colors.grey.shade300),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(controlRadius),
           borderSide: const BorderSide(color: navy, width: 1.4),
         ),
       ),
@@ -86,7 +89,7 @@ class AppTheme {
           backgroundColor: navy,
           foregroundColor: Colors.white,
           textStyle: const TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w600),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(controlRadius)),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         ),
       ),

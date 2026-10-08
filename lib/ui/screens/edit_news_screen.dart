@@ -93,7 +93,7 @@ class _EditNewsScreenState extends State<EditNewsScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F5FC),
+      backgroundColor: AppTheme.appBackground,
       appBar: AppBar(
         title: const Text('Edit News'),
         leading: const AppBackButton(),

@@ -148,7 +148,7 @@ class _SupportingTasksScreenState extends State<SupportingTasksScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F5FC),
+      backgroundColor: AppTheme.appBackground,
       appBar: AppBar(
         title: const Text('Supporting Tasks'),
         leading: const AppBackButton(),

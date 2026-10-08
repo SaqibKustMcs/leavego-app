@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:leavego_app/data/api_service.dart';
 import 'package:leavego_app/models/apply_leave_response.dart';
 import 'package:leavego_app/models/dashboard_response.dart';
+import 'package:leavego_app/ui/models/today_glance_tab.dart';
 import 'package:leavego_app/models/leave_type_response.dart';
 import 'package:leavego_app/models/login_response.dart';
 import 'package:leavego_app/models/leave_detail_response.dart';
@@ -71,8 +74,13 @@ class AppController extends ChangeNotifier {
   String? unreadCountError;
   int unreadCount = 0;
   bool notificationsLoading = false;
+  bool notificationsLoadingMore = false;
   String? notificationsError;
   List<AppNotificationItem> notifications = <AppNotificationItem>[];
+  int notificationsCurrentPage = 1;
+  int notificationsLastPage = 1;
+  int notificationsTotal = 0;
+  bool notificationsHasMore = false;
 
   bool usersLoading = false;
   String? usersError;
@@ -128,49 +136,86 @@ class AppController extends ChangeNotifier {
   int myTodayTasksTotal = 0;
   bool myTodayTasksHasMore = false;
   String? myTodayTasksPriorityFilter;
+  TodayGlanceTab todayGlanceTab = TodayGlanceTab.tasks;
 
-  /// Single featured task for homepage: highest priority, and if tied, the latest.
+  void setTodayGlanceTab(TodayGlanceTab tab) {
+    if (todayGlanceTab == tab) return;
+    todayGlanceTab = tab;
+    notifyListeners();
+  }
+
+  /// Next Up on homepage: earliest due date/time among open tasks.
   TaskItem? get homePriorityTask {
     if (myTodayTasks.isEmpty) return null;
 
-    const highPriorities = <String>{'critical', 'urgent', 'high'};
-    const priorityOrder = <String>['critical', 'urgent', 'high', 'medium', 'low'];
-
-    int priorityRank(TaskItem task) {
-      final index = priorityOrder.indexOf(task.priority.trim().toLowerCase());
-      return index == -1 ? priorityOrder.length : index;
-    }
-
-    DateTime? parseDate(String? raw) {
-      if (raw == null || raw.trim().isEmpty) return null;
-      try {
-        final normalized = raw.contains(' ') ? raw.replaceFirst(' ', 'T') : raw;
-        return DateTime.parse(normalized).toLocal();
-      } catch (_) {
-        return null;
+    bool isOpen(TaskItem task) {
+      switch (task.status.trim().toLowerCase()) {
+        case 'completed':
+        case 'cancelled':
+        case 'rejected':
+          return false;
+        default:
+          return true;
       }
     }
 
-    DateTime latestStamp(TaskItem task) {
-      return parseDate(task.createdAt) ??
-          parseDate(task.updatedAt) ??
-          DateTime.fromMillisecondsSinceEpoch(task.id);
+    DateTime? parseDue(TaskItem task) {
+      final dateRaw = task.dueDate;
+      if (dateRaw == null || dateRaw.trim().isEmpty) return null;
+
+      DateTime? dateOnly;
+      try {
+        final normalized = dateRaw.contains(' ') ? dateRaw.replaceFirst(' ', 'T') : dateRaw;
+        dateOnly = DateTime.parse(normalized).toLocal();
+      } catch (_) {
+        try {
+          final head = dateRaw.split(' ').first.split('T').first;
+          dateOnly = DateTime.parse(head).toLocal();
+        } catch (_) {
+          return null;
+        }
+      }
+
+      final timeRaw = task.dueTime?.trim();
+      if (timeRaw != null && timeRaw.isNotEmpty) {
+        final parts = timeRaw.split(':');
+        if (parts.length >= 2) {
+          final hour = int.tryParse(parts[0]);
+          final minute = int.tryParse(parts[1]);
+          if (hour != null && minute != null) {
+            return DateTime(dateOnly.year, dateOnly.month, dateOnly.day, hour, minute);
+          }
+        }
+      }
+
+      if (dateRaw.contains(':') &&
+          (dateRaw.toUpperCase().contains('AM') || dateRaw.toUpperCase().contains('PM'))) {
+        return dateOnly;
+      }
+
+      return DateTime(dateOnly.year, dateOnly.month, dateOnly.day, 23, 59);
     }
 
-    final highPriorityTasks = myTodayTasks
-        .where((task) => highPriorities.contains(task.priority.trim().toLowerCase()))
-        .toList();
-    final candidates = highPriorityTasks.isNotEmpty
-        ? highPriorityTasks
-        : List<TaskItem>.from(myTodayTasks);
+    TaskItem? nearestTask;
+    DateTime? nearestDue;
 
-    candidates.sort((a, b) {
-      final byPriority = priorityRank(a).compareTo(priorityRank(b));
-      if (byPriority != 0) return byPriority;
-      return latestStamp(b).compareTo(latestStamp(a)); // newest first
-    });
+    for (final task in myTodayTasks) {
+      if (!isOpen(task)) continue;
+      final due = parseDue(task);
+      if (due == null) continue;
+      if (nearestDue == null || due.isBefore(nearestDue)) {
+        nearestDue = due;
+        nearestTask = task;
+      }
+    }
 
-    return candidates.first;
+    if (nearestTask != null) return nearestTask;
+
+    for (final task in myTodayTasks) {
+      if (isOpen(task)) return task;
+    }
+
+    return myTodayTasks.first;
   }
 
   bool projectsLoading = false;
@@ -230,9 +275,15 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Requests [MainScreen] to switch to the My Leave Requests bottom tab.
+  void requestSwitchToLeaveTab() {
+    pendingMainTabIndex = 2;
+    notifyListeners();
+  }
+
   /// Requests [MainScreen] to switch to the notifications bottom tab.
   void requestSwitchToNotificationsTab() {
-    pendingMainTabIndex = 2;
+    pendingMainTabIndex = 3;
     notifyListeners();
   }
 
@@ -494,10 +545,12 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  Future<void> loadDashboard() async {
-    dashboardLoading = true;
-    dashboardError = null;
-    notifyListeners();
+  Future<void> loadDashboard({bool silent = false}) async {
+    if (!silent) {
+      dashboardLoading = true;
+      dashboardError = null;
+      notifyListeners();
+    }
 
     try {
       final token = await _token();
@@ -506,11 +559,27 @@ class AppController extends ChangeNotifier {
       }
       dashboardData = await _apiService.dashboard(token: token);
     } catch (e) {
-      dashboardError = e.toString().replaceFirst('Exception: ', '');
+      if (!silent) {
+        dashboardError = e.toString().replaceFirst('Exception: ', '');
+      }
     } finally {
-      dashboardLoading = false;
+      if (!silent) {
+        dashboardLoading = false;
+      }
       notifyListeners();
     }
+  }
+
+  /// Updates Work Pulse, leave balances, Today's glance, and Next Up without blocking UI.
+  Future<void> refreshHomeScreenDataInBackground() async {
+    await Future.wait<void>([
+      loadDashboard(silent: true),
+      loadMyTodayTasks(refresh: true, applyPriorityFilter: false, silent: true),
+    ]);
+  }
+
+  void _scheduleHomeScreenRefresh() {
+    unawaited(refreshHomeScreenDataInBackground());
   }
 
   Future<void> loadNews({bool refresh = false}) async {
@@ -673,6 +742,7 @@ class AppController extends ChangeNotifier {
       await SessionStorage.clearToken();
       dashboardData = null;
       meData = null;
+      todayGlanceTab = TodayGlanceTab.tasks;
       leaveTypes = <LeaveTypeItem>[];
       myLeaves = <MyLeaveItem>[];
       dashboardError = null;
@@ -981,7 +1051,7 @@ class AppController extends ChangeNotifier {
       }
       final msg = await _apiService.readAllNotifications(token: token);
       unreadCount = 0;
-      await loadNotifications();
+      await loadNotifications(refresh: true);
       return msg;
     } catch (e) {
       notificationsReadAllError = e.toString().replaceFirst('Exception: ', '');
@@ -1038,7 +1108,7 @@ class AppController extends ChangeNotifier {
       return msg;
     } catch (e) {
       notificationReadError = e.toString().replaceFirst('Exception: ', '');
-      await loadNotifications();
+      await loadNotifications(refresh: true);
       await loadUnreadCount();
       return null;
     } finally {
@@ -1066,7 +1136,15 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  Future<void> loadNotifications() async {
+  Future<void> loadNotifications({bool refresh = false}) async {
+    if (refresh) {
+      notificationsCurrentPage = 1;
+      notificationsLastPage = 1;
+      notificationsTotal = 0;
+      notificationsHasMore = false;
+      notifications = <AppNotificationItem>[];
+    }
+
     notificationsLoading = true;
     notificationsError = null;
     notifyListeners();
@@ -1076,13 +1154,44 @@ class AppController extends ChangeNotifier {
       if (token == null || token.isEmpty) {
         throw Exception('Token not found. Please login again.');
       }
-      final page = await _apiService.notifications(token: token);
+      final page = await _apiService.notifications(token: token, page: 1, perPage: 10);
       notifications = page.items;
-      unreadCount = notifications.where((n) => !n.isRead).length;
+      notificationsCurrentPage = page.currentPage;
+      notificationsLastPage = page.lastPage;
+      notificationsTotal = page.total;
+      notificationsHasMore = page.hasMore;
+      await loadUnreadCount();
     } catch (e) {
       notificationsError = e.toString().replaceFirst('Exception: ', '');
     } finally {
       notificationsLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadMoreNotifications() async {
+    if (notificationsLoadingMore || notificationsLoading || !notificationsHasMore) return;
+
+    notificationsLoadingMore = true;
+    notificationsError = null;
+    notifyListeners();
+
+    try {
+      final token = await _token();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token not found. Please login again.');
+      }
+      final nextPage = notificationsCurrentPage + 1;
+      final page = await _apiService.notifications(token: token, page: nextPage, perPage: 10);
+      notifications = <AppNotificationItem>[...notifications, ...page.items];
+      notificationsCurrentPage = page.currentPage;
+      notificationsLastPage = page.lastPage;
+      notificationsTotal = page.total;
+      notificationsHasMore = page.hasMore;
+    } catch (e) {
+      notificationsError = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      notificationsLoadingMore = false;
       notifyListeners();
     }
   }
@@ -1338,6 +1447,7 @@ class AppController extends ChangeNotifier {
         status: status,
       );
       await loadTasks(refresh: true);
+      _scheduleHomeScreenRefresh();
       return response;
     } catch (e) {
       updateTaskStatusError = e.toString().replaceFirst('Exception: ', '');
@@ -1572,18 +1682,26 @@ class AppController extends ChangeNotifier {
     await loadMyTodayTasks(refresh: true);
   }
 
-  Future<void> loadMyTodayTasks({bool refresh = false, bool applyPriorityFilter = true}) async {
+  Future<void> loadMyTodayTasks({
+    bool refresh = false,
+    bool applyPriorityFilter = true,
+    bool silent = false,
+  }) async {
     if (refresh) {
       myTodayTasksCurrentPage = 1;
       myTodayTasksLastPage = 1;
       myTodayTasksTotal = 0;
       myTodayTasksHasMore = false;
-      myTodayTasks = <TaskItem>[];
+      if (!silent) {
+        myTodayTasks = <TaskItem>[];
+      }
     }
 
-    myTodayTasksLoading = true;
-    myTodayTasksError = null;
-    notifyListeners();
+    if (!silent) {
+      myTodayTasksLoading = true;
+      myTodayTasksError = null;
+      notifyListeners();
+    }
 
     try {
       final token = await _token();
@@ -1601,9 +1719,13 @@ class AppController extends ChangeNotifier {
       myTodayTasksTotal = page.total;
       myTodayTasksHasMore = page.hasMore || page.currentPage < page.lastPage;
     } catch (e) {
-      myTodayTasksError = e.toString().replaceFirst('Exception: ', '');
+      if (!silent) {
+        myTodayTasksError = e.toString().replaceFirst('Exception: ', '');
+      }
     } finally {
-      myTodayTasksLoading = false;
+      if (!silent) {
+        myTodayTasksLoading = false;
+      }
       notifyListeners();
     }
   }

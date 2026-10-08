@@ -249,7 +249,7 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F5FC),
+      backgroundColor: AppTheme.appBackground,
       appBar: AppBar(
         title: const Text('Edit Task'),
         leading: const AppBackButton(),

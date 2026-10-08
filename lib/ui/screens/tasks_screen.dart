@@ -323,7 +323,7 @@ class _TasksScreenState extends State<TasksScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F5FC),
+      backgroundColor: AppTheme.appBackground,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _onRefresh,

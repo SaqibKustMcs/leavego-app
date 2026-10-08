@@ -19,6 +19,14 @@ class LeaveDetailScreen extends StatefulWidget {
 }
 
 class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
+  static const Color _primary = Color(0xFF173559);
+  static const String _iconEmployee = 'assets/images/employee_name_leave.webp';
+  static const String _iconDepartment = 'assets/images/department_name_leave.webp';
+  static const String _iconLeaveType = 'assets/images/leave_type.webp';
+  static const String _iconDates = 'assets/images/dates.webp';
+  static const String _iconDays = 'assets/images/days.webp';
+  static const String _iconAttachment = 'assets/images/attachment.webp';
+
   late final AppController _appController;
   late Future<LeaveDetailData?> _future;
   final TextEditingController _rejectReasonController = TextEditingController();
@@ -210,42 +218,57 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
     return 'Leave Type';
   }
 
+  String _formatDays(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return '-';
+    final n = int.tryParse(trimmed);
+    if (n == null) return trimmed;
+    return n == 1 ? '1 Day' : '$n Days';
+  }
+
+  String _attachmentDisplayName({String? attachment, String? url}) {
+    for (final raw in [attachment, url]) {
+      if (raw == null || raw.trim().isEmpty) continue;
+      final segment = Uri.tryParse(raw.trim())?.pathSegments.last ?? raw.split('/').last;
+      final name = segment.split('?').first.trim();
+      if (name.isNotEmpty) return name;
+    }
+    return '-';
+  }
+
+  String _statusDisplay(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return 'Pending';
+    return _capitalize(trimmed.replaceAll('_', ' '));
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F5FC),
+      backgroundColor: AppTheme.appBackground,
       body: SafeArea(
         child: ListView(
           physics: const ClampingScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
           children: [
             Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const AppBackButton(),
+                const AppBackButton(color: _primary),
                 const SizedBox(width: 4),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Leave Detail',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          color: Colors.black,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(
-                        'Request information',
-                        style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF6A778B)),
-                      ),
-                    ],
+                  child: Text(
+                    'Leave Detail',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: Color(0xff000000),
+                      fontWeight: FontWeight.w500,
+                      fontSize: 18,
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 20),
             FutureBuilder<LeaveDetailData?>(
               future: _future,
               builder: (context, snapshot) {
@@ -271,7 +294,9 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
 
                 final data = snapshot.data;
                 if (data == null) {
-                  return const _DetailCard(label: 'Info', value: 'Leave detail not found.');
+                  return const _LeaveInfoCard(
+                    rows: [_LeaveInfoRowData(label: 'Info', value: 'Leave detail not found.')],
+                  );
                 }
 
                 final leave = data.leave;
@@ -289,85 +314,100 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
                 final canTakeAction =
                     widget.enableActions && (isHrActionAllowed || isCeoActionAllowed);
 
+                final showCeoStatus = status == 'pending_ceo' || leave.ceoStatus.trim().isNotEmpty;
+                final primaryStageLabel = showCeoStatus ? 'CEO' : 'HR / OPM';
+                final primaryStageStatus = showCeoStatus
+                    ? _statusDisplay(leave.ceoStatus)
+                    : _statusDisplay(leave.hrStatus);
+                final attachmentName = _attachmentDisplayName(
+                  attachment: leave.attachment,
+                  url: data.attachmentUrl,
+                );
+                final hasAttachment =
+                    data.attachmentUrl?.isNotEmpty == true || leave.attachment?.isNotEmpty == true;
+
                 return Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // _DetailCard(label: 'Request ID', value: leave.id),
-                    // _DetailCard(label: 'Employee ID', value: leave.employeeId),
-                    _DetailCard(label: 'Name', value: data.employeeName),
-                    _DetailCard(label: 'Department', value: data.department),
-                    _DetailCard(label: 'Leave Type', value: _leaveTypeName(leave.leaveTypeId)),
-                    _DetailCard(
-                      label: 'Dates',
-                      value: '${_formatDate(leave.startDate)} - ${_formatDate(leave.endDate)}',
-                    ),
-                    _DetailCard(label: 'Days', value: leave.days),
-                    Card(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Column(
-                          children: [
-                            Text(
-                              'Status',
-                              style: theme.textTheme.labelLarge?.copyWith(color: AppTheme.navy),
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                (status == 'pending_ceo' || leave.ceoStatus.trim().isNotEmpty)
-                                    ? Expanded(
-                                        child: _StatusTile(
-                                          label: 'CEO',
-                                          value: leave.ceoStatus.trim().isEmpty
-                                              ? 'Pending'
-                                              : _capitalize(leave.ceoStatus),
-                                        ),
-                                      )
-                                    :
-                                      // const SizedBox(width: 8),
-                                      Expanded(
-                                        child: _StatusTile(
-                                          label: 'HR / OPM',
-                                          value: _capitalize(leave.hrStatus),
-                                        ),
-                                      ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _StatusTile(
-                                    label: 'Final',
-                                    value: _capitalize(leave.finalStatus),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                    const _SectionHeading(title: 'Employee Information'),
+                    const SizedBox(height: 10),
+                    _LeaveInfoCard(
+                      rows: [
+                        _LeaveInfoRowData(
+                          iconAsset: _iconEmployee,
+                          label: 'Name',
+                          value: data.employeeName.isEmpty ? '-' : data.employeeName,
                         ),
-                      ),
+                        _LeaveInfoRowData(
+                          iconAsset: _iconDepartment,
+                          label: 'Department',
+                          value: data.department.isEmpty ? '-' : data.department,
+                        ),
+                      ],
                     ),
-                    _DetailCard(label: 'Reason', value: leave.reason),
-                    _DetailCard(
-                      label: 'Submitted At',
-                      value: leave.submittedAt == null ? '-' : _formatDate(leave.submittedAt!),
+                    const SizedBox(height: 20),
+                    const _SectionHeading(title: 'Leave Information'),
+                    const SizedBox(height: 10),
+                    _LeaveInfoCard(
+                      rows: [
+                        _LeaveInfoRowData(
+                          iconAsset: _iconLeaveType,
+                          label: 'Leave Type',
+                          value: _leaveTypeName(leave.leaveTypeId),
+                        ),
+                        _LeaveInfoRowData(
+                          iconAsset: _iconDates,
+                          label: 'Dates',
+                          value: '${_formatDate(leave.startDate)} - ${_formatDate(leave.endDate)}',
+                        ),
+                        _LeaveInfoRowData(
+                          iconAsset: _iconDays,
+                          label: 'Days',
+                          value: _formatDays(leave.days),
+                        ),
+                      ],
                     ),
-                    _AttachmentCard(
-                      label: 'Attachment',
-                      value: _toAbsoluteUrl(data.attachmentUrl) ?? '-',
-                      onView: data.attachmentUrl?.isNotEmpty == true
-                          ? () => _openAttachment(data.attachmentUrl)
-                          : null,
+                    const SizedBox(height: 20),
+                    const _SectionHeading(title: 'Status'),
+                    const SizedBox(height: 10),
+                    _LeaveStatusPanel(
+                      primaryLabel: primaryStageLabel,
+                      primaryStatus: primaryStageStatus,
+                      finalStatus: _statusDisplay(leave.finalStatus),
                     ),
-                    _AttachmentCard(
-                      label: 'Supporting Document',
-                      value: _toAbsoluteUrl(leave.supportingDocumentPath) ?? '-',
-                      onView: leave.supportingDocumentPath?.isNotEmpty == true
-                          ? () => _openAttachment(leave.supportingDocumentPath)
-                          : null,
+                    const SizedBox(height: 20),
+                    const _SectionHeading(title: 'Other Information'),
+                    const SizedBox(height: 10),
+                    _LeaveInfoCard(
+                      rows: [
+                        _LeaveInfoRowData(
+                          iconAsset: _iconLeaveType,
+                          label: 'Reason',
+                          value: leave.reason.isEmpty ? '-' : leave.reason,
+                        ),
+                        _LeaveInfoRowData(
+                          iconAsset: _iconDates,
+                          label: 'Submitted At',
+                          value: leave.submittedAt == null ? '-' : _formatDate(leave.submittedAt!),
+                        ),
+                        _LeaveInfoRowData(
+                          iconAsset: _iconAttachment,
+                          label: 'Attachment',
+                          value: attachmentName,
+                          onTap: hasAttachment
+                              ? () => _openAttachment(data.attachmentUrl ?? leave.attachment)
+                              : null,
+                        ),
+                        if (leave.supportingDocumentPath?.isNotEmpty == true)
+                          _LeaveInfoRowData(
+                            iconAsset: _iconAttachment,
+                            label: 'Supporting Document',
+                            value: _attachmentDisplayName(url: leave.supportingDocumentPath),
+                            onTap: () => _openAttachment(leave.supportingDocumentPath),
+                          ),
+                      ],
                     ),
+                    const SizedBox(height: 20),
                     if (canTakeAction)
                       Card(
                         margin: const EdgeInsets.only(bottom: 10),
@@ -521,96 +561,196 @@ class _LeaveDetailScreenState extends State<LeaveDetailScreen> {
   }
 }
 
-class _DetailCard extends StatelessWidget {
-  const _DetailCard({required this.label, required this.value});
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading({required this.title});
 
-  final String label;
-  final String value;
+  final String title;
+
+  static const Color _primary = Color(0xFF173559);
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    return Text(
+      title,
+      style: Theme.of(
+        context,
+      ).textTheme.titleSmall?.copyWith(color: _primary, fontWeight: FontWeight.w600, fontSize: 16),
+    );
+  }
+}
 
-    return SizedBox(
-      width: double.infinity,
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 10),
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: AppTheme.navy,
-                  fontWeight: FontWeight.w700,
-                ),
+class _LeaveInfoRowData {
+  const _LeaveInfoRowData({required this.label, required this.value, this.iconAsset, this.onTap});
+
+  final String label;
+  final String value;
+  final String? iconAsset;
+  final VoidCallback? onTap;
+}
+
+class _LeaveInfoCard extends StatelessWidget {
+  const _LeaveInfoCard({required this.rows});
+
+  final List<_LeaveInfoRowData> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Color(0xffFFFFFF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFEEEEEE), width: 0.5),
+      ),
+      child: Column(
+        children: [
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                child: const Divider(height: 1, thickness: 0.5, color: Color(0xFFEEF4F2)),
               ),
-              const SizedBox(height: 6),
-              Text(
-                value,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: const Color(0xFF112645),
-                  height: 1.35,
-                ),
-              ),
-            ],
-          ),
-        ),
+            _LeaveInfoRow(row: rows[i]),
+          ],
+        ],
       ),
     );
   }
 }
 
-class _AttachmentCard extends StatelessWidget {
-  const _AttachmentCard({required this.label, required this.value, required this.onView});
+class _LeaveInfoRow extends StatelessWidget {
+  const _LeaveInfoRow({required this.row});
 
-  final String label;
-  final String value;
-  final VoidCallback? onView;
+  final _LeaveInfoRowData row;
+
+  static const Color _primary = Color(0xFF173559);
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: AppTheme.navy,
-                fontWeight: FontWeight.w700,
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (row.iconAsset != null)
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE4F1FE),
+                borderRadius: BorderRadius.circular(8),
               ),
+              alignment: Alignment.center,
+              child: Image.asset(row.iconAsset!, width: 20, height: 20, fit: BoxFit.contain),
             ),
-            // const SizedBox(height: 6),
-            // Text(
-            //   value,
-            //   style: theme.textTheme.bodyMedium?.copyWith(color: const Color(0xFF112645)),
-            // ),
-            if (onView != null) ...[
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: OutlinedButton.icon(
-                  onPressed: onView,
-                  icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                  label: const Text('View Attachment'),
+          if (row.iconAsset != null) const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  row.label,
+                  style: const TextStyle(
+                    color: Color(0xFF999999),
+                    fontWeight: FontWeight.w400,
+                    fontSize: 12,
+                  ),
                 ),
-              ),
-            ],
-          ],
-        ),
+                const SizedBox(height: 4),
+                Text(
+                  row.value,
+                  style: TextStyle(
+                    color: _primary,
+                    fontWeight: FontWeight.w400,
+                    fontSize: 16,
+                    height: 1.3,
+                    decoration: row.onTap != null ? TextDecoration.underline : null,
+                    decorationColor: _primary.withValues(alpha: 0.35),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
+    );
+
+    if (row.onTap == null) return content;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(onTap: row.onTap, child: content),
+    );
+  }
+}
+
+class _LeaveStatusPanel extends StatelessWidget {
+  const _LeaveStatusPanel({
+    required this.primaryLabel,
+    required this.primaryStatus,
+    required this.finalStatus,
+  });
+
+  final String primaryLabel;
+  final String primaryStatus;
+  final String finalStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE9FFF7),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFEF9EE), width: 0.5),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: _LeaveStatusColumn(label: primaryLabel, status: primaryStatus),
+          ),
+          Container(height: 50, width: 0.2, color: Color(0xff999999)),
+
+          Expanded(
+            child: _LeaveStatusColumn(label: 'Final', status: finalStatus),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LeaveStatusColumn extends StatelessWidget {
+  const _LeaveStatusColumn({required this.label, required this.status});
+
+  final String label;
+  final String status;
+
+  static const Color _primary = Color(0xFF173559);
+
+  Color _statusColor(String value) {
+    final lower = value.toLowerCase();
+    if (lower == 'approved') return const Color(0xFF1B5E20);
+    if (lower == 'rejected') return const Color(0xFF8B1D18);
+    if (lower.contains('pending')) return const Color(0xFFE65100);
+    return _primary;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+
+      children: [
+        Text(
+          label,
+          style: const TextStyle(color: _primary, fontWeight: FontWeight.w400, fontSize: 16),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          status,
+          style: TextStyle(color: _statusColor(status), fontWeight: FontWeight.w400, fontSize: 12),
+        ),
+      ],
     );
   }
 }
@@ -643,52 +783,6 @@ class _AttachmentImageScreen extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _StatusTile extends StatelessWidget {
-  const _StatusTile({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    Color bg = const Color(0xFFE7EEFF);
-    Color fg = AppTheme.navy;
-    final lower = value.toLowerCase();
-    if (lower == 'approved') {
-      bg = const Color(0xFFDFF5E2);
-      fg = const Color(0xFF1B5E20);
-    } else if (lower == 'rejected') {
-      bg = const Color(0xFFFCE3E1);
-      fg = const Color(0xFF8B1D18);
-    } else if (lower.contains('pending')) {
-      bg = const Color(0xFFFFF4DC);
-      fg = const Color(0xFF9A6A00);
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: fg.withValues(alpha: 0.8),
-              fontWeight: FontWeight.w600,
-              fontSize: 10,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: TextStyle(color: fg, fontWeight: FontWeight.w700, fontSize: 12),
-          ),
-        ],
       ),
     );
   }

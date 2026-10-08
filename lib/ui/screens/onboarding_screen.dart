@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:leavego_app/ui/screens/login_screen.dart';
-import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -9,27 +9,41 @@ class OnboardingScreen extends StatefulWidget {
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
+class _OnboardingPageData {
+  const _OnboardingPageData({
+    required this.imageAsset,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String imageAsset;
+  final String title;
+  final String subtitle;
+}
+
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final _pageController = PageController();
   int _currentPage = 0;
 
+  static const Color _primary = Color(0xFF173559);
+  static const Color _subtitleColor = Color(0xFF747D7A);
+
   static const _pages = [
-    {
-      'icon': Icons.corporate_fare_rounded,
-      'title': 'Professional leave workflow',
-      'subtitle':
-          'Apply and track employee leaves in a clean, modern interface.',
-    },
-    {
-      'icon': Icons.approval_rounded,
-      'title': 'Clear approval visibility',
-      'subtitle': 'Keep pending, approved, and rejected requests organized.',
-    },
-    {
-      'icon': Icons.location_city_rounded,
-      'title': 'Built for teams in Islamabad',
-      'subtitle': 'A minimal HR experience designed for productivity.',
-    },
+    _OnboardingPageData(
+      imageAsset: 'assets/images/onboarding_one.webp',
+      title: 'Professional leave workflow',
+      subtitle: 'Apply and track employee leaves in a clean, modern interface',
+    ),
+    _OnboardingPageData(
+      imageAsset: 'assets/images/onboarding_two.webp',
+      title: 'Clear approval visibility',
+      subtitle: 'Efficiently organize and manage pending, approved and rejected requests.',
+    ),
+    _OnboardingPageData(
+      imageAsset: 'assets/images/onboarding_three.webp',
+      title: 'Build for Teams',
+      subtitle: 'A minimal HR experience designed for productivity.',
+    ),
   ];
 
   @override
@@ -38,9 +52,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
-  void _onSkip() {
-    _goToNextScreen();
+  Future<void> _goToNextScreen() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('hasSeenOnboarding', true);
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
   }
+
+  void _onSkip() => _goToNextScreen();
 
   void _onNext() {
     if (_currentPage < _pages.length - 1) {
@@ -53,31 +72,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
-  void _goToNextScreen() {
-    Navigator.of(
-      context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: _onSkip,
-                child: Text(
-                  'Skip',
-                  style: TextStyle(
-                    color: AppTheme.navy,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
             Expanded(
               child: PageView.builder(
                 physics: const ClampingScrollPhysics(),
@@ -91,37 +92,54 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Container(
-                          width: 130,
-                          height: 130,
-                          decoration: BoxDecoration(
-                            color: AppTheme.navy,
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          child: Icon(
-                            page['icon'] as IconData,
-                            size: 70,
-                            color: Colors.white,
+                        const SizedBox(height: 16),
+                        Image.asset(
+                          page.imageAsset,
+                          fit: BoxFit.contain,
+                          alignment: Alignment.center,
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          page.title,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: _primary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 20,
+                            height: 1.25,
                           ),
                         ),
-                        const SizedBox(height: 34),
+                        const SizedBox(height: 12),
                         Text(
-                          page['title'] as String,
+                          page.subtitle,
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.headlineSmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.navy,
+                          style: const TextStyle(
+                            color: _subtitleColor,
+                            fontWeight: FontWeight.w400,
+                            fontSize: 15,
+                            height: 1.45,
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(
+                            _pages.length,
+                            (dotIndex) => AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              margin: const EdgeInsets.symmetric(horizontal: 2),
+                              width: _currentPage == dotIndex ? 20 : 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: _currentPage == dotIndex
+                                    ? _primary
+                                    : const Color(0xFFD9D9D9),
+                                borderRadius: BorderRadius.circular(999),
                               ),
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 14),
-                        Text(
-                          page['subtitle'] as String,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(
-                            context,
-                          ).textTheme.bodyLarge?.copyWith(color: AppTheme.navy),
-                        ),
+                        const SizedBox(height: 24),
                       ],
                     ),
                   );
@@ -129,59 +147,36 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+              child: Row(
+                children: [
+                  TextButton(
+                    onPressed: _onSkip,
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF999999),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                     ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(
-                        _pages.length,
-                        (index) => Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          width: _currentPage == index ? 24 : 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: _currentPage == index
-                                ? AppTheme.navy
-                                : Colors.grey.shade300,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                      ),
+                    child: const Text(
+                      'Skip',
+                      style: TextStyle(fontWeight: FontWeight.w500, fontSize: 16),
                     ),
-                    const SizedBox(height: 18),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: _onNext,
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        child: Text(
-                          _currentPage == _pages.length - 1
-                              ? 'Continue'
-                              : 'Next',
-                        ),
-                      ),
+                  ),
+                  const Spacer(),
+                  FilledButton(
+                    onPressed: _onNext,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      elevation: 0,
                     ),
-                  ],
-                ),
+                    child: Text(
+                      _currentPage == _pages.length - 1 ? 'Continue' : 'Next',
+                      style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 16),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

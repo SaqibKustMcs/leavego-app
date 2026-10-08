@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
@@ -12,82 +13,94 @@ class ChangePasswordScreen extends StatefulWidget {
 }
 
 class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
+  static const Color _primary = Color(0xFF173559);
+  static const Color _fieldBorder = Color(0xFFD1D5DB);
+  static const double _fieldHeight = 54;
+  static const double _fieldRadius = 8;
+  static const double _fieldBorderWidth = 1;
+
   late final AppController _appController;
 
-  final TextEditingController _currentPasswordController = TextEditingController();
+  final _currentPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
-  final TextEditingController _newPasswordController = TextEditingController();
+  bool _obscureCurrentPassword = true;
+  bool _obscureNewPassword = true;
+  bool _obscureConfirmPassword = true;
 
-  final TextEditingController _confirmPasswordController = TextEditingController();
-
-  final currentPasswordError = ''.obs;
-  final newPasswordError = ''.obs;
-  final confirmPasswordError = ''.obs;
-
-  final RxBool obscureCurrentPassword = true.obs;
-  final RxBool obscureNewPassword = true.obs;
-  final RxBool obscureConfirmPassword = true.obs;
+  String? _currentPasswordError;
+  String? _newPasswordError;
+  String? _confirmPasswordError;
+  String? _submitError;
 
   @override
   void initState() {
     super.initState();
-
     _appController = Get.find<AppController>();
+    _appController.addListener(_onControllerUpdate);
+  }
+
+  void _onControllerUpdate() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _appController.removeListener(_onControllerUpdate);
     _currentPasswordController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
-
     super.dispose();
   }
 
-  bool _validate() {
-    bool isValid = true;
+  void _clearFieldErrors() {
+    setState(() {
+      _currentPasswordError = null;
+      _newPasswordError = null;
+      _confirmPasswordError = null;
+      _submitError = null;
+    });
+  }
 
-    currentPasswordError.value = '';
-    newPasswordError.value = '';
-    confirmPasswordError.value = '';
+  bool _validate() {
+    _clearFieldErrors();
 
     final currentPassword = _currentPasswordController.text.trim();
-
     final newPassword = _newPasswordController.text.trim();
-
     final confirmPassword = _confirmPasswordController.text.trim();
+    var isValid = true;
 
-    // Current Password
     if (currentPassword.isEmpty) {
-      currentPasswordError.value = 'Current password is required';
+      _currentPasswordError = 'Current password is required';
       isValid = false;
     }
 
-    // New Password
     if (newPassword.isEmpty) {
-      newPasswordError.value = 'New password is required';
+      _newPasswordError = 'New password is required';
       isValid = false;
     } else if (newPassword.length < 8) {
-      newPasswordError.value = 'Password must be at least 8 characters';
+      _newPasswordError = 'Password must be at least 8 characters';
       isValid = false;
     } else if (newPassword == currentPassword) {
-      newPasswordError.value = 'New password must be different from current password';
+      _newPasswordError = 'New password must be different from current password';
       isValid = false;
     }
 
-    // Confirm Password
     if (confirmPassword.isEmpty) {
-      confirmPasswordError.value = 'Confirm password is required';
+      _confirmPasswordError = 'Confirm password is required';
       isValid = false;
     } else if (confirmPassword != newPassword) {
-      confirmPasswordError.value = 'Passwords do not match';
+      _confirmPasswordError = 'Passwords do not match';
       isValid = false;
     }
 
+    setState(() {});
     return isValid;
   }
 
   Future<void> _submit() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     if (!_validate()) return;
 
     final success = await _appController.changePassword(
@@ -99,169 +112,219 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     if (!mounted) return;
 
     if (success) {
-      Get.snackbar('Success', 'Password changed successfully', snackPosition: SnackPosition.BOTTOM);
-
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Password changed successfully')));
       _currentPasswordController.clear();
       _newPasswordController.clear();
       _confirmPasswordController.clear();
-    } else {
-      Get.snackbar(
-        'Error',
-        _appController.changePasswordError ?? 'Failed to change password',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      _clearFieldErrors();
+      return;
     }
+
+    setState(() {
+      _submitError = _appController.changePasswordError ?? 'Failed to change password';
+    });
+  }
+
+  InputDecoration _passwordDecoration({
+    required String label,
+    required bool obscure,
+    required VoidCallback onToggleVisibility,
+  }) {
+    final borderRadius = BorderRadius.circular(_fieldRadius);
+    final defaultBorder = BorderSide(color: _fieldBorder, width: _fieldBorderWidth);
+    final focusedBorder = BorderSide(color: _primary, width: _fieldBorderWidth);
+
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(
+        color: Color(0xFF4C4C4C),
+        fontWeight: FontWeight.w500,
+        fontSize: 13,
+      ),
+      floatingLabelStyle: const TextStyle(
+        color: Color(0xFF4C4C4C),
+        fontWeight: FontWeight.w500,
+        fontSize: 16,
+      ),
+      filled: true,
+      fillColor: Colors.white,
+      isDense: true,
+      border: OutlineInputBorder(borderRadius: borderRadius, borderSide: defaultBorder),
+      enabledBorder: OutlineInputBorder(borderRadius: borderRadius, borderSide: defaultBorder),
+      focusedBorder: OutlineInputBorder(borderRadius: borderRadius, borderSide: focusedBorder),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      suffixIcon: IconButton(
+        icon: Icon(
+          obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+          color: _primary,
+          size: 22,
+        ),
+        onPressed: onToggleVisibility,
+      ),
+    );
+  }
+
+  Widget _passwordField({
+    required TextEditingController controller,
+    required String label,
+    required bool obscure,
+    required VoidCallback onToggleVisibility,
+    required String? errorText,
+    required VoidCallback onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: _fieldHeight,
+          child: TextField(
+            controller: controller,
+            obscureText: obscure,
+            onChanged: (_) => onChanged(),
+            style: const TextStyle(
+              color: _primary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.2,
+            ),
+            decoration: _passwordDecoration(
+              label: label,
+              obscure: obscure,
+              onToggleVisibility: onToggleVisibility,
+            ),
+          ),
+        ),
+        if (errorText != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            errorText,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.error,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
+      backgroundColor: AppTheme.appBackground,
       appBar: AppBar(
-        title: Text(
-          'Change Password',
-          style: theme.textTheme.titleLarge?.copyWith(
-            color: Colors.black,
-            fontWeight: FontWeight.w700,
-          ),
+        backgroundColor: AppTheme.appBackground,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: const AppBackButton(color: _primary),
+        title: const Text(
+          'Privacy & Security',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w500, fontSize: 18),
         ),
+        centerTitle: false,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 12,
-                offset: const Offset(0, 5),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Change Password',
+              style: TextStyle(color: _primary, fontWeight: FontWeight.w500, fontSize: 18),
+            ),
+            const SizedBox(height: 24),
+            _passwordField(
+              controller: _currentPasswordController,
+              label: 'Current Password',
+              obscure: _obscureCurrentPassword,
+              errorText: _currentPasswordError,
+              onChanged: () {
+                if (_currentPasswordError != null || _submitError != null) {
+                  setState(() {
+                    _currentPasswordError = null;
+                    _submitError = null;
+                  });
+                }
+              },
+              onToggleVisibility: () {
+                setState(() => _obscureCurrentPassword = !_obscureCurrentPassword);
+              },
+            ),
+            const SizedBox(height: 20),
+            _passwordField(
+              controller: _newPasswordController,
+              label: 'New Password',
+              obscure: _obscureNewPassword,
+              errorText: _newPasswordError,
+              onChanged: () {
+                if (_newPasswordError != null ||
+                    _confirmPasswordError != null ||
+                    _submitError != null) {
+                  setState(() {
+                    _newPasswordError = null;
+                    _confirmPasswordError = null;
+                    _submitError = null;
+                  });
+                }
+              },
+              onToggleVisibility: () {
+                setState(() => _obscureNewPassword = !_obscureNewPassword);
+              },
+            ),
+            const SizedBox(height: 20),
+            _passwordField(
+              controller: _confirmPasswordController,
+              label: 'Confirm Password',
+              obscure: _obscureConfirmPassword,
+              errorText: _confirmPasswordError,
+              onChanged: () {
+                if (_confirmPasswordError != null || _submitError != null) {
+                  setState(() {
+                    _confirmPasswordError = null;
+                    _submitError = null;
+                  });
+                }
+              },
+              onToggleVisibility: () {
+                setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
+              },
+            ),
+            if (_submitError != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _submitError!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                ),
               ),
             ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Current Password
-              Obx(
-                () => TextField(
-                  controller: _currentPasswordController,
-                  obscureText: obscureCurrentPassword.value,
-                  onChanged: (_) {
-                    currentPasswordError.value = '';
-                  },
-                  decoration: InputDecoration(
-                    labelText: 'Current Password',
-                    hintText: 'Enter current password',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        obscureCurrentPassword.value
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                      ),
-                      onPressed: () {
-                        obscureCurrentPassword.toggle();
-                      },
-                    ),
-                    errorText: currentPasswordError.value.isEmpty
-                        ? null
-                        : currentPasswordError.value,
-                  ),
+            const SizedBox(height: 28),
+            FilledButton(
+              onPressed: _appController.changePasswordLoading ? null : _submit,
+              style: FilledButton.styleFrom(
+                backgroundColor: _primary,
+                disabledBackgroundColor: _primary.withValues(alpha: 0.6),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.controlRadius),
                 ),
+                elevation: 0,
               ),
-
-              const SizedBox(height: 16),
-
-              // New Password
-              Obx(
-                () => TextField(
-                  controller: _newPasswordController,
-                  obscureText: obscureNewPassword.value,
-                  onChanged: (_) {
-                    newPasswordError.value = '';
-                    confirmPasswordError.value = '';
-                  },
-                  decoration: InputDecoration(
-                    labelText: 'New Password',
-                    hintText: 'Enter new password',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        obscureNewPassword.value
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                      ),
-                      onPressed: () {
-                        obscureNewPassword.toggle();
-                      },
+              child: _appController.changePasswordLoading
+                  ? const AppButtonLoader(size: 22)
+                  : const Text(
+                      'Confirm Changes',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                     ),
-                    errorText: newPasswordError.value.isEmpty ? null : newPasswordError.value,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Confirm Password
-              Obx(
-                () => TextField(
-                  controller: _confirmPasswordController,
-                  obscureText: obscureConfirmPassword.value,
-                  onChanged: (_) {
-                    confirmPasswordError.value = '';
-                  },
-                  decoration: InputDecoration(
-                    labelText: 'Confirm Password',
-                    hintText: 'Re-enter new password',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        obscureConfirmPassword.value
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                      ),
-                      onPressed: () {
-                        obscureConfirmPassword.toggle();
-                      },
-                    ),
-                    errorText: confirmPasswordError.value.isEmpty
-                        ? null
-                        : confirmPasswordError.value,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Button
-              ListenableBuilder(
-                listenable: _appController,
-                builder: (context, child) {
-                  return Container(
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [AppTheme.navy, AppTheme.lightNavy]),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: FilledButton(
-                      onPressed: _appController.changePasswordLoading ? null : _submit,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        minimumSize: const Size(double.infinity, 50),
-                      ),
-                      child: _appController.changePasswordLoading
-                          ? const AppButtonLoader(size: 22)
-                          : const Text('Change Password'),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -8,8 +8,8 @@ import 'package:leavego_app/ui/screens/create_project_task_screen.dart';
 import 'package:leavego_app/ui/screens/task_detail_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_back_button.dart';
-import 'package:leavego_app/ui/widgets/app_gradient_fab.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
+import 'package:leavego_app/ui/widgets/app_scroll_collapse_fab.dart';
 import 'package:leavego_app/utils/app_roles.dart';
 import 'package:leavego_app/utils/task_datetime_format.dart';
 
@@ -23,24 +23,47 @@ class ProjectTasksScreen extends StatefulWidget {
 }
 
 class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
+  static const Color _primary = Color(0xFF173559);
+
   late final AppController _appController;
+  late final ScrollCollapseFabController _fabScrollController;
   String _selectedFilter = 'all';
 
-  static const _filters = <Map<String, String>>[
-    {'id': 'all', 'label': 'All'},
-    {'id': 'my_tasks', 'label': 'My Tasks'},
-    {'id': 'assigned', 'label': 'Assigned'},
-    {'id': 'in_progress', 'label': 'In Progress'},
-    // {'id': 'qa', 'label': 'QA'},
-    {'id': 'completed', 'label': 'Completed'},
-    {'id': 'overdue', 'label': 'Overdue'},
-    {'id': 'rejected', 'label': 'Rejected'},
-    {'id': 'cancelled', 'label': 'Cancelled'},
+  static const _filters = <_TaskFilterOption>[
+    _TaskFilterOption(
+      id: 'all',
+      label: 'All Tasks',
+      iconAsset: 'assets/images/all-tasks.webp',
+      background: Color(0x8CDEF5F5),
+      labelColor: Color(0xFF173559),
+    ),
+    _TaskFilterOption(
+      id: 'assigned',
+      label: 'Assigned',
+      iconAsset: 'assets/images/assigned_task.webp',
+      background: Color(0x5EE2CEFE),
+      labelColor: Color(0xFF173559),
+    ),
+    _TaskFilterOption(
+      id: 'in_progress',
+      label: 'In Progress',
+      iconAsset: 'assets/images/inprogress_task.webp',
+      background: Color(0xFFE4F1FE),
+      labelColor: Color(0xFF173559),
+    ),
+    _TaskFilterOption(
+      id: 'completed',
+      label: 'Completed',
+      iconAsset: 'assets/images/completed_task.webp',
+      background: Color(0xFFD9FCF0),
+      labelColor: Color(0xFF1B5E20),
+    ),
   ];
 
   @override
   void initState() {
     super.initState();
+    _fabScrollController = ScrollCollapseFabController();
     _appController = Get.find<AppController>();
     _appController.addListener(_onUpdate);
     _appController.projectTasksMyTasksOnly = false;
@@ -54,6 +77,7 @@ class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
 
   @override
   void dispose() {
+    _fabScrollController.dispose();
     _appController.removeListener(_onUpdate);
     super.dispose();
   }
@@ -68,31 +92,6 @@ class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
     await _appController.loadProjectTasks(projectId: widget.project.id, refresh: true);
   }
 
-  String _formatDate(String? raw) {
-    if (raw == null || raw.trim().isEmpty) return '-';
-    try {
-      final normalized = raw.contains(' ') ? raw.replaceFirst(' ', 'T') : raw;
-      final date = DateTime.parse(normalized).toLocal();
-      const months = <String>[
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec',
-      ];
-      return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
-    } catch (_) {
-      return raw;
-    }
-  }
-
   String _toLabel(String raw) {
     if (raw.trim().isEmpty) return '-';
     return raw
@@ -104,35 +103,24 @@ class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
         .join(' ');
   }
 
+  String _priorityLabel(String priority) {
+    final value = priority.trim().toLowerCase();
+    if (value == 'medium' || value == 'low' || value == 'normal') return 'Normal';
+    return _toLabel(priority);
+  }
+
   Color _priorityColor(String priority) {
     switch (priority.trim().toLowerCase()) {
       case 'critical':
-        return const Color(0xFFB71C1C);
       case 'urgent':
-        return const Color(0xFFC62828);
       case 'high':
-        return const Color(0xFFEF6C00);
+        return const Color(0xFFFF2222);
       case 'medium':
-        return const Color(0xFF1565C0);
+      case 'low':
+      case 'normal':
+        return const Color(0xFF2B68B1);
       default:
-        return const Color(0xFF2E7D32);
-    }
-  }
-
-  Color _statusColor(String status) {
-    switch (status.trim().toLowerCase()) {
-      case 'completed':
-        return const Color(0xFF1B8A5A);
-      case 'qa':
-        return const Color(0xFF00897B);
-      case 'in_progress':
-        return const Color(0xFF1565C0);
-      case 'assigned':
-        return const Color(0xFF8E24AA);
-      case 'overdue':
-        return const Color(0xFFC62828);
-      default:
-        return AppTheme.navy;
+        return const Color(0xFF2B68B1);
     }
   }
 
@@ -140,10 +128,19 @@ class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
     switch (_selectedFilter) {
       case 'all':
         return 'No tasks found for this project.';
-      case 'my_tasks':
-        return 'No tasks assigned to you in this project.';
       default:
-        return 'No ${_toLabel(_selectedFilter).toLowerCase()} tasks found for this project.';
+        final match = _filters.where((f) => f.id == _selectedFilter).toList();
+        final label = match.isEmpty ? _toLabel(_selectedFilter) : match.first.label;
+        return 'No ${label.toLowerCase()} found for this project.';
+    }
+  }
+
+  Future<void> _openCreateTask() async {
+    final created = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => CreateProjectTaskScreen(project: widget.project)),
+    );
+    if (created == true) {
+      await _appController.loadProjectTasks(projectId: widget.project.id, refresh: true);
     }
   }
 
@@ -155,119 +152,83 @@ class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
     final project = widget.project;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F5FC),
-      floatingActionButton: AppGradientFab(
-        label: 'Create Task',
-        onPressed: () async {
-          final created = await Navigator.of(context).push<bool>(
-            MaterialPageRoute(builder: (_) => CreateProjectTaskScreen(project: project)),
-          );
-          if (created == true) {
-            await _appController.loadProjectTasks(projectId: project.id, refresh: true);
-          }
-        },
+      backgroundColor: AppTheme.appBackground,
+      appBar: AppBar(
+        backgroundColor: AppTheme.appBackground,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: const AppBackButton(color: _primary),
+        title: Text(
+          project.name,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: _primary,
+            fontSize: 18,
+          ),
+        ),
+        actions: [
+          if (canEditProject)
+            IconButton(
+              onPressed: () async {
+                final navigator = Navigator.of(context);
+                final updated = await navigator.push<bool>(
+                  MaterialPageRoute(builder: (_) => CreateProjectScreen(project: project)),
+                );
+                if (updated == true && mounted) {
+                  await _appController.loadProjects(refresh: true);
+                  if (!mounted) return;
+                  final matches = _appController.projects.where((item) => item.id == project.id);
+                  if (matches.isNotEmpty) {
+                    navigator.pushReplacement(
+                      MaterialPageRoute(builder: (_) => ProjectTasksScreen(project: matches.first)),
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.edit_outlined, color: _primary),
+              tooltip: 'Edit project',
+            ),
+        ],
       ),
+      floatingActionButton: ListenableBuilder(
+        listenable: _fabScrollController,
+        builder: (context, _) => AppScrollCollapseFab(
+          label: 'Create Tasks',
+          collapsed: _fabScrollController.collapsed,
+          onPressed: _openCreateTask,
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: SafeArea(
-        child: RefreshIndicator(
+        top: false,
+        child: AppFabScrollListener(
+          controller: _fabScrollController,
+          child: RefreshIndicator(
           onRefresh: _onRefresh,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
             children: [
-              Row(
-                children: [
-                  const AppBackButton(),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      project.name,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ),
-                  if (canEditProject)
-                    IconButton(
-                      onPressed: () async {
-                        final navigator = Navigator.of(context);
-                        final updated = await navigator.push<bool>(
-                          MaterialPageRoute(builder: (_) => CreateProjectScreen(project: project)),
-                        );
-                        if (updated == true && mounted) {
-                          await _appController.loadProjects(refresh: true);
-                          if (!mounted) return;
-                          final matches = _appController.projects.where(
-                            (item) => item.id == project.id,
-                          );
-                          if (matches.isNotEmpty) {
-                            navigator.pushReplacement(
-                              MaterialPageRoute(
-                                builder: (_) => ProjectTasksScreen(project: matches.first),
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      icon: const Icon(Icons.edit_outlined, color: Colors.black),
-                      tooltip: 'Edit project',
-                    ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                project.description.isEmpty ? 'Project tasks' : project.description,
-                style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF6A778B)),
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Tasks',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    'Page ${_appController.projectTasksCurrentPage}/${_appController.projectTasksLastPage}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: const Color(0xFF6A778B),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: _filters.map((filter) {
-                    final id = filter['id']!;
-                    final label = filter['label']!;
-                    final selected = _selectedFilter == id;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(label),
-                        selected: selected,
-                        onSelected: (_) => _onFilterSelected(id),
-                        selectedColor: AppTheme.navy.withValues(alpha: 0.12),
-                        labelStyle: TextStyle(
-                          color: selected ? AppTheme.navy : const Color(0xFF5F6D84),
-                          fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+              SizedBox(
+                height: 71,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: _filters.map((filter) {
+                      final selected = _selectedFilter == filter.id;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: _TaskFilterChip(
+                          option: filter,
+                          selected: selected,
+                          onTap: () => _onFilterSelected(filter.id),
                         ),
-                        side: BorderSide(color: selected ? AppTheme.navy : const Color(0xFFD7DEEA)),
-                        backgroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                      ),
-                    );
-                  }).toList(),
+                      );
+                    }).toList(),
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               if (_appController.projectTasksLoading && tasks.isEmpty)
                 const Padding(padding: EdgeInsets.symmetric(vertical: 30), child: AppLoader())
               else if (_appController.projectTasksError != null && tasks.isEmpty)
@@ -278,10 +239,9 @@ class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
                 ...tasks.map(
                   (task) => _TaskListCard(
                     task: task,
-                    formatDate: _formatDate,
                     toLabel: _toLabel,
+                    priorityLabel: _priorityLabel(task.priority),
                     priorityColor: _priorityColor(task.priority),
-                    statusColor: _statusColor(task.status),
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
@@ -313,6 +273,75 @@ class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
             ],
           ),
         ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TaskFilterOption {
+  const _TaskFilterOption({
+    required this.id,
+    required this.label,
+    required this.iconAsset,
+    required this.background,
+    required this.labelColor,
+  });
+
+  final String id;
+  final String label;
+  final String iconAsset;
+  final Color background;
+  final Color labelColor;
+}
+
+class _TaskFilterChip extends StatelessWidget {
+  const _TaskFilterChip({required this.option, required this.selected, required this.onTap});
+
+  final _TaskFilterOption option;
+  final bool selected;
+  final VoidCallback onTap;
+
+  static const Color _primary = Color(0xFF173559);
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: option.background,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: 112,
+          // height: 61,
+          padding: const EdgeInsets.fromLTRB(12, 12, 10, 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            // border: Border.all(
+            //   color: selected ? _primary : Colors.transparent,
+            //   width: selected ? 1.2 : 0,
+            // ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Image.asset(option.iconAsset, width: 20, height: 20, fit: BoxFit.contain),
+              const SizedBox(height: 10),
+              Text(
+                option.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: _primary,
+                  fontWeight: selected ? FontWeight.w500 : FontWeight.w500,
+                  fontSize: 14,
+                  height: 1.15,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -321,43 +350,57 @@ class _ProjectTasksScreenState extends State<ProjectTasksScreen> {
 class _TaskListCard extends StatelessWidget {
   const _TaskListCard({
     required this.task,
-    required this.formatDate,
     required this.toLabel,
+    required this.priorityLabel,
     required this.priorityColor,
-    required this.statusColor,
     required this.onTap,
   });
 
   final TaskItem task;
-  final String Function(String?) formatDate;
   final String Function(String) toLabel;
+  final String priorityLabel;
   final Color priorityColor;
-  final Color statusColor;
   final VoidCallback onTap;
+
+  static const Color _primary = Color(0xFF173559);
+  static const Color _muted = Color(0xFF6E6E6E);
+  static const String _assignedIcon = 'assets/images/assigned_to.webp';
+  static const String _dueIcon = 'assets/images/due_date_time.webp';
+  static const String _priorityIcon = 'assets/images/flag.webp';
+
+  ({Color background, Color foreground}) _statusStyle(String status) {
+    switch (status.trim().toLowerCase()) {
+      case 'completed':
+        return (background: const Color(0xFFD9FCF0), foreground: const Color(0xFF1B5E20));
+      case 'in_progress':
+        return (background: const Color(0xFFE4F1FE), foreground: _primary);
+      case 'assigned':
+        return (background: const Color(0xFFEDE7F6), foreground: _primary);
+      default:
+        return (background: const Color(0xFFEEF2F6), foreground: _muted);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final statusStyle = _statusStyle(task.status);
+    final dueText = TaskDateTimeFormat.formatDateTime(date: task.dueDate, time: task.dueTime);
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEEEEEE), width: 0.5),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -365,58 +408,67 @@ class _TaskListCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            task.title,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: AppTheme.navy,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            task.description.isEmpty ? '-' : task.description,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: const Color(0xFF5F6D84),
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        task.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w500,
+                          color: _primary,
+                          fontSize: 18,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    _TaskPill(
-                      label: toLabel(task.priority),
-                      background: priorityColor.withValues(alpha: 0.12),
-                      foreground: priorityColor,
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: statusStyle.background,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        toLabel(task.status),
+                        style: TextStyle(
+                          color: statusStyle.foreground,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _TaskPill(
-                      label: toLabel(task.status),
-                      background: statusColor.withValues(alpha: 0.12),
-                      foreground: statusColor,
+                if (task.description.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    task.description,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: _muted,
+                      height: 1.4,
+                      fontWeight: FontWeight.w400,
+                      fontSize: 16,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _TaskMetaRow(
-                  icon: Icons.person_outline_rounded,
+                  ),
+                ],
+                const SizedBox(height: 14),
+                _TaskDetailRow(
+                  iconAsset: _assignedIcon,
                   label: 'Assigned to',
                   value: task.assignee?.name ?? '-',
                 ),
-                const SizedBox(height: 8),
-                _TaskMetaRow(
-                  icon: Icons.event_outlined,
-                  label: 'Due date & time',
-                  value: TaskDateTimeFormat.formatDateTime(date: task.dueDate, time: task.dueTime),
+                const SizedBox(height: 10),
+                _TaskDetailRow(iconAsset: _dueIcon, label: 'Due Date & Time', value: dueText),
+                const SizedBox(height: 10),
+                _TaskDetailRow(
+                  iconAsset: "assets/images/priority_flag.webp",
+                  label: 'Priority',
+                  value: priorityLabel,
+                  valueColor: priorityColor,
+                  trailing: ColorFiltered(
+                    colorFilter: ColorFilter.mode(priorityColor, BlendMode.srcIn),
+                    child: Image.asset(_priorityIcon, width: 18, height: 18, fit: BoxFit.contain),
+                  ),
                 ),
               ],
             ),
@@ -427,62 +479,57 @@ class _TaskListCard extends StatelessWidget {
   }
 }
 
-class _TaskMetaRow extends StatelessWidget {
-  const _TaskMetaRow({required this.icon, required this.label, required this.value});
+class _TaskDetailRow extends StatelessWidget {
+  const _TaskDetailRow({
+    required this.iconAsset,
+    required this.label,
+    required this.value,
+    this.valueColor,
+    this.trailing,
+  });
 
-  final IconData icon;
+  final String iconAsset;
   final String label;
   final String value;
+  final Color? valueColor;
+  final Widget? trailing;
+
+  static const Color _primary = Color(0xFF173559);
+  static const Color _muted = Color(0xFF6E6E6E);
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Icon(icon, size: 18, color: const Color(0xFF6A778B)),
-        const SizedBox(width: 8),
-        Expanded(
-          child: RichText(
-            text: TextSpan(
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: const Color(0xFF6A778B),
-                height: 1.4,
-              ),
-              children: [
-                TextSpan(
-                  text: '$label: ',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                TextSpan(
-                  text: value,
-                  style: const TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.w600),
-                ),
-              ],
+        Row(
+          children: [
+            Image.asset(iconAsset, width: 18, height: 18, fit: BoxFit.contain, color: _muted),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: _muted, fontWeight: FontWeight.w400, fontSize: 14),
             ),
+          ],
+        ),
+        Expanded(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              if (trailing != null) ...[trailing!, const SizedBox(width: 6)],
+              Text(
+                value,
+                maxLines: 1,
+                textAlign: TextAlign.right,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: _primary, fontWeight: FontWeight.w500, fontSize: 14),
+              ),
+            ],
           ),
         ),
       ],
-    );
-  }
-}
-
-class _TaskPill extends StatelessWidget {
-  const _TaskPill({required this.label, required this.background, required this.foreground});
-
-  final String label;
-  final Color background;
-  final Color foreground;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(999)),
-      child: Text(
-        label,
-        style: TextStyle(color: foreground, fontWeight: FontWeight.w700, fontSize: 12),
-      ),
     );
   }
 }
@@ -501,6 +548,7 @@ class _MessageCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: isError ? theme.colorScheme.errorContainer.withValues(alpha: 0.45) : Colors.white,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFEEF4F2), width: 0.5),
       ),
       child: Text(
         message,

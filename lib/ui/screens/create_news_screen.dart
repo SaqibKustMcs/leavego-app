@@ -13,46 +13,67 @@ class CreateNewsScreen extends StatefulWidget {
 }
 
 class _CreateNewsScreenState extends State<CreateNewsScreen> {
+  static const Color _primary = Color(0xFF173559);
+  static const Color _fieldBorder = Color(0xFFEEEEEE);
+  static const double _fieldHeight = 54;
+  static const double _fieldRadius = 8;
+  static const double _fieldBorderWidth = 0.5;
+
   late final AppController _appController;
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
 
-  final titleError = ''.obs;
-  final contentError = ''.obs;
+  String? _titleError;
+  String? _contentError;
+  String? _submitError;
 
   @override
   void initState() {
     super.initState();
     _appController = Get.find<AppController>();
+    _appController.addListener(_onControllerUpdate);
+  }
+
+  void _onControllerUpdate() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _appController.removeListener(_onControllerUpdate);
     _titleController.dispose();
     _contentController.dispose();
     super.dispose();
   }
 
   void _clearErrors() {
-    titleError.value = '';
-    contentError.value = '';
+    setState(() {
+      _titleError = null;
+      _contentError = null;
+      _submitError = null;
+    });
   }
 
   Future<void> _submit() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     _clearErrors();
-    var ok = true;
 
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
+    var ok = true;
+
     if (title.isEmpty) {
-      titleError.value = 'Please enter title';
+      _titleError = 'Please enter title';
       ok = false;
     }
     if (content.isEmpty) {
-      contentError.value = 'Please enter content';
+      _contentError = 'Please enter description';
       ok = false;
     }
-    if (!ok) return;
+    if (!ok) {
+      setState(() {});
+      return;
+    }
 
     final response = await _appController.createNews(title: title, content: content);
 
@@ -70,8 +91,34 @@ class _CreateNewsScreenState extends State<CreateNewsScreen> {
       return;
     }
 
-    final err = _appController.createNewsError ?? 'Failed to create news';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+    setState(() {
+      _submitError = _appController.createNewsError ?? 'Failed to create news';
+    });
+  }
+
+  InputDecoration _fieldDecoration({required String hint}) {
+    final borderRadius = BorderRadius.circular(_fieldRadius);
+    final border = BorderSide(color: _fieldBorder, width: _fieldBorderWidth);
+    final focusedBorder = BorderSide(color: _primary, width: 1);
+
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFF6E6E6E), fontWeight: FontWeight.w400),
+      filled: true,
+      fillColor: Colors.white,
+      isDense: true,
+      border: OutlineInputBorder(borderRadius: borderRadius, borderSide: border),
+      enabledBorder: OutlineInputBorder(borderRadius: borderRadius, borderSide: border),
+      focusedBorder: OutlineInputBorder(borderRadius: borderRadius, borderSide: focusedBorder),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    );
+  }
+
+  Widget _fieldBox({required Widget child, double? height}) {
+    return Container(
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(_fieldRadius)),
+      child: height == null ? child : SizedBox(height: height, child: child),
+    );
   }
 
   @override
@@ -79,102 +126,110 @@ class _CreateNewsScreenState extends State<CreateNewsScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F5FC),
+      backgroundColor: AppTheme.appBackground,
       appBar: AppBar(
+        backgroundColor: AppTheme.appBackground,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: const AppBackButton(color: _primary),
         title: Text(
           'Create News',
           style: theme.textTheme.titleMedium?.copyWith(
             color: Colors.black,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w500,
+            fontSize: 18,
           ),
         ),
-        leading: const AppBackButton(),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.black,
-        elevation: 0,
       ),
-      body: SafeArea(
-        child: ListView(
-          physics: const ClampingScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 12,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
+            const Text(
+              'Announcement',
+              style: TextStyle(color: _primary, fontWeight: FontWeight.w500, fontSize: 18),
+            ),
+            const SizedBox(height: 20),
+            _fieldBox(
+              height: _fieldHeight,
+              child: TextField(
+                controller: _titleController,
+                style: const TextStyle(fontSize: 16, height: 1.2),
+                decoration: _fieldDecoration(hint: 'Title'),
+                textInputAction: TextInputAction.next,
+                onChanged: (_) {
+                  if (_titleError != null) setState(() => _titleError = null);
+                },
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Announcement',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Publish company news for a specific audience.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: const Color(0xFF6A778B),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Obx(
-                    () => TextField(
-                      controller: _titleController,
-                      onChanged: (_) => titleError.value = '',
-                      decoration: InputDecoration(
-                        labelText: 'Title',
-                        hintText: 'Office announcement',
-                        errorText: titleError.value.isEmpty ? null : titleError.value,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Obx(
-                    () => TextField(
-                      controller: _contentController,
-                      maxLines: 6,
-                      onChanged: (_) => contentError.value = '',
-                      decoration: InputDecoration(
-                        labelText: 'Content',
-                        hintText: 'Write your announcement...',
-                        errorText: contentError.value.isEmpty ? null : contentError.value,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const SizedBox(height: 18),
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [AppTheme.navy, AppTheme.lightNavy]),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: FilledButton(
-                      onPressed: _appController.createNewsLoading ? null : _submit,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        minimumSize: const Size(double.infinity, 48),
-                      ),
-                      child: _appController.createNewsLoading
-                          ? const AppButtonLoader(size: 22)
-                          : const Text('Publish News'),
-                    ),
-                  ),
-                ],
+            ),
+            if (_titleError != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                _titleError!,
+                style: TextStyle(
+                  color: theme.colorScheme.error,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
+            ],
+            const SizedBox(height: 16),
+            _fieldBox(
+              child: TextField(
+                controller: _contentController,
+                minLines: 5,
+                maxLines: 8,
+                style: const TextStyle(fontSize: 16, height: 1.35),
+                decoration: _fieldDecoration(hint: 'Description'),
+                textInputAction: TextInputAction.newline,
+                onChanged: (_) {
+                  if (_contentError != null) setState(() => _contentError = null);
+                },
+              ),
+            ),
+            if (_contentError != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                _contentError!,
+                style: TextStyle(
+                  color: theme.colorScheme.error,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+            if (_submitError != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _submitError!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: theme.colorScheme.error,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+            const SizedBox(height: 28),
+            FilledButton(
+              onPressed: _appController.createNewsLoading ? null : _submit,
+              style: FilledButton.styleFrom(
+                backgroundColor: _primary,
+                disabledBackgroundColor: _primary.withValues(alpha: 0.6),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.controlRadius),
+                ),
+                elevation: 0,
+              ),
+              child: _appController.createNewsLoading
+                  ? const AppButtonLoader(size: 22)
+                  : const Text(
+                      'Publish',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
             ),
           ],
         ),
