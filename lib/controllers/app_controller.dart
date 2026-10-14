@@ -24,6 +24,11 @@ import 'package:leavego_app/models/news_action_response.dart';
 import 'package:leavego_app/models/news_response.dart';
 import 'package:leavego_app/models/projects_response.dart';
 import 'package:leavego_app/utils/app_roles.dart';
+import 'package:leavego_app/config/google_calendar_config.dart';
+import 'package:leavego_app/models/google_calendar_response.dart';
+import 'package:leavego_app/services/google_calendar_auth_service.dart';
+import 'package:leavego_app/services/google_calendar_direct_service.dart';
+import 'package:leavego_app/services/google_calendar_session_storage.dart';
 import 'package:leavego_app/services/session_storage.dart';
 
 class AppController extends ChangeNotifier {
@@ -31,6 +36,7 @@ class AppController extends ChangeNotifier {
 
   static const String tokenStorageKey = SessionStorage.tokenKey;
   final ApiService _apiService;
+  final GoogleCalendarDirectService _googleCalendarDirectService = GoogleCalendarDirectService();
 
   bool isLoading = false;
   String? errorMessage;
@@ -138,10 +144,333 @@ class AppController extends ChangeNotifier {
   String? myTodayTasksPriorityFilter;
   TodayGlanceTab todayGlanceTab = TodayGlanceTab.tasks;
 
+  /// Highest open "due today" count seen today; used for completed/total progress.
+  String? _myTodayTasksProgressDayKey;
+  int _myTodayTasksOpenBaseline = 0;
+
+  bool googleCalendarStatusLoading = false;
+  bool googleCalendarConnectLoading = false;
+  bool googleCalendarDisconnectLoading = false;
+  bool googleCalendarEventsLoading = false;
+  bool googleCalendarEventsLoadingMore = false;
+  String? googleCalendarStatusError;
+  String? googleCalendarConnectError;
+  String? googleCalendarDisconnectError;
+  String? googleCalendarEventsError;
+  bool googleCalendarConnected = false;
+  String? googleCalendarGoogleEmail;
+  List<GoogleCalendarEventItem> googleCalendarEvents = <GoogleCalendarEventItem>[];
+  String? _googleCalendarNextPageToken;
+  bool googleCalendarEventsHasMore = false;
+  DateTime? _googleCalendarEventsTimeMin;
+  DateTime? _googleCalendarEventsTimeMax;
+
+  List<GoogleCalendarEventItem> get googleCalendarEventsToday {
+    final now = DateTime.now();
+    return googleCalendarEvents.where((e) => e.occursOnLocalDay(now)).toList();
+  }
+
+  /// Meetings from now onward (includes in-progress), sorted by start time.
+  List<GoogleCalendarEventItem> get googleCalendarUpcomingMeetings {
+    final now = DateTime.now();
+    final list =
+        googleCalendarEvents.where((e) => e.isUpcomingFrom(now)).toList()
+          ..sort(GoogleCalendarEventItem.compareByStart);
+    return list;
+  }
+
+  GoogleCalendarEventItem? get googleCalendarNextMeeting {
+    final upcoming = googleCalendarUpcomingMeetings;
+    return upcoming.isEmpty ? null : upcoming.first;
+  }
+
+  /// Today's meetings from now (home glance).
+  List<GoogleCalendarEventItem> get googleCalendarTodayUpcomingMeetings {
+    final now = DateTime.now();
+    final list =
+        googleCalendarEvents
+            .where((e) => e.occursOnLocalDay(now) && e.isUpcomingFrom(now))
+            .toList()
+          ..sort(GoogleCalendarEventItem.compareByStart);
+    return list;
+  }
+
+  GoogleCalendarEventItem? get googleCalendarNextMeetingToday {
+    final today = googleCalendarTodayUpcomingMeetings;
+    return today.isEmpty ? null : today.first;
+  }
+
   void setTodayGlanceTab(TodayGlanceTab tab) {
     if (todayGlanceTab == tab) return;
     todayGlanceTab = tab;
     notifyListeners();
+  }
+
+  void _resetGoogleCalendarState() {
+    googleCalendarConnected = false;
+    googleCalendarGoogleEmail = null;
+    googleCalendarEvents = <GoogleCalendarEventItem>[];
+    _googleCalendarNextPageToken = null;
+    googleCalendarEventsHasMore = false;
+    googleCalendarStatusError = null;
+    googleCalendarConnectError = null;
+    googleCalendarDisconnectError = null;
+    googleCalendarEventsError = null;
+    _googleCalendarEventsTimeMin = null;
+    _googleCalendarEventsTimeMax = null;
+  }
+
+  Future<bool> _readGoogleCalendarLinkedFromStorage() async {
+    return await GoogleCalendarSessionStorage.readConnected() == true;
+  }
+
+  /// Keeps Calendar linked until TaskBulls logout; loads events when linked.
+  Future<void> ensureGoogleCalendarReady({bool refreshEvents = true}) async {
+    final linked = await _readGoogleCalendarLinkedFromStorage();
+    if (!linked) {
+      googleCalendarConnected = false;
+      return;
+    }
+
+    googleCalendarConnected = true;
+    googleCalendarGoogleEmail ??= await GoogleCalendarSessionStorage.readGoogleEmail();
+    googleCalendarStatusError = null;
+    notifyListeners();
+
+    await GoogleCalendarAuthService.instance.restoreSessionIfConnected();
+
+    if (refreshEvents && !googleCalendarEventsLoading) {
+      await loadGoogleCalendarEvents(refresh: true);
+    }
+  }
+
+  Future<void> restoreGoogleCalendarSession() async {
+    googleCalendarStatusLoading = true;
+    googleCalendarStatusError = null;
+    notifyListeners();
+
+    try {
+      final linked = await _readGoogleCalendarLinkedFromStorage();
+      googleCalendarGoogleEmail = await GoogleCalendarSessionStorage.readGoogleEmail();
+      if (!linked) {
+        googleCalendarConnected = false;
+        return;
+      }
+
+      googleCalendarConnected = true;
+      await GoogleCalendarAuthService.instance.restoreSessionIfConnected();
+      if (!googleCalendarEventsLoading) {
+        await loadGoogleCalendarEvents(refresh: true);
+      }
+    } catch (e) {
+      googleCalendarStatusError = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      googleCalendarStatusLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> connectGoogleCalendar() async {
+    googleCalendarConnectLoading = true;
+    googleCalendarConnectError = null;
+    notifyListeners();
+
+    try {
+      final result = await GoogleCalendarAuthService.instance.connect();
+      googleCalendarConnected = true;
+      googleCalendarGoogleEmail = result.googleEmail;
+      await loadGoogleCalendarEvents(refresh: true);
+      return true;
+    } catch (e) {
+      googleCalendarConnectError = e.toString().replaceFirst('Exception: ', '');
+      return false;
+    } finally {
+      googleCalendarConnectLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> disconnectGoogleCalendar() async {
+    googleCalendarDisconnectLoading = true;
+    googleCalendarDisconnectError = null;
+    notifyListeners();
+
+    try {
+      await GoogleCalendarAuthService.instance.disconnect();
+      _resetGoogleCalendarState();
+      return true;
+    } catch (e) {
+      googleCalendarDisconnectError = e.toString().replaceFirst('Exception: ', '');
+      return false;
+    } finally {
+      googleCalendarDisconnectLoading = false;
+      notifyListeners();
+    }
+  }
+
+  ({DateTime min, DateTime max}) googleCalendarDefaultRange({
+    int pastDays = GoogleCalendarConfig.defaultPastDays,
+    int futureDays = GoogleCalendarConfig.defaultFutureDays,
+  }) {
+    final now = DateTime.now();
+    final min = DateTime(now.year, now.month, now.day).subtract(Duration(days: pastDays));
+    final max = DateTime(now.year, now.month, now.day).add(Duration(days: futureDays + 1));
+    return (min: min, max: max);
+  }
+
+  Future<void> loadGoogleCalendarEvents({
+    bool refresh = false,
+    int pastDays = GoogleCalendarConfig.defaultPastDays,
+    int futureDays = GoogleCalendarConfig.defaultFutureDays,
+    bool allowInteractiveAuth = false,
+  }) async {
+    final linked = googleCalendarConnected || await _readGoogleCalendarLinkedFromStorage();
+    if (!linked) return;
+    googleCalendarConnected = true;
+    googleCalendarGoogleEmail ??= await GoogleCalendarSessionStorage.readGoogleEmail();
+    if (googleCalendarEventsLoading || googleCalendarEventsLoadingMore) return;
+
+    if (refresh) {
+      googleCalendarEventsLoading = true;
+      googleCalendarEventsError = null;
+      _googleCalendarNextPageToken = null;
+      googleCalendarEventsHasMore = false;
+    } else {
+      googleCalendarEventsLoadingMore = true;
+    }
+    notifyListeners();
+
+    try {
+      final range = googleCalendarDefaultRange(pastDays: pastDays, futureDays: futureDays);
+      _googleCalendarEventsTimeMin = range.min;
+      _googleCalendarEventsTimeMax = range.max;
+
+      final page = await _googleCalendarDirectService.fetchEvents(
+        timeMin: range.min,
+        timeMax: range.max,
+        pageToken: refresh ? null : _googleCalendarNextPageToken,
+        allowInteractiveAuth: allowInteractiveAuth,
+      );
+
+      if (refresh) {
+        googleCalendarEvents = page.items;
+      } else {
+        googleCalendarEvents = <GoogleCalendarEventItem>[...googleCalendarEvents, ...page.items];
+      }
+      _googleCalendarNextPageToken = page.nextPageToken;
+      googleCalendarEventsHasMore = page.hasMore;
+    } on GoogleCalendarAuthException catch (e) {
+      googleCalendarEventsError = _googleCalendarAuthMessage(e);
+    } catch (e) {
+      googleCalendarEventsError = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      googleCalendarEventsLoading = false;
+      googleCalendarEventsLoadingMore = false;
+      notifyListeners();
+    }
+  }
+
+  String _googleCalendarAuthMessage(GoogleCalendarAuthException e) {
+    if (e.detail != null && e.detail!.trim().isNotEmpty) {
+      return e.detail!.trim();
+    }
+    switch (e.code) {
+      case GoogleCalendarAuthException.codePermissionRevoked:
+        return 'Google Calendar access was revoked. Connect again from Profile.';
+      case GoogleCalendarAuthException.codeSessionExpired:
+        return 'Google Calendar session expired. Connect again from Profile.';
+      case GoogleCalendarAuthException.codeNotConnected:
+        return 'Google Calendar is not connected.';
+      default:
+        return 'Could not access Google Calendar.';
+    }
+  }
+
+  Future<void> loadMoreGoogleCalendarEvents() async {
+    if (!googleCalendarEventsHasMore || googleCalendarEventsLoadingMore) return;
+    final min = _googleCalendarEventsTimeMin;
+    final max = _googleCalendarEventsTimeMax;
+    if (min == null || max == null) {
+      await loadGoogleCalendarEvents(refresh: false);
+      return;
+    }
+
+    googleCalendarEventsLoadingMore = true;
+    notifyListeners();
+
+    try {
+      final page = await _googleCalendarDirectService.fetchEvents(
+        timeMin: min,
+        timeMax: max,
+        pageToken: _googleCalendarNextPageToken,
+      );
+      googleCalendarEvents = <GoogleCalendarEventItem>[...googleCalendarEvents, ...page.items];
+      _googleCalendarNextPageToken = page.nextPageToken;
+      googleCalendarEventsHasMore = page.hasMore;
+    } on GoogleCalendarAuthException catch (e) {
+      googleCalendarEventsError = _googleCalendarAuthMessage(e);
+    } catch (e) {
+      googleCalendarEventsError = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      googleCalendarEventsLoadingMore = false;
+      notifyListeners();
+    }
+  }
+
+  int get myTodayTasksProgressTotal {
+    if (_myTodayTasksOpenBaseline > 0) return _myTodayTasksOpenBaseline;
+    return myTodayTasksTotal;
+  }
+
+  int get myTodayTasksProgressCompleted {
+    final inList = myTodayTasks
+        .where((task) => task.status.trim().toLowerCase() == 'completed')
+        .length;
+    if (_myTodayTasksOpenBaseline <= 0) return inList;
+    final fromOpenDelta = (_myTodayTasksOpenBaseline - myTodayTasksTotal).clamp(
+      0,
+      _myTodayTasksOpenBaseline,
+    );
+    return inList > fromOpenDelta ? inList : fromOpenDelta;
+  }
+
+  double get myTodayTasksProgressFraction {
+    final total = myTodayTasksProgressTotal;
+    if (total <= 0) return 0;
+    return (myTodayTasksProgressCompleted / total).clamp(0.0, 1.0);
+  }
+
+  void _syncMyTodayTasksProgressTotals() {
+    final now = DateTime.now();
+    final dayKey = '${now.year}-${now.month}-${now.day}';
+    if (_myTodayTasksProgressDayKey != dayKey) {
+      _myTodayTasksProgressDayKey = dayKey;
+      _myTodayTasksOpenBaseline = 0;
+    }
+    if (myTodayTasksTotal > _myTodayTasksOpenBaseline) {
+      _myTodayTasksOpenBaseline = myTodayTasksTotal;
+    }
+  }
+
+  void _resetMyTodayTasksProgressTotals() {
+    _myTodayTasksProgressDayKey = null;
+    _myTodayTasksOpenBaseline = 0;
+  }
+
+  List<TaskItem> _filterTasksAssignedToMe(List<TaskItem> items) {
+    final userId = meData?.id;
+    if (userId == null || userId <= 0) return const <TaskItem>[];
+    return items.where((task) => task.isAssignedToUserId(userId)).toList();
+  }
+
+  void _applyMyTodayTasksPage(TasksPageData page, {required bool append}) {
+    final assignedOnly = _filterTasksAssignedToMe(page.items);
+    myTodayTasks = append ? <TaskItem>[...myTodayTasks, ...assignedOnly] : assignedOnly;
+    myTodayTasksCurrentPage = page.currentPage;
+    myTodayTasksLastPage = page.lastPage;
+    myTodayTasksHasMore = page.hasMore || page.currentPage < page.lastPage;
+    myTodayTasksTotal = myTodayTasks.length;
+    _syncMyTodayTasksProgressTotals();
   }
 
   /// Next Up on homepage: earliest due date/time among open tasks.
@@ -573,6 +902,7 @@ class AppController extends ChangeNotifier {
   /// Updates Work Pulse, leave balances, Today's glance, and Next Up without blocking UI.
   Future<void> refreshHomeScreenDataInBackground() async {
     await Future.wait<void>([
+      loadMe(),
       loadDashboard(silent: true),
       loadMyTodayTasks(refresh: true, applyPriorityFilter: false, silent: true),
     ]);
@@ -740,6 +1070,10 @@ class AppController extends ChangeNotifier {
       }
 
       await SessionStorage.clearToken();
+      await GoogleCalendarAuthService.instance.disconnect();
+      await GoogleCalendarSessionStorage.clear();
+      _resetGoogleCalendarState();
+      _resetMyTodayTasksProgressTotals();
       dashboardData = null;
       meData = null;
       todayGlanceTab = TodayGlanceTab.tasks;
@@ -1296,13 +1630,15 @@ class AppController extends ChangeNotifier {
     required String description,
     required String taskType,
     required String priority,
-    required String assignedTo,
+    required List<int> assignedUserIds,
     required String departmentId,
     required String startDate,
     required String startTime,
     required String dueDate,
     required String dueTime,
     required int estimatedHours,
+    List<String> links = const <String>[],
+    List<String> attachmentFilePaths = const <String>[],
   }) async {
     createTaskLoading = true;
     createTaskError = null;
@@ -1319,13 +1655,15 @@ class AppController extends ChangeNotifier {
         description: description,
         taskType: taskType,
         priority: priority,
-        assignedTo: assignedTo,
+        assignedUserIds: assignedUserIds,
         departmentId: departmentId,
         startDate: startDate,
         startTime: startTime,
         dueDate: dueDate,
         dueTime: dueTime,
         estimatedHours: estimatedHours,
+        links: links,
+        attachmentFilePaths: attachmentFilePaths,
       );
       await loadTasks(refresh: true);
       return response;
@@ -1343,12 +1681,14 @@ class AppController extends ChangeNotifier {
     required String title,
     required String description,
     required String priority,
-    required String assignedTo,
+    required List<int> assignedUserIds,
     required String startDate,
     required String startTime,
     required String dueDate,
     required String dueTime,
     required int estimatedHours,
+    List<String> links = const <String>[],
+    List<String> attachmentFilePaths = const <String>[],
   }) async {
     createTaskLoading = true;
     createTaskError = null;
@@ -1365,12 +1705,14 @@ class AppController extends ChangeNotifier {
         title: title,
         description: description,
         priority: priority,
-        assignedTo: assignedTo,
+        assignedUserIds: assignedUserIds,
         startDate: startDate,
         startTime: startTime,
         dueDate: dueDate,
         dueTime: dueTime,
         estimatedHours: estimatedHours,
+        links: links,
+        attachmentFilePaths: attachmentFilePaths,
       );
       await loadProjectTasks(projectId: projectId, refresh: true);
       return response;
@@ -1704,6 +2046,9 @@ class AppController extends ChangeNotifier {
     }
 
     try {
+      if (meData == null) {
+        await loadMe();
+      }
       final token = await _token();
       if (token == null || token.isEmpty) {
         throw Exception('Token not found. Please login again.');
@@ -1712,12 +2057,9 @@ class AppController extends ChangeNotifier {
         token: token,
         page: 1,
         priority: applyPriorityFilter ? myTodayTasksPriorityFilter : null,
+        myTasksOnly: true,
       );
-      myTodayTasks = page.items;
-      myTodayTasksCurrentPage = page.currentPage;
-      myTodayTasksLastPage = page.lastPage;
-      myTodayTasksTotal = page.total;
-      myTodayTasksHasMore = page.hasMore || page.currentPage < page.lastPage;
+      _applyMyTodayTasksPage(page, append: false);
     } catch (e) {
       if (!silent) {
         myTodayTasksError = e.toString().replaceFirst('Exception: ', '');
@@ -1742,16 +2084,16 @@ class AppController extends ChangeNotifier {
       if (token == null || token.isEmpty) {
         throw Exception('Token not found. Please login again.');
       }
+      if (meData == null) {
+        await loadMe();
+      }
       final page = await _apiService.myPendingDueTasks(
         token: token,
         page: nextPage,
         priority: myTodayTasksPriorityFilter,
+        myTasksOnly: true,
       );
-      myTodayTasks = <TaskItem>[...myTodayTasks, ...page.items];
-      myTodayTasksCurrentPage = page.currentPage;
-      myTodayTasksLastPage = page.lastPage;
-      myTodayTasksTotal = page.total;
-      myTodayTasksHasMore = page.hasMore || page.currentPage < page.lastPage;
+      _applyMyTodayTasksPage(page, append: true);
     } catch (e) {
       myTodayTasksError = e.toString().replaceFirst('Exception: ', '');
     } finally {

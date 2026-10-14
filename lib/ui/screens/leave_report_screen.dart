@@ -7,6 +7,10 @@ import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
 
+const Color _reportPrimary = AppTheme.navy;
+const Color _reportMuted = Color(0xFF6A778B);
+const Color _reportSecondaryText = Color(0xFF4C4C4C);
+
 const _statusOptions = <String>[
   'approved',
   'pending',
@@ -100,10 +104,6 @@ class _LeaveReportScreenState extends State<LeaveReportScreen> {
     _appController.removeListener(_onUpdate);
     _scrollController.dispose();
     super.dispose();
-  }
-
-  String _toYmd(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 
   Future<void> _loadReport() {
@@ -263,16 +263,24 @@ class _LeaveReportScreenState extends State<LeaveReportScreen> {
     return Scaffold(
       backgroundColor: AppTheme.appBackground,
       appBar: AppBar(
-        title: const Text('Leave Report'),
-        leading: const AppBackButton(),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.black,
+        backgroundColor: AppTheme.appBackground,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: const AppBackButton(color: _reportPrimary),
+        title: Text(
+          'Leave Report',
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+          ),
+        ),
+        centerTitle: false,
         actions: [
           IconButton(
             tooltip: 'Filters',
             onPressed: _openFilters,
-            icon: const Icon(Icons.tune_rounded),
+            icon: const Icon(Icons.tune_rounded, color: _reportPrimary),
           ),
         ],
       ),
@@ -282,7 +290,7 @@ class _LeaveReportScreenState extends State<LeaveReportScreen> {
           child: ListView(
             controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             children: [
               // Row(
               //   children: [
@@ -312,10 +320,10 @@ class _LeaveReportScreenState extends State<LeaveReportScreen> {
                 const Padding(padding: EdgeInsets.symmetric(vertical: 40), child: AppLoader())
               else if (error != null && items.isEmpty)
                 Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.errorContainer.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     error,
@@ -324,12 +332,16 @@ class _LeaveReportScreenState extends State<LeaveReportScreen> {
                 )
               else if (items.isEmpty)
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFEEF4F2), width: 0.5),
                   ),
-                  child: const Text('No leave records found for the selected filters.'),
+                  child: Text(
+                    'No leave records found for the selected filters.',
+                    style: theme.textTheme.bodyMedium?.copyWith(color: _reportMuted),
+                  ),
                 )
               else
                 ...items.map(
@@ -365,8 +377,10 @@ class _LeaveReportScreenState extends State<LeaveReportScreen> {
                   padding: const EdgeInsets.only(top: 10),
                   child: Center(
                     child: Text(
-                      'Showing all ${items.length} record(s)',
-                      style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF6A778B)),
+                      total > 0
+                          ? 'Showing ${items.length} of $total record(s)'
+                          : 'Showing all ${items.length} record(s)',
+                      style: theme.textTheme.bodySmall?.copyWith(color: _reportMuted),
                     ),
                   ),
                 ),
@@ -384,27 +398,27 @@ class _FilterChip extends StatelessWidget {
   final String label;
   final IconData icon;
   final VoidCallback? onClear;
+  static const Color _chipBg = Color(0xFFE5F1FE);
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Container(
       padding: EdgeInsets.fromLTRB(10, 6, onClear == null ? 12 : 6, 6),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFE3EAF8)),
+        color: _chipBg,
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 15, color: AppTheme.navy),
+          Icon(icon, size: 14, color: AppTheme.navy),
           const SizedBox(width: 6),
           Text(
             label,
-            style: theme.textTheme.bodySmall?.copyWith(
+            style: const TextStyle(
+              color: AppTheme.navy,
               fontWeight: FontWeight.w600,
-              color: const Color(0xFF1E293B),
+              fontSize: 12,
             ),
           ),
           if (onClear != null) ...[
@@ -414,7 +428,7 @@ class _FilterChip extends StatelessWidget {
               borderRadius: BorderRadius.circular(999),
               child: const Padding(
                 padding: EdgeInsets.all(3),
-                child: Icon(Icons.close_rounded, size: 14, color: Color(0xFF6A778B)),
+                child: Icon(Icons.close_rounded, size: 14, color: _reportMuted),
               ),
             ),
           ],
@@ -555,8 +569,9 @@ class _LeaveReportFiltersSheetState extends State<_LeaveReportFiltersSheet> {
                   child: Text(
                     'Report Filters',
                     style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.navy,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 18,
+                      color: Colors.black,
                     ),
                   ),
                 ),
@@ -564,7 +579,11 @@ class _LeaveReportFiltersSheetState extends State<_LeaveReportFiltersSheet> {
                   onPressed: _resetFilters,
                   child: const Text(
                     'Reset',
-                    style: TextStyle(fontWeight: FontWeight.w700, color: AppTheme.navy),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: _reportPrimary,
+                    ),
                   ),
                 ),
               ],
@@ -669,7 +688,7 @@ class _LeaveReportFiltersSheetState extends State<_LeaveReportFiltersSheet> {
             child: Container(
               decoration: BoxDecoration(
                 gradient: const LinearGradient(colors: [AppTheme.navy, AppTheme.lightNavy]),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(AppTheme.controlRadius),
               ),
               child: FilledButton(
                 onPressed: _apply,
@@ -707,42 +726,130 @@ class _LeaveReportCard extends StatelessWidget {
     final leaveLabel = item.leaveTypeCode.isEmpty
         ? item.leaveTypeName
         : '${item.leaveTypeName} (${item.leaveTypeCode})';
+    final statusLabel = toLabel(
+      item.finalStatus.isNotEmpty ? item.finalStatus : item.status,
+    );
+    final dateRange =
+        '${formatDate(item.startDate)} - ${formatDate(item.endDate)} • ${item.days} day(s)';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFEEEEEE), width: 0.5),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        onTap: onTap,
-        title: Text(item.employeeName, style: const TextStyle(fontWeight: FontWeight.w700)),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text(leaveLabel, style: theme.textTheme.bodyMedium),
-            const SizedBox(height: 4),
-            Text(
-              '${formatDate(item.startDate)} - ${formatDate(item.endDate)} • ${item.days} day(s)',
-              style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF6A778B)),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  width: 8,
+                  decoration: const BoxDecoration(color: Color(0xFFD8E9FF)),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 14, 14, 14),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.employeeName,
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: _reportPrimary,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                leaveLabel,
+                                style: const TextStyle(
+                                  color: _reportPrimary,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                dateRange,
+                                style: const TextStyle(
+                                  color: _reportSecondaryText,
+                                  fontWeight: FontWeight.w400,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              if (item.departmentName.trim().isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  item.departmentName,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: _reportMuted,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _LeaveStatusBadge(status: statusLabel),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              '${item.departmentName} • ${toLabel(item.finalStatus.isNotEmpty ? item.finalStatus : item.status)}',
-              style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF6A778B)),
-            ),
-          ],
+          ),
         ),
-        trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFF6A778B)),
+      ),
+    );
+  }
+}
+
+class _LeaveStatusBadge extends StatelessWidget {
+  const _LeaveStatusBadge({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    Color fg = _reportPrimary;
+    Color bg = const Color(0xFFDCE7FF);
+    final lower = status.toLowerCase();
+
+    if (lower == 'approved') {
+      fg = const Color(0xFF40705F);
+      bg = const Color(0xFFD9FCF0);
+    } else if (lower == 'rejected') {
+      fg = const Color(0xFF8B1D18);
+      bg = const Color(0xFFFCE3E1);
+    } else if (lower.contains('pending')) {
+      fg = _reportPrimary;
+      bg = const Color(0xFFE4F1FE);
+    }
+
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 120),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      height: 30,
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(56)),
+      child: Center(
+        child: Text(
+          status,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(color: fg, fontWeight: FontWeight.w500, fontSize: 12),
+        ),
       ),
     );
   }

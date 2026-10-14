@@ -7,6 +7,7 @@ import 'package:leavego_app/ui/screens/create_news_screen.dart';
 import 'package:leavego_app/ui/screens/login_screen.dart';
 import 'package:leavego_app/ui/screens/manage_users_screen.dart';
 import 'package:leavego_app/ui/screens/news_screen.dart';
+import 'package:leavego_app/ui/screens/google_calendar_screen.dart';
 import 'package:leavego_app/ui/screens/personal_information_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_back_button.dart';
@@ -59,10 +60,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ).showSnackBar(SnackBar(content: Text(_appController.logoutError!)));
       return;
     }
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (_) => false,
-    );
+    Navigator.of(
+      context,
+    ).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
   }
 
   Future<void> _showLogoutConfirmationSheet() async {
@@ -76,12 +76,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       builder: (sheetContext) {
         return Padding(
-          padding: EdgeInsets.fromLTRB(
-            20,
-            10,
-            20,
-            16 + MediaQuery.paddingOf(sheetContext).bottom,
-          ),
+          padding: EdgeInsets.fromLTRB(20, 10, 20, 16 + MediaQuery.paddingOf(sheetContext).bottom),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -98,12 +93,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 20),
               Center(
-                child: Image.asset(
-                  _logoutConfirmIcon,
-                  width: 72,
-                  height: 72,
-                  fit: BoxFit.contain,
-                ),
+                child: Image.asset(_logoutConfirmIcon, width: 72, height: 72, fit: BoxFit.contain),
               ),
               const SizedBox(height: 16),
               Text(
@@ -119,10 +109,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text(
                 'Are you sure you want to sign out? You will need to log in again to use the app.',
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: _profileSubtitle,
-                  height: 1.4,
-                ),
+                style: theme.textTheme.bodyMedium?.copyWith(color: _profileSubtitle, height: 1.4),
               ),
               const SizedBox(height: 24),
               Row(
@@ -138,10 +125,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           borderRadius: BorderRadius.circular(AppTheme.controlRadius),
                         ),
                       ),
-                      child: const Text(
-                        'Cancel',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
+                      child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -156,10 +140,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           borderRadius: BorderRadius.circular(AppTheme.controlRadius),
                         ),
                       ),
-                      child: const Text(
-                        'Log out',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
+                      child: const Text('Log out', style: TextStyle(fontWeight: FontWeight.w700)),
                     ),
                   ),
                 ],
@@ -264,6 +245,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Navigator.of(
                         context,
                       ).push(MaterialPageRoute(builder: (_) => const ChangePasswordScreen()));
+                    },
+                  ),
+                  const _MenuDivider(),
+                  _ProfileMenuItem(
+                    iconAsset: 'assets/images/calendar-week.webp',
+                    title: 'Google Calendar',
+                    subtitle: 'Connect and view your calendar events',
+                    onTap: () {
+                      Navigator.of(
+                        context,
+                      ).push(MaterialPageRoute(builder: (_) => const GoogleCalendarScreen()));
                     },
                   ),
                 ],

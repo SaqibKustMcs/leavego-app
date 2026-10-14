@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
@@ -5,9 +7,11 @@ import 'package:leavego_app/models/tasks_response.dart';
 import 'package:leavego_app/ui/models/today_glance_tab.dart';
 import 'package:leavego_app/ui/screens/task_detail_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
+import 'package:leavego_app/ui/widgets/today_glance_meetings_body.dart';
 import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
 import 'package:leavego_app/ui/widgets/today_glance_empty_tasks.dart';
+import 'package:leavego_app/ui/widgets/glance_timeline_row.dart';
 import 'package:leavego_app/ui/widgets/today_glance_tab_switcher.dart';
 import 'package:leavego_app/utils/task_datetime_format.dart';
 
@@ -56,7 +60,42 @@ class _TodayGlanceScreenState extends State<TodayGlanceScreen> {
     super.dispose();
   }
 
+  Future<void> _promptGoogleCalendarConnect() async {
+    if (_appController.googleCalendarConnectLoading) return;
+    final ok = await _appController.connectGoogleCalendar();
+    if (!mounted) return;
+    if (ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Google Calendar connected')),
+      );
+      return;
+    }
+    final msg = _appController.googleCalendarConnectError;
+    if (msg != null && msg.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    }
+  }
+
+  void _onTabChanged(TodayGlanceTab tab) {
+    _appController.setTodayGlanceTab(tab);
+    if (tab == TodayGlanceTab.meetings) {
+      unawaited(_prepareMeetingsGlance());
+    }
+  }
+
+  Future<void> _prepareMeetingsGlance() async {
+    await _appController.ensureGoogleCalendarReady(refreshEvents: true);
+    if (!mounted) return;
+    if (!_appController.googleCalendarConnected) {
+      await _promptGoogleCalendarConnect();
+    }
+  }
+
   Future<void> _onRefresh() async {
+    if (_appController.todayGlanceTab == TodayGlanceTab.meetings) {
+      await _appController.ensureGoogleCalendarReady(refreshEvents: true);
+      return;
+    }
     await _appController.loadMyTodayTasks(refresh: true, applyPriorityFilter: false);
   }
 
@@ -123,12 +162,20 @@ class _TodayGlanceScreenState extends State<TodayGlanceScreen> {
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
             child: TodayGlanceTabSwitcher(
               selected: tab,
-              onChanged: _appController.setTodayGlanceTab,
+              onChanged: _onTabChanged,
             ),
           ),
           Expanded(
             child: tab == TodayGlanceTab.meetings
-                ? _MeetingsEmptyState(onRefresh: _onRefresh)
+                ? TodayGlanceMeetingsBody(
+                    connected: _appController.googleCalendarConnected,
+                    loading: _appController.googleCalendarEventsLoading,
+                    error: _appController.googleCalendarEventsError,
+                    events: _appController.googleCalendarUpcomingMeetings,
+                    onRefresh: _onRefresh,
+                    onConnect: _promptGoogleCalendarConnect,
+                    connectLoading: _appController.googleCalendarConnectLoading,
+                  )
                 : RefreshIndicator(
                     onRefresh: _onRefresh,
                     child: _TasksGlanceList(
@@ -143,30 +190,6 @@ class _TodayGlanceScreenState extends State<TodayGlanceScreen> {
                       onTaskTap: _openTask,
                     ),
                   ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MeetingsEmptyState extends StatelessWidget {
-  const _MeetingsEmptyState({required this.onRefresh});
-
-  final Future<void> Function() onRefresh;
-
-  @override
-  Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 96),
-        children: const [
-          Center(
-            child: TodayGlanceEmptyTasks(
-              message: 'No meetings scheduled for today.',
-            ),
           ),
         ],
       ),
@@ -243,7 +266,7 @@ class _TasksGlanceList extends StatelessWidget {
 
         final task = tasks[index];
         final isActive = index == 0;
-        return _GlanceDetailRow(
+        return GlanceTimelineRow(
           isActive: isActive,
           isLast: index == tasks.length - 1,
           title: task.title,
@@ -253,160 +276,6 @@ class _TasksGlanceList extends StatelessWidget {
           onTap: () => onTaskTap(task),
         );
       },
-    );
-  }
-}
-
-class _GlanceDetailRow extends StatelessWidget {
-  const _GlanceDetailRow({
-    required this.isActive,
-    required this.isLast,
-    required this.title,
-    required this.weekday,
-    required this.assignment,
-    required this.time,
-    required this.onTap,
-  });
-
-  final bool isActive;
-  final bool isLast;
-  final String title;
-  final String weekday;
-  final String assignment;
-  final String time;
-  final VoidCallback onTap;
-
-  static const Color _primary = Color(0xFF173559);
-  static const Color _activeCardBg = Color(0xFFE4F1FE);
-  static const double _railWidth = 28;
-
-  @override
-  Widget build(BuildContext context) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(
-            width: _railWidth,
-            child: Column(
-              children: [
-                _TimelineDot(filled: isActive),
-                if (!isLast)
-                  Expanded(
-                    child: Container(
-                      width: 1.5,
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      color: _primary.withValues(alpha: 0.25),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: onTap,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: isActive ? _activeCardBg : Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isActive ? _activeCardBg : const Color(0xFFEEF4F2),
-                        width: 0.5,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                title,
-                                style: TextStyle(
-                                  color: _primary,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                            if (weekday.isNotEmpty)
-                              Text(
-                                weekday,
-                                style: const TextStyle(
-                                  color: Color(0xFF9AA5B5),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                assignment,
-                                style: const TextStyle(
-                                  color: Color(0xFF9AA5B5),
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                            if (time.isNotEmpty)
-                              Text(
-                                time,
-                                style: const TextStyle(
-                                  color: Color(0xFF9AA5B5),
-                                  fontSize: 12,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TimelineDot extends StatelessWidget {
-  const _TimelineDot({required this.filled});
-
-  final bool filled;
-
-  static const Color _primary = Color(0xFF173559);
-
-  @override
-  Widget build(BuildContext context) {
-    if (filled) {
-      return Container(
-        width: 12,
-        height: 12,
-        decoration: const BoxDecoration(color: _primary, shape: BoxShape.circle),
-      );
-    }
-    return Container(
-      width: 12,
-      height: 12,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: _primary, width: 1.5),
-        color: Colors.white,
-      ),
     );
   }
 }

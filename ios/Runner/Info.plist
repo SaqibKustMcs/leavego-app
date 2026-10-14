@@ -26,6 +26,19 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>FirebaseAppDelegateProxyEnabled</key>
 	<true/>
+	<key>GIDClientID</key>
+	<string>196388059648-lcfs56m0qqolai1kpso3rhloocdvqijb.apps.googleusercontent.com</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.196388059648-lcfs56m0qqolai1kpso3rhloocdvqijb</string>
+			</array>
+		</dict>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>

@@ -255,12 +255,18 @@ class _TasksScreenState extends State<TasksScreen> {
 
     if (!isValid) return;
 
+    final assigneeId = int.tryParse(_selectedAssignedTo!);
+    if (assigneeId == null || assigneeId <= 0) {
+      assignedToError.value = 'Please select assignee';
+      return;
+    }
+
     final response = await _appController.createTask(
       title: _titleController.text.trim(),
       description: _descriptionController.text.trim(),
       taskType: _selectedTaskType!,
       priority: _selectedPriority!,
-      assignedTo: _selectedAssignedTo!,
+      assignedUserIds: <int>[assigneeId],
       departmentId: _selectedDepartmentId!,
       startDate: _startDateController.text.trim(),
       startTime: _startTimeController.text.trim(),

@@ -167,7 +167,9 @@ class TaskAttachmentItem {
     return TaskAttachmentItem(
       id: _toInt(json['id']),
       fileName: (json['file_name'] ?? json['name'] ?? 'Attachment').toString(),
-      fileUrl: json['file_url']?.toString() ?? json['url']?.toString(),
+      fileUrl: json['file_url']?.toString() ??
+          json['download_url']?.toString() ??
+          json['url']?.toString(),
       createdAt: json['created_at']?.toString(),
     );
   }

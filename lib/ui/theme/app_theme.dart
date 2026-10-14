@@ -10,6 +10,7 @@ class AppTheme {
   static const Color lightNavy = Color(0xFF3757D8);
   static const double controlRadius = 4;
   static const Color appBackground = Color(0xFFFCFFFF);
+
   /// Splash and onboarding only (not main app screens).
   static const Color authFlowBackground = Color(0xFFF4F6FA);
   static const Color cardBackground = Colors.white;

@@ -9,6 +9,7 @@ import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
 import 'package:leavego_app/ui/widgets/attachment_row.dart';
 import 'package:leavego_app/ui/widgets/share_with_row.dart';
+import 'package:leavego_app/ui/widgets/task_links_field.dart';
 
 class CreateProjectTaskScreen extends StatefulWidget {
   const CreateProjectTaskScreen({super.key, required this.project});
@@ -36,10 +37,12 @@ class _CreateProjectTaskScreenState extends State<CreateProjectTaskScreen> {
   final _dueDateController = TextEditingController();
 
   String? _selectedPriority;
-  String? _attachmentName;
+  final List<String> _links = <String>[];
+  final List<String> _attachmentPaths = <String>[];
+  String? _pendingAttachmentName;
   final Set<int> _selectedAssigneeIds = <int>{};
 
-  static const _priorities = <String>['urgent', 'high', 'medium', 'low', 'critical'];
+  static const _priorities = <String>['urgent', 'high', 'medium', 'critical'];
 
   @override
   void initState() {
@@ -225,12 +228,25 @@ class _CreateProjectTaskScreenState extends State<CreateProjectTaskScreen> {
   Future<void> _pickAttachment({required FileType type}) async {
     final result = await FilePicker.platform.pickFiles(type: type, allowMultiple: false);
     if (result == null || result.files.isEmpty) return;
-    final name = result.files.single.name;
-    setState(() => _attachmentName = name);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Attachment saved locally. Upload will apply when supported.')),
-    );
+    final file = result.files.single;
+    final path = file.path;
+    if (path == null || path.trim().isEmpty) return;
+    setState(() {
+      _attachmentPaths.add(path);
+      _pendingAttachmentName = file.name;
+    });
+  }
+
+  Future<void> _addLink() async {
+    final link = await TaskLinksField.promptForLink(context);
+    if (link == null || !mounted) return;
+    if (_links.contains(link)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This link is already added')),
+      );
+      return;
+    }
+    setState(() => _links.add(link));
   }
 
   Future<void> _openAssigneePicker() async {
@@ -246,8 +262,7 @@ class _CreateProjectTaskScreenState extends State<CreateProjectTaskScreen> {
         builder: (_) => SelectProjectMembersScreen(
           initiallySelected: Set<int>.from(_selectedAssigneeIds),
           allowedUserIds: _allowedAssigneeIds,
-          maxSelections: 1,
-          appBarTitle: 'Select Member',
+          appBarTitle: 'Select Assignees',
         ),
       ),
     );
@@ -265,7 +280,7 @@ class _CreateProjectTaskScreenState extends State<CreateProjectTaskScreen> {
 
     if (_selectedAssigneeIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select an assignee')),
+        const SnackBar(content: Text('Please select at least one assignee')),
       );
       return;
     }
@@ -284,12 +299,14 @@ class _CreateProjectTaskScreenState extends State<CreateProjectTaskScreen> {
       title: _titleController.text.trim(),
       description: _descriptionController.text.trim(),
       priority: _selectedPriority!,
-      assignedTo: _selectedAssigneeIds.first.toString(),
+      assignedUserIds: _selectedAssigneeIds.toList(),
       startDate: _toApiDate(_startDateController.text.trim()),
       startTime: _toApiTime(_startDateController.text.trim()),
       dueDate: _toApiDate(_dueDateController.text.trim()),
       dueTime: _toApiTime(_dueDateController.text.trim()),
       estimatedHours: 1,
+      links: List<String>.from(_links),
+      attachmentFilePaths: List<String>.from(_attachmentPaths),
     );
 
     if (!mounted) return;
@@ -445,10 +462,17 @@ class _CreateProjectTaskScreenState extends State<CreateProjectTaskScreen> {
               ),
               const SizedBox(height: 20),
               AttachmentRow(
-                attachmentName: _attachmentName,
+                attachmentName: _pendingAttachmentName ??
+                    (_attachmentPaths.isEmpty ? null : '${_attachmentPaths.length} file(s)'),
                 onDocument: () => _pickAttachment(type: FileType.any),
                 onGallery: () => _pickAttachment(type: FileType.image),
                 onCamera: () => _pickAttachment(type: FileType.image),
+              ),
+              const SizedBox(height: 12),
+              TaskLinksField(
+                links: _links,
+                onAddLink: _addLink,
+                onRemoveLink: (index) => setState(() => _links.removeAt(index)),
               ),
               const SizedBox(height: 28),
               Text(
@@ -461,7 +485,7 @@ class _CreateProjectTaskScreenState extends State<CreateProjectTaskScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Select users to add',
+                'Select one or more project members',
                 style: theme.textTheme.bodySmall?.copyWith(color: _muted, fontSize: 13),
               ),
               const SizedBox(height: 12),

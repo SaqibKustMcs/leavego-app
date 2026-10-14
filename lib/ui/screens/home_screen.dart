@@ -20,12 +20,16 @@ import 'package:leavego_app/ui/screens/news_detail_screen.dart';
 import 'package:leavego_app/ui/screens/news_screen.dart';
 import 'package:leavego_app/ui/screens/leave_report_screen.dart';
 import 'package:leavego_app/ui/screens/my_leave_requests_screen.dart';
+import 'package:leavego_app/models/google_calendar_response.dart';
 import 'package:leavego_app/ui/screens/profile_screen.dart';
+import 'package:leavego_app/ui/widgets/glance_compact_stepper.dart';
+import 'package:leavego_app/ui/widgets/glance_meeting_labels.dart';
 import 'package:leavego_app/ui/screens/task_detail_screen.dart';
 import 'package:leavego_app/utils/task_datetime_format.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
 import 'package:leavego_app/utils/app_roles.dart';
+import 'package:linear_progress_bar/linear_progress_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -44,13 +48,49 @@ class _HomeScreenState extends State<HomeScreen> {
 
   late final AppController _appController;
 
+  Future<void> _promptGoogleCalendarConnect() async {
+    if (_appController.googleCalendarConnectLoading) return;
+    final ok = await _appController.connectGoogleCalendar();
+    if (!mounted) return;
+    if (ok) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Google Calendar connected')));
+      return;
+    }
+    final msg = _appController.googleCalendarConnectError;
+    if (msg != null && msg.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    }
+  }
+
+  void _onGlanceTabChanged(TodayGlanceTab tab) {
+    _appController.setTodayGlanceTab(tab);
+    if (tab == TodayGlanceTab.meetings) {
+      unawaited(_prepareMeetingsGlanceOnHome());
+    }
+  }
+
+  Future<void> _prepareMeetingsGlanceOnHome() async {
+    await _appController.ensureGoogleCalendarReady(refreshEvents: true);
+    if (!mounted) return;
+    if (!_appController.googleCalendarConnected) {
+      _promptGoogleCalendarConnect();
+    }
+  }
+
   Future<void> _onRefresh() async {
-    await Future.wait<void>([
+    final refreshJobs = <Future<void>>[
+      _appController.loadMe(),
       _appController.loadDashboard(),
       _appController.loadNews(refresh: true),
       _appController.loadMyTodayTasks(refresh: true, applyPriorityFilter: false),
       _appController.loadMyLeaves(),
-    ]);
+    ];
+    if (_appController.todayGlanceTab == TodayGlanceTab.meetings) {
+      refreshJobs.add(_appController.ensureGoogleCalendarReady(refreshEvents: true));
+    }
+    await Future.wait<void>(refreshJobs);
   }
 
   @override
@@ -58,13 +98,16 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _appController = Get.find<AppController>();
     _appController.addListener(_onUpdate);
-    if (_appController.meData == null) {
-      _appController.loadMe();
-    }
+    _appController.loadMe();
     _appController.loadDashboard();
     _appController.loadNews(refresh: true);
     _appController.loadMyTodayTasks(refresh: true, applyPriorityFilter: false);
     _appController.loadMyLeaves();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        // _appController.ensureGoogleCalendarReady();
+      }
+    });
     _setupPushNotifications();
   }
 
@@ -185,6 +228,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final tasksDueCount = _appController.myTodayTasksTotal > 0
         ? _appController.myTodayTasksTotal
         : todayTasks.length;
+    final todayTasksProgressTotal = _appController.myTodayTasksProgressTotal;
+    final todayTasksProgressCompleted = _appController.myTodayTasksProgressCompleted;
+    final todayTasksProgressFraction = _appController.myTodayTasksProgressFraction;
     final taskSummary = data?.tasks;
     final leaveCredits = _leaveCreditsFromDashboard(data);
     final lastLeave = _lastApprovedLeave(_appController.myLeaves);
@@ -204,6 +250,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 handWaveIcon: _handWaveIcon,
                 barChartIcon: _barChartIcon,
                 showBarChart: canViewLeaveReport,
+                todayTasksTotal: todayTasksProgressTotal,
+                todayTasksCompleted: todayTasksProgressCompleted,
+                todayTasksProgressLoading: todayTasksLoading,
                 onProfileTap: () => Navigator.of(
                   context,
                 ).push(MaterialPageRoute(builder: (_) => const ProfileScreen())),
@@ -214,10 +263,18 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 18),
               _TodayAtGlanceCard(
                 selectedTab: _appController.todayGlanceTab,
-                onTabChanged: _appController.setTodayGlanceTab,
+                onTabChanged: _onGlanceTabChanged,
                 tasksDueCount: tasksDueCount,
+                tasksProgressFraction: todayTasksProgressFraction,
                 tasks: todayTasks.take(3).toList(),
                 loading: todayTasksLoading,
+                calendarConnected: _appController.googleCalendarConnected,
+                meetingsLoading: _appController.googleCalendarEventsLoading,
+                upcomingMeetings: _appController.googleCalendarTodayUpcomingMeetings
+                    .take(3)
+                    .toList(),
+                onConnectCalendar: _promptGoogleCalendarConnect,
+                connectCalendarLoading: _appController.googleCalendarConnectLoading,
                 onViewAll: () => Navigator.of(
                   context,
                 ).push(MaterialPageRoute(builder: (_) => const TodayGlanceScreen())),
@@ -577,12 +634,65 @@ class _NewsCarouselCard extends StatelessWidget {
   }
 }
 
+class _WavingHandIcon extends StatefulWidget {
+  const _WavingHandIcon({required this.assetPath});
+
+  final String assetPath;
+
+  @override
+  State<_WavingHandIcon> createState() => _WavingHandIconState();
+}
+
+class _WavingHandIconState extends State<_WavingHandIcon> with SingleTickerProviderStateMixin {
+  static const double _size = 18;
+
+  late final AnimationController _controller;
+  late final Animation<double> _wave;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 2200));
+    _wave = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: 0.35), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: 0.35, end: -0.25), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: -0.25, end: 0.2), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: 0.2, end: 0.0), weight: 1),
+    ]).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _controller.repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _wave,
+      builder: (context, child) {
+        return Transform.rotate(
+          angle: _wave.value,
+          alignment: Alignment.bottomCenter,
+          child: child,
+        );
+      },
+      child: Image.asset(widget.assetPath, width: _size, height: _size, fit: BoxFit.contain),
+    );
+  }
+}
+
 class _HomeHeader extends StatelessWidget {
   const _HomeHeader({
     required this.name,
     required this.handWaveIcon,
     required this.barChartIcon,
     required this.showBarChart,
+    required this.todayTasksTotal,
+    required this.todayTasksCompleted,
+    required this.todayTasksProgressLoading,
     required this.onProfileTap,
     required this.onBarChartTap,
   });
@@ -591,6 +701,9 @@ class _HomeHeader extends StatelessWidget {
   final String handWaveIcon;
   final String barChartIcon;
   final bool showBarChart;
+  final int todayTasksTotal;
+  final int todayTasksCompleted;
+  final bool todayTasksProgressLoading;
   final VoidCallback onProfileTap;
   final VoidCallback onBarChartTap;
 
@@ -634,9 +747,9 @@ class _HomeHeader extends StatelessWidget {
                 height: 48,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE8F0FE),
+                  color: const Color(0xFFF1E7FE),
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFEEF4F2), width: 0.5),
+                  border: Border.all(color: const Color(0xFFE2CEFE), width: 0.5),
                 ),
                 child: Text(
                   _initials,
@@ -670,7 +783,7 @@ class _HomeHeader extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 4),
-                        Image.asset(handWaveIcon, width: 18, height: 18, fit: BoxFit.contain),
+                        _WavingHandIcon(assetPath: handWaveIcon),
                       ],
                     ),
                     const SizedBox(height: 2),
@@ -684,21 +797,37 @@ class _HomeHeader extends StatelessWidget {
                         fontSize: 18,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        return SizedBox(
-                          width: constraints.maxWidth.clamp(0, 160),
-                          height: 2,
-                          child: Row(
-                            children: const [
-                              Expanded(child: ColoredBox(color: Color(0xFF2B68B1))),
-                              Expanded(child: ColoredBox(color: Color(0xFFE53935))),
-                            ],
+                    if (todayTasksTotal > 0 || todayTasksProgressLoading) ...[
+                      const SizedBox(height: 2),
+                      Container(
+                        width: 135,
+                        child: LinearProgressBar(
+                          maxSteps: todayTasksTotal > 0 ? todayTasksTotal : 1,
+                          progressType: ProgressType.linear,
+                          currentStep: todayTasksCompleted.clamp(
+                            0,
+                            todayTasksTotal > 0 ? todayTasksTotal : 1,
                           ),
-                        );
-                      },
-                    ),
+                          progressColor: const Color(0xFF2B68B1),
+                          backgroundColor: const Color(0xFFBE2A30),
+                          borderRadius: BorderRadius.circular(10),
+                          minHeight: 3,
+                        ),
+                      ),
+                      // const SizedBox(height: 2),
+                      // Text(
+                      //   todayTasksTotal > 0
+                      //       ? '$todayTasksCompleted of $todayTasksTotal tasks done today'
+                      //       : "Loading today's tasks…",
+                      //   maxLines: 1,
+                      //   overflow: TextOverflow.ellipsis,
+                      //   style: const TextStyle(
+                      //     color: Color(0xFF6A778B),
+                      //     fontWeight: FontWeight.w500,
+                      //     fontSize: 11,
+                      //   ),
+                      // ),
+                    ],
                   ],
                 ),
               ),
@@ -706,7 +835,7 @@ class _HomeHeader extends StatelessWidget {
           ),
           if (showBarChart)
             Material(
-              color: const Color(0xFFE4F1FE),
+              color: const Color(0xFFF1E7FE),
               shape: const CircleBorder(),
               child: InkWell(
                 onTap: onBarChartTap,
@@ -723,13 +852,81 @@ class _HomeHeader extends StatelessWidget {
   }
 }
 
+class _MeetingsGlanceSection extends StatelessWidget {
+  const _MeetingsGlanceSection({
+    required this.connected,
+    required this.loading,
+    required this.events,
+    required this.onConnect,
+    required this.connectLoading,
+  });
+
+  final bool connected;
+  final bool loading;
+  final List<GoogleCalendarEventItem> events;
+  final VoidCallback onConnect;
+  final bool connectLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!connected) {
+      return InkWell(
+        onTap: connectLoading ? null : onConnect,
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          children: [
+            const TodayGlanceEmptyTasks(
+              compact: true,
+              message: 'Tap to sign in with Google and see today’s meetings.',
+            ),
+            const SizedBox(height: 10),
+            if (connectLoading)
+              const AppLoader(size: 28)
+            else
+              TextButton(onPressed: onConnect, child: const Text('Connect Google Calendar')),
+          ],
+        ),
+      );
+    }
+    if (loading && events.isEmpty) {
+      return const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: AppLoader(size: 28));
+    }
+    if (events.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 4),
+          child: TodayGlanceEmptyTasks(compact: true, message: 'No meetings scheduled for today.'),
+        ),
+      );
+    }
+    const stepColors = <Color>[Color(0xFF82CEB1), Color(0xFF4DA992), Color(0xFF5B9BD5)];
+    return GlanceCompactStepperList(
+      items: [
+        for (var i = 0; i < events.length; i++)
+          GlanceCompactStepperItem(
+            title: events[i].summary,
+            subtitle: GlanceMeetingLabels.compactSubtitle(events[i]),
+            dotColor: stepColors[i % stepColors.length],
+            onTap: () => GlanceMeetingLabels.openEvent(events[i]),
+          ),
+      ],
+    );
+  }
+}
+
 class _TodayAtGlanceCard extends StatelessWidget {
   const _TodayAtGlanceCard({
     required this.selectedTab,
     required this.onTabChanged,
     required this.tasksDueCount,
+    required this.tasksProgressFraction,
     required this.tasks,
     required this.loading,
+    required this.calendarConnected,
+    required this.meetingsLoading,
+    required this.upcomingMeetings,
+    required this.onConnectCalendar,
+    required this.connectCalendarLoading,
     required this.onViewAll,
     required this.onTaskTap,
   });
@@ -737,8 +934,14 @@ class _TodayAtGlanceCard extends StatelessWidget {
   final TodayGlanceTab selectedTab;
   final ValueChanged<TodayGlanceTab> onTabChanged;
   final int tasksDueCount;
+  final double tasksProgressFraction;
   final List<TaskItem> tasks;
   final bool loading;
+  final bool calendarConnected;
+  final bool meetingsLoading;
+  final List<GoogleCalendarEventItem> upcomingMeetings;
+  final VoidCallback onConnectCalendar;
+  final bool connectCalendarLoading;
   final VoidCallback onViewAll;
   final ValueChanged<TaskItem> onTaskTap;
 
@@ -779,14 +982,12 @@ class _TodayAtGlanceCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           if (selectedTab == TodayGlanceTab.meetings)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 4),
-                child: TodayGlanceEmptyTasks(
-                  compact: true,
-                  message: 'No meetings scheduled for today.',
-                ),
-              ),
+            _MeetingsGlanceSection(
+              connected: calendarConnected,
+              loading: meetingsLoading,
+              events: upcomingMeetings,
+              onConnect: onConnectCalendar,
+              connectLoading: connectCalendarLoading,
             )
           else if (loading && tasks.isEmpty)
             const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: AppLoader(size: 28))
@@ -808,7 +1009,7 @@ class _TodayAtGlanceCard extends StatelessWidget {
                     alignment: Alignment.center,
                     children: [
                       _GradientDonutRing(
-                        progress: tasksDueCount > 0 ? 0.72 : 0.35,
+                        progress: tasksDueCount > 0 ? tasksProgressFraction : 0.35,
                         size: 93,
                         strokeWidth: 6,
                       ),
@@ -1093,9 +1294,9 @@ class _GlanceStepperRow extends StatelessWidget {
                     Text(
                       subtitle,
                       style: const TextStyle(
-                        color: Color(0xFF6A778B),
-                        fontWeight: FontWeight.w400,
-                        fontSize: 11,
+                        color: Color(0xFF17355B),
+                        fontWeight: FontWeight.w500,
+                        fontSize: 10,
                         height: 1.2,
                       ),
                     ),
@@ -1253,78 +1454,89 @@ class _CompanyUpdateCard extends StatelessWidget {
     return Material(
       color: const Color(0xFFFAF6FF),
       borderRadius: BorderRadius.circular(16),
+
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Image.asset(iconAsset, width: 22, height: 22, fit: BoxFit.contain),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'Company Update',
-                      style: TextStyle(color: _primary, fontWeight: FontWeight.w600, fontSize: 16),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: onViewAll,
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF6A778B),
-                      padding: EdgeInsets.zero,
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    child: Row(
-                      children: [
-                        const Text(
-                          'View all ',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w400,
-                            fontSize: 12,
-                            color: Color(0xff6E6E6E),
-                          ),
-                        ),
-                        Icon(Icons.arrow_forward_ios_sharp, size: 13, color: Color(0xff6E6E6E)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(width: 0.5, color: Color(0xffEEEEEE)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Container(
-                      width: 2,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF17355B),
-                        borderRadius: BorderRadius.circular(999),
+                    Image.asset(iconAsset, width: 22, height: 22, fit: BoxFit.contain),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Company Update',
+                        style: TextStyle(
+                          color: _primary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        body,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xff000000),
-                          fontWeight: FontWeight.w400,
-                          fontSize: 12,
-                          height: 1.35,
-                        ),
+                    TextButton(
+                      onPressed: onViewAll,
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF6A778B),
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Row(
+                        children: [
+                          const Text(
+                            'View all ',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w400,
+                              fontSize: 12,
+                              color: Color(0xff6E6E6E),
+                            ),
+                          ),
+                          Icon(Icons.arrow_forward_ios_sharp, size: 13, color: Color(0xff6E6E6E)),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        width: 2,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF17355B),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          body,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xff000000),
+                            fontWeight: FontWeight.w400,
+                            fontSize: 12,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1509,6 +1721,7 @@ class _HomeLeaveBalancesCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Expanded(
+                    flex: 4,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -1536,10 +1749,11 @@ class _HomeLeaveBalancesCard extends StatelessWidget {
                   ),
                   Container(
                     width: 1,
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                    color: Color(0xff17355B).withOpacity(0.5),
+                    margin: const EdgeInsets.symmetric(horizontal: 12),
+                    color: Color(0xff17355B).withOpacity(0.1),
                   ),
                   Expanded(
+                    flex: 5,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,

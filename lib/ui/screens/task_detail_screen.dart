@@ -3,12 +3,15 @@ import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:leavego_app/controllers/app_controller.dart';
 import 'package:leavego_app/models/task_detail_response.dart';
+import 'package:leavego_app/models/tasks_response.dart';
 import 'package:leavego_app/ui/screens/edit_task_screen.dart';
 import 'package:leavego_app/ui/screens/task_activity_log_screen.dart';
 import 'package:leavego_app/ui/theme/app_theme.dart';
 import 'package:leavego_app/ui/widgets/app_back_button.dart';
 import 'package:leavego_app/ui/widgets/app_loader.dart';
 import 'package:leavego_app/ui/widgets/app_scroll_collapse_fab.dart';
+import 'package:leavego_app/services/authenticated_download_service.dart';
+import 'package:leavego_app/services/session_storage.dart';
 import 'package:leavego_app/utils/task_datetime_format.dart';
 
 class TaskDetailScreen extends StatefulWidget {
@@ -65,8 +68,26 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   void _reloadDetail() {
     setState(() {
+      _selectedStatus = null;
       _future = _appController.loadTaskDetail(taskId: widget.taskId);
     });
+  }
+
+  String _assigneeDisplayName(TaskItem task) {
+    if (task.assignments.length == 1) {
+      final user = task.assignments.first.user;
+      if (user != null && user.name.isNotEmpty) return user.name;
+    }
+    return task.assignee?.name ?? '-';
+  }
+
+  String _preferredStatusForUser(TaskItem task, {required bool isAssignee}) {
+    if (isAssignee &&
+        task.myAssignment != null &&
+        task.myAssignment!.status.trim().isNotEmpty) {
+      return task.myAssignment!.status;
+    }
+    return task.status;
   }
 
   String? _toAbsoluteUrl(String? raw) {
@@ -80,8 +101,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     return '$origin/$value';
   }
 
-  Future<void> _openAttachment(String? rawUrl) async {
-    final url = _toAbsoluteUrl(rawUrl);
+  Future<void> _openAttachment(TaskAttachmentItem attachment) async {
+    final url = _toAbsoluteUrl(attachment.fileUrl);
     if (url == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -90,28 +111,53 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       return;
     }
 
-    final uri = Uri.tryParse(url);
-    if (uri == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Invalid attachment URL')));
-      return;
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: AppLoader(size: 32)),
+    );
+
+    final token = await SessionStorage.readToken();
+    if (mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
     }
 
-    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final service = const AuthenticatedDownloadService();
+    var opened = false;
+
+    if (token != null && token.trim().isNotEmpty && mounted) {
+      final navContext = context;
+      opened = await service.openAttachment(
+        url: url,
+        token: token,
+        fileNameHint: attachment.fileName,
+        context: navContext,
+      );
+    }
+
+    if (!opened) {
+      final uri = Uri.tryParse(url);
+      if (uri != null) {
+        opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    }
+
     if (!opened && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Could not open attachment')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open attachment')),
+      );
     }
   }
 
-  Future<void> _updateStatus() async {
-    final status = _selectedStatus;
-    if (status == null || status.isEmpty) return;
+  Future<void> _updateStatus(String fallbackStatus) async {
+    final toSubmit = (_selectedStatus ?? fallbackStatus).trim();
+    if (toSubmit.isEmpty) return;
 
-    final response = await _appController.updateTaskStatus(taskId: widget.taskId, status: status);
+    final response = await _appController.updateTaskStatus(
+      taskId: widget.taskId,
+      status: toSubmit,
+    );
 
     if (!mounted) return;
 
@@ -468,16 +514,18 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             }
 
             final task = detail.task;
-            _selectedStatus ??= task.status;
-            final currentUserId = _appController.meData?.id.toString();
-            final hasUser = currentUserId != null && currentUserId.isNotEmpty;
-            final isCreator = hasUser && (task.assignedBy ?? '') == currentUserId;
-            final isAssignee = hasUser && (task.assignedTo ?? '') == currentUserId;
+            final meId = _appController.meData?.id;
+            final isCreator = meId != null && (task.assignedBy ?? '') == meId.toString();
+            final isAssignee = meId != null && task.isAssignedToUserId(meId);
+            final hasMultipleAssignees = task.assignments.length > 1;
 
-            // Only the creator or the assignee may move a task along.
+            // Creator updates overall task status; assignees update their assignment via /status.
             final statusOptions = isCreator
                 ? _creatorStatusOptions
                 : (isAssignee ? _assigneeStatusOptions : const <String>[]);
+
+            final preferredStatus = _preferredStatusForUser(task, isAssignee: isAssignee);
+            final effectiveStatus = _selectedStatus ?? preferredStatus;
 
             final statusStyle = _statusChipStyle(task.status);
             final priorityColor = _priorityColor(task.priority);
@@ -628,6 +676,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 // const SizedBox(height: 12),
                 _InfoCard(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _DetailRow(
                         iconAsset: _iconAssignedBy,
@@ -635,11 +684,39 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         value: task.creator?.name ?? '-',
                       ),
                       const SizedBox(height: 14),
-                      _DetailRow(
-                        iconAsset: _iconAssignedTo,
-                        label: 'Task Assign to:',
-                        value: task.assignee?.name ?? '-',
-                      ),
+                      if (hasMultipleAssignees) ...[
+                        Row(
+                          children: [
+                            Image.asset(_iconAssignedTo, width: 18, height: 18, fit: BoxFit.contain),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Assigned users',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                color: _primary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        ...task.assignments.map(
+                          (assignment) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _AssignmentAssigneeRow(
+                              assignment: assignment,
+                              isCurrentUser: meId != null && assignment.userId == meId,
+                              toLabel: _toLabel,
+                              statusStyle: _statusChipStyle,
+                            ),
+                          ),
+                        ),
+                      ] else
+                        _DetailRow(
+                          iconAsset: _iconAssignedTo,
+                          label: 'Task Assign to:',
+                          value: _assigneeDisplayName(task),
+                        ),
                     ],
                   ),
                 ),
@@ -675,10 +752,22 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        if (isAssignee && hasMultipleAssignees)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Text(
+                              'Update your assignment status',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: const Color(0xFF6A778B),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
                         DropdownButtonFormField<String>(
-                          initialValue: statusOptions.contains(_selectedStatus)
-                              ? _selectedStatus
-                              : null,
+                          key: ValueKey<String>('status-$effectiveStatus-${task.updatedAt}'),
+                          initialValue: statusOptions.contains(effectiveStatus)
+                              ? effectiveStatus
+                              : statusOptions.first,
                           items: statusOptions
                               .map(
                                 (status) => DropdownMenuItem<String>(
@@ -688,7 +777,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                               )
                               .toList(),
                           onChanged: (value) => setState(() => _selectedStatus = value),
-                          decoration: const InputDecoration(labelText: 'Update status'),
+                          decoration: InputDecoration(
+                            labelText: isAssignee ? 'Your status' : 'Update status',
+                          ),
                         ),
                         const SizedBox(height: 12),
                         SizedBox(
@@ -696,9 +787,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           child: FilledButton(
                             onPressed:
                                 _appController.updateTaskStatusLoading ||
-                                    !statusOptions.contains(_selectedStatus)
+                                    !statusOptions.contains(effectiveStatus)
                                 ? null
-                                : _updateStatus,
+                                : () => _updateStatus(effectiveStatus),
                             style: FilledButton.styleFrom(
                               backgroundColor: _primary,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -728,7 +819,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         attachment: attachment,
                         galleryIcon: _iconGallery,
                         downloadIcon: _iconDownload,
-                        onDownload: () => _openAttachment(attachment.fileUrl),
+                        onDownload: () => _openAttachment(attachment),
                       ),
                     ),
                   ),
@@ -885,6 +976,82 @@ class _MetaChip extends StatelessWidget {
           Text(
             label,
             style: TextStyle(color: Color(0xff6E6E6E), fontWeight: FontWeight.w500, fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AssignmentAssigneeRow extends StatelessWidget {
+  const _AssignmentAssigneeRow({
+    required this.assignment,
+    required this.isCurrentUser,
+    required this.toLabel,
+    required this.statusStyle,
+  });
+
+  final TaskAssignmentItem assignment;
+  final bool isCurrentUser;
+  final String Function(String) toLabel;
+  final ({Color background, Color foreground}) Function(String) statusStyle;
+
+  static const Color _primary = Color(0xFF173559);
+  static const Color _muted = Color(0xFF6E778B);
+
+  @override
+  Widget build(BuildContext context) {
+    final name = assignment.user?.name.isNotEmpty == true
+        ? assignment.user!.name
+        : 'User #${assignment.userId}';
+    final chip = statusStyle(assignment.status);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: isCurrentUser ? const Color(0xFFF0F7FF) : const Color(0xFFFAFBFC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isCurrentUser ? const Color(0xFFB8D4F0) : const Color(0xFFEEF4F2),
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: TextStyle(
+                    color: _primary,
+                    fontWeight: isCurrentUser ? FontWeight.w700 : FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                if (isCurrentUser)
+                  const Text(
+                    'You',
+                    style: TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w500),
+                  ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: chip.background,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              toLabel(assignment.status),
+              style: TextStyle(
+                color: chip.foreground,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
+            ),
           ),
         ],
       ),

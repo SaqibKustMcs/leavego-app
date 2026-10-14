@@ -10,7 +10,6 @@ import 'package:leavego_app/ui/screens/my_leave_requests_screen.dart';
 import 'package:leavego_app/ui/screens/projects_screen.dart';
 import 'package:leavego_app/ui/screens/notification_screen.dart';
 import 'package:leavego_app/ui/widgets/app_bottom_nav_bar.dart';
-import 'package:leavego_app/utils/app_roles.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -42,10 +41,9 @@ class _MainScreenState extends State<MainScreen> {
     _appController = Get.find<AppController>();
     _appController.addListener(_onUpdate);
     _appController.loadUnreadCount();
-    if (_appController.meData == null) {
-      _appController.loadMe();
-    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // _appController.ensureGoogleCalendarReady();
       NotificationNavigationService.flushPending();
       _requestNotificationPermissionAfterNavReady();
     });
@@ -75,15 +73,19 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _onUpdate() {
-    final pending = _appController.pendingMainTabIndex;
-    if (pending != null && mounted) {
-      _appController.clearPendingMainTabIndex();
-      setState(() {
-        _currentIndex = pending.clamp(0, _screens.length - 1);
-      });
-      return;
-    }
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final pending = _appController.pendingMainTabIndex;
+      if (pending != null) {
+        _appController.clearPendingMainTabIndex();
+        setState(() {
+          _currentIndex = pending.clamp(0, _screens.length - 1);
+        });
+        return;
+      }
+      setState(() {});
+    });
   }
 
   @override
@@ -94,6 +96,11 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _onTabSelected(int tappedIndex) async {
     setState(() => _currentIndex = tappedIndex);
+
+    if (tappedIndex == 0) {
+      await _appController.loadMe();
+      return;
+    }
 
     if (tappedIndex == _projectsIndex) {
       await _appController.loadProjects(refresh: true);
@@ -124,10 +131,7 @@ class _MainScreenState extends State<MainScreen> {
     final unread = _appController.unreadCount;
 
     return Scaffold(
-      body: IndexedStack(
-        index: index,
-        children: _screens,
-      ),
+      body: IndexedStack(index: index, children: _screens),
       bottomNavigationBar: AppBottomNavBar(
         currentIndex: index,
         notificationBadgeCount: unread,

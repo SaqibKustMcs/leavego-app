@@ -45,6 +45,7 @@ class ApiService {
     if (!response.success) {
       throw Exception(response.message.isNotEmpty ? response.message : 'Login failed');
     }
+
     if (response.data.token.isEmpty) {
       throw Exception('Token not found in login response');
     }
@@ -743,29 +744,37 @@ class ApiService {
     required String description,
     required String taskType,
     required String priority,
-    required String assignedTo,
+    required List<int> assignedUserIds,
     required String departmentId,
     required String startDate,
     required String startTime,
     required String dueDate,
     required String dueTime,
     required int estimatedHours,
+    List<String> links = const <String>[],
+    List<String> attachmentFilePaths = const <String>[],
   }) async {
+    final body = <String, dynamic>{
+      'title': title,
+      'description': description,
+      'task_type': taskType,
+      'priority': priority,
+      'department_id': departmentId,
+      'start_date': startDate,
+      'start_time': startTime,
+      'due_date': dueDate,
+      'due_time': dueTime,
+      'estimated_hours': estimatedHours,
+    };
+    _applyAssignedUserIds(body, assignedUserIds);
+    final normalizedLinks = _normalizeTaskLinks(links);
+    if (normalizedLinks.isNotEmpty) {
+      body['links'] = normalizedLinks;
+    }
+
     final result = await _dataService.post(
       url: '$baseUrl/tasks',
-      body: <String, dynamic>{
-        'title': title,
-        'description': description,
-        'task_type': taskType,
-        'priority': priority,
-        'assigned_to': assignedTo,
-        'department_id': departmentId,
-        'start_date': startDate,
-        'start_time': startTime,
-        'due_date': dueDate,
-        'due_time': dueTime,
-        'estimated_hours': estimatedHours,
-      },
+      body: body,
       headers: <String, String>{'Authorization': 'Bearer $token'},
     );
 
@@ -780,6 +789,11 @@ class ApiService {
     if (!response.success) {
       throw Exception(response.message.isNotEmpty ? response.message : 'Failed to create task');
     }
+    await _uploadTaskAttachmentsAfterCreate(
+      token: token,
+      taskId: response.taskId,
+      attachmentFilePaths: attachmentFilePaths,
+    );
     return response;
   }
 
@@ -789,28 +803,41 @@ class ApiService {
     required String title,
     required String description,
     required String priority,
-    required String assignedTo,
+    required List<int> assignedUserIds,
     required String startDate,
     required String startTime,
     required String dueDate,
     required String dueTime,
     required int estimatedHours,
+    List<String> links = const <String>[],
+    List<String> attachmentFilePaths = const <String>[],
   }) async {
+    final body = <String, dynamic>{
+      'title': title,
+      'description': description,
+      'task_type': 'project_task',
+      'priority': priority,
+      'start_date': startDate,
+      'due_date': dueDate,
+    };
+    _applyAssignedUserIds(body, assignedUserIds);
+    if (startTime.trim().isNotEmpty) {
+      body['start_time'] = startTime.trim();
+    }
+    if (dueTime.trim().isNotEmpty) {
+      body['due_time'] = dueTime.trim();
+    }
+    if (estimatedHours > 0) {
+      body['estimated_hours'] = estimatedHours;
+    }
+    final normalizedLinks = _normalizeTaskLinks(links);
+    if (normalizedLinks.isNotEmpty) {
+      body['links'] = normalizedLinks;
+    }
+
     final result = await _dataService.post(
       url: '$baseUrl/projects/$projectId/tasks',
-      body: <String, dynamic>{
-        'title': title,
-        'description': description,
-        'priority': priority,
-        'task_type': null,
-        'assigned_to': assignedTo,
-        'department_id': null,
-        'start_date': startDate,
-        'start_time': startTime,
-        'due_date': dueDate,
-        'due_time': dueTime,
-        'estimated_hours': estimatedHours,
-      },
+      body: body,
       headers: <String, String>{'Authorization': 'Bearer $token'},
     );
 
@@ -827,7 +854,32 @@ class ApiService {
         response.message.isNotEmpty ? response.message : 'Failed to create project task',
       );
     }
+    await _uploadTaskAttachmentsAfterCreate(
+      token: token,
+      taskId: response.taskId,
+      attachmentFilePaths: attachmentFilePaths,
+    );
     return response;
+  }
+
+  Future<void> uploadTaskAttachment({
+    required String token,
+    required String taskId,
+    required String filePath,
+  }) async {
+    final result = await _dataService.postMultipart(
+      url: '$baseUrl/tasks/$taskId/attachments',
+      fields: const <String, String>{},
+      filePath: filePath,
+      fileFieldName: 'attachment',
+      headers: <String, String>{'Authorization': 'Bearer $token'},
+    );
+
+    final statusCode = result['statusCode'] as int? ?? 500;
+    final payload = result['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+    if (statusCode < 200 || statusCode >= 300) {
+      throw Exception(_extractMessage(payload) ?? 'Failed to upload task attachment');
+    }
   }
 
   Future<TaskActionResponse> updateTask({
@@ -1209,8 +1261,10 @@ class ApiService {
     int page = 1,
     int perPage = 20,
     String? priority,
+    bool myTasksOnly = true,
   }) async {
     final query = <String>['page=$page', 'per_page=$perPage'];
+    if (myTasksOnly) query.add('my_tasks=1');
     if (priority != null && priority.trim().isNotEmpty) {
       query.add('priority=${Uri.encodeQueryComponent(priority.trim())}');
     }
@@ -1329,6 +1383,46 @@ class ApiService {
     } catch (_) {
       return false;
     }
+  }
+
+  void _applyAssignedUserIds(Map<String, dynamic> body, List<int> assignedUserIds) {
+    final ids = assignedUserIds.where((id) => id > 0).toList();
+    if (ids.isEmpty) {
+      throw Exception('At least one assignee is required.');
+    }
+    body['assigned_user_ids'] = ids;
+    body['assigned_to'] = ids.first;
+  }
+
+  Future<void> _uploadTaskAttachmentsAfterCreate({
+    required String token,
+    required String? taskId,
+    required List<String> attachmentFilePaths,
+  }) async {
+    if (taskId == null || taskId.trim().isEmpty) return;
+    for (final path in attachmentFilePaths) {
+      if (path.trim().isEmpty) continue;
+      await uploadTaskAttachment(token: token, taskId: taskId, filePath: path);
+    }
+  }
+
+  List<String> _normalizeTaskLinks(List<String> links) {
+    final seen = <String>{};
+    final result = <String>[];
+    for (final raw in links) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) continue;
+      final withScheme = trimmed.contains('://') ? trimmed : 'https://$trimmed';
+      final uri = Uri.tryParse(withScheme);
+      if (uri == null || !uri.hasScheme) continue;
+      if (uri.scheme != 'http' && uri.scheme != 'https') continue;
+      if (uri.host.isEmpty) continue;
+      final normalized = uri.toString();
+      if (seen.add(normalized)) {
+        result.add(normalized);
+      }
+    }
+    return result;
   }
 
   String? _extractMessage(Map<String, dynamic> payload) {

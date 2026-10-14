@@ -6,10 +6,8 @@ class TasksResponse {
 
   factory TasksResponse.fromJson(Map<String, dynamic> json) {
     return TasksResponse(
-      success: json['success'] == true,
-      data: TasksPageData.fromJson(
-        (json['data'] as Map<String, dynamic>?) ?? <String, dynamic>{},
-      ),
+      success: _jsonBool(json['success']),
+      data: TasksPageData.fromJson((json['data'] as Map<String, dynamic>?) ?? <String, dynamic>{}),
     );
   }
 }
@@ -66,10 +64,7 @@ class TasksPageData {
       prevPageUrl: json['prev_page_url']?.toString(),
       path: (json['path'] ?? '').toString(),
       links: linksRaw is List
-          ? linksRaw
-                .whereType<Map<String, dynamic>>()
-                .map(TasksPageLink.fromJson)
-                .toList()
+          ? linksRaw.whereType<Map<String, dynamic>>().map(TasksPageLink.fromJson).toList()
           : <TasksPageLink>[],
     );
   }
@@ -91,11 +86,7 @@ class TasksPageData {
 }
 
 class TasksPageLink {
-  const TasksPageLink({
-    required this.url,
-    required this.label,
-    required this.active,
-  });
+  const TasksPageLink({required this.url, required this.label, required this.active});
 
   final String? url;
   final String label;
@@ -105,7 +96,7 @@ class TasksPageLink {
     return TasksPageLink(
       url: json['url']?.toString(),
       label: (json['label'] ?? '').toString(),
-      active: json['active'] == true,
+      active: _jsonBool(json['active']),
     );
   }
 }
@@ -122,6 +113,9 @@ class TaskItem {
     required this.projectId,
     required this.assignedBy,
     required this.assignedTo,
+    required this.assignedUserIds,
+    required this.assignments,
+    required this.myAssignment,
     required this.parentTaskId,
     required this.startDate,
     required this.startTime,
@@ -148,6 +142,9 @@ class TaskItem {
   final String? projectId;
   final String? assignedBy;
   final String? assignedTo;
+  final List<int> assignedUserIds;
+  final List<TaskAssignmentItem> assignments;
+  final TaskAssignmentItem? myAssignment;
   final int? parentTaskId;
   final String? startDate;
   final String? startTime;
@@ -163,7 +160,28 @@ class TaskItem {
   final TaskDepartmentSummary? department;
   final TaskProjectSummary? project;
 
+  List<int> get resolvedAssigneeIds {
+    if (assignedUserIds.isNotEmpty) return assignedUserIds;
+    final fromAssignments = assignments.map((a) => a.userId).where((id) => id > 0).toList();
+    if (fromAssignments.isNotEmpty) return fromAssignments;
+    final legacy = int.tryParse(assignedTo ?? '');
+    return legacy != null && legacy > 0 ? <int>[legacy] : const <int>[];
+  }
+
+  bool isAssignedToUserId(int userId) {
+    if (userId <= 0) return false;
+    if (myAssignment != null && myAssignment!.userId == userId) return true;
+    return resolvedAssigneeIds.contains(userId);
+  }
+
   factory TaskItem.fromJson(Map<String, dynamic> json) {
+    final assignedUserIds = _parseAssignedUserIds(json);
+    final assignmentsRaw = json['assignments'];
+    final assignments = assignmentsRaw is List
+        ? assignmentsRaw.whereType<Map<String, dynamic>>().map(TaskAssignmentItem.fromJson).toList()
+        : <TaskAssignmentItem>[];
+    final myAssignmentRaw = json['my_assignment'];
+
     return TaskItem(
       id: _toInt(json['id']),
       title: (json['title'] ?? '').toString(),
@@ -174,7 +192,12 @@ class TaskItem {
       departmentId: json['department_id']?.toString(),
       projectId: json['project_id']?.toString(),
       assignedBy: json['assigned_by']?.toString(),
-      assignedTo: json['assigned_to']?.toString(),
+      assignedTo: _parseLegacyAssignedTo(json),
+      assignedUserIds: assignedUserIds,
+      assignments: assignments,
+      myAssignment: myAssignmentRaw is Map<String, dynamic>
+          ? TaskAssignmentItem.fromJson(myAssignmentRaw)
+          : null,
       parentTaskId: _toNullableInt(json['parent_task_id']),
       startDate: json['start_date']?.toString(),
       startTime: json['start_time']?.toString(),
@@ -182,7 +205,7 @@ class TaskItem {
       dueTime: json['due_time']?.toString(),
       estimatedHours: _toInt(json['estimated_hours']),
       completionDate: json['completion_date']?.toString(),
-      isSupportingTask: json['is_supporting_task'] == true,
+      isSupportingTask: _jsonBool(json['is_supporting_task']),
       createdAt: json['created_at']?.toString(),
       updatedAt: json['updated_at']?.toString(),
       creator: json['creator'] is Map<String, dynamic>
@@ -192,14 +215,36 @@ class TaskItem {
           ? TaskPersonSummary.fromJson(json['assignee'] as Map<String, dynamic>)
           : null,
       department: json['department'] is Map<String, dynamic>
-          ? TaskDepartmentSummary.fromJson(
-              json['department'] as Map<String, dynamic>,
-            )
+          ? TaskDepartmentSummary.fromJson(json['department'] as Map<String, dynamic>)
           : null,
       project: json['project'] is Map<String, dynamic>
           ? TaskProjectSummary.fromJson(json['project'] as Map<String, dynamic>)
           : null,
     );
+  }
+
+  static String? _parseLegacyAssignedTo(Map<String, dynamic> json) {
+    final assignedTo = json['assigned_to'];
+    if (assignedTo == null) return null;
+    if (assignedTo is List) {
+      if (assignedTo.isEmpty) return null;
+      return _toInt(assignedTo.first).toString();
+    }
+    return assignedTo.toString();
+  }
+
+  static List<int> _parseAssignedUserIds(Map<String, dynamic> json) {
+    final canonical = json['assigned_user_ids'];
+    if (canonical is List) {
+      return canonical.map(_toInt).where((id) => id > 0).toList();
+    }
+    final assignedTo = json['assigned_to'];
+    if (assignedTo is List) {
+      return assignedTo.map(_toInt).where((id) => id > 0).toList();
+    }
+    final single = _toNullableInt(assignedTo);
+    if (single != null && single > 0) return <int>[single];
+    return const <int>[];
   }
 
   static int _toInt(dynamic value) {
@@ -213,6 +258,35 @@ class TaskItem {
     if (value is int) return value;
     if (value is String) return int.tryParse(value);
     return null;
+  }
+}
+
+class TaskAssignmentItem {
+  const TaskAssignmentItem({
+    required this.id,
+    required this.userId,
+    required this.status,
+    required this.completionDate,
+    required this.user,
+  });
+
+  final int id;
+  final int userId;
+  final String status;
+  final String? completionDate;
+  final TaskPersonSummary? user;
+
+  factory TaskAssignmentItem.fromJson(Map<String, dynamic> json) {
+    final userRaw = json['user'];
+    return TaskAssignmentItem(
+      id: _assignmentJsonInt(json['id']),
+      userId: _assignmentJsonInt(
+        json['user_id'] ?? (userRaw is Map ? userRaw['id'] : null),
+      ),
+      status: (json['status'] ?? '').toString(),
+      completionDate: json['completion_date']?.toString(),
+      user: userRaw is Map<String, dynamic> ? TaskPersonSummary.fromJson(userRaw) : null,
+    );
   }
 }
 
@@ -256,4 +330,17 @@ class TaskProjectSummary {
       name: (json['name'] ?? '').toString(),
     );
   }
+}
+
+int _assignmentJsonInt(dynamic value) {
+  if (value is int) return value;
+  if (value is String) return int.tryParse(value) ?? 0;
+  return 0;
+}
+
+bool _jsonBool(dynamic value) {
+  if (value is bool) return value;
+  if (value is int) return value != 0;
+  final raw = value?.toString().trim().toLowerCase() ?? '';
+  return raw == '1' || raw == 'true' || raw == 'yes';
 }

@@ -43,7 +43,7 @@ class DataService {
       debugPrint('API HEADERS => $headers');
     }
     if (body != null) {
-      debugPrint('API DATA => $body');
+      debugPrint('API DATA => ${_redactLogBody(body)}');
     }
   }
 
@@ -55,7 +55,54 @@ class DataService {
   }) {
     debugPrint('API RESPONSE <= [$method] $url');
     debugPrint('API STATUS <= $statusCode');
-    debugPrint('API BODY <= $rawBody');
+    _logFullBody('API BODY <=', rawBody);
+  }
+
+  /// [debugPrint] truncates long strings; emit the full payload in chunks.
+  void _logFullBody(String prefix, String rawBody) {
+    if (rawBody.isEmpty) {
+      debugPrint('$prefix (empty)');
+      return;
+    }
+
+    var body = rawBody;
+    try {
+      final decoded = jsonDecode(rawBody);
+      body = const JsonEncoder.withIndent('  ').convert(decoded);
+    } catch (_) {}
+
+    const chunkSize = 800;
+    if (body.length <= chunkSize) {
+      debugPrint('$prefix $body');
+      return;
+    }
+
+    debugPrint('$prefix (${body.length} chars, ${body.length ~/ chunkSize + 1} parts)');
+    for (var i = 0; i < body.length; i += chunkSize) {
+      final end = (i + chunkSize < body.length) ? i + chunkSize : body.length;
+      debugPrint('$prefix [${i ~/ chunkSize + 1}] ${body.substring(i, end)}');
+    }
+  }
+
+  Object _redactLogBody(Object body) {
+    if (body is! Map) return body;
+    final redacted = Map<String, dynamic>.from(body);
+    for (final key in const [
+      'password',
+      'current_password',
+      'new_password',
+      'confirm_password',
+      'token',
+      'access_token',
+      'refresh_token',
+      'server_auth_code',
+      'authorization_code',
+    ]) {
+      if (redacted.containsKey(key)) {
+        redacted[key] = '[REDACTED]';
+      }
+    }
+    return redacted;
   }
 
   Map<String, dynamic> _decodePayload(String rawBody) {
@@ -207,6 +254,8 @@ class DataService {
     required Map<String, String> fields,
     required String? filePath,
     required String fileFieldName,
+    List<String> additionalFilePaths = const <String>[],
+    String additionalFileFieldName = 'attachments[]',
     Map<String, String>? headers,
   }) async {
     _ensureOnline();
@@ -218,6 +267,10 @@ class DataService {
       request.files.add(
         await http.MultipartFile.fromPath(fileFieldName, filePath),
       );
+    }
+    for (final path in additionalFilePaths) {
+      if (path.trim().isEmpty) continue;
+      request.files.add(await http.MultipartFile.fromPath(additionalFileFieldName, path));
     }
 
     _logRequest(
